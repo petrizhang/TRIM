@@ -1,2 +1,2 @@
-# top
-*T*riangle Inequality based Distance Comparison *Op*erator
+# TOP
+***T***riangle Inequality based Distance Comparison ***Op***erator
