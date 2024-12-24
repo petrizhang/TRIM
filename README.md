@@ -17,8 +17,9 @@ and <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faiss</a> In
 ## Try It Now: 10x Search Performance with 3 Lines of Code
 
 ### Install
-
+Ensure that there is a cxx17 compatible compiler installed in your system, and execute:
 ```bash
+pip install pybind11
 pip install topnn
 ```
 
