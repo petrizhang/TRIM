@@ -22,7 +22,7 @@ and <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faiss</a> In
 pip install topnn
 ```
 
-### Approximate Nearest Neighbor Search over HNSW
+### Boosted Approximate Nearest Neighbor Search over HNSW
 ```python
 python -c """import topnn
 searcher = topnn.create_fast_searcher("hnswlib", topnn.sample_hnsw_path, topnn.sample_pq_path)
