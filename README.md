@@ -6,27 +6,28 @@ Faster ANN and Range Search for Hnswlib and Faiss Almost for Free
 ### Approximate Nearest Neighbor Search over HNSW
 ```python
 import topnn
-hnsw = topnn.read_hnsw_with_pq("hnswlib_index_path", "faiss_index_pq_path")
-hnsw.fast_ann_search([0.1, 0.2, 0.3, ... ], k=10, gamma=0.8)
+searcher = topnn.create_fast_searcher("hnswlib", "hnswlib_index_path", "faiss_index_pq_path")
+searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10)
 ```
 
 ### Range Search over HNSW
 ```python
 import topnn
-hnsw = topnn.read_hnsw_with_pq("hnswlib_index_path", "faiss_index_pq_path")
-hnsw.fast_range_search([0.1, 0.2, 0.3, ... ], radious=3, gamma=0.8)
+searcher = topnn.create_hnsw_searcher("hnswlib_index_path", "faiss_index_pq_path")
+searcher.range_search([0.1, 0.2, 0.3, ... ], radious=3)
 ```
 
 ### Approximate Nearest Neighbor Search over Faiss IVFPQ-RFLAT
 ```python
 import topnn
-ivfpq_rflat = topnn.read_ivfpq_rflat("faiss_index_ivf_pq_refine_flat_path")
-ivfpq_rflat.fast_ann_search([0.1, 0.2, 0.3, ... ], k=10, gamma=0.8)
+searcher = topnn.create_fast_searcher("ivfpq_rflat", "faiss_index_ivf_pq_refine_flat_path")
+searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10)
 ```
 
 ### Range Search over Faiss IVFPQ-RFLAT
 ```python
 import topnn
-ivfpq_rflat = topnn.read_ivfpq_rflat("faiss_index_ivf_pq_refine_flat_path")
-ivfpq_rflat.fast_range_search([0.1, 0.2, 0.3, ... ], radious=3, gamma=0.8)
+import topnn
+searcher = topnn_fast_searcher("ivfpq_rflat", "faiss_index_ivf_pq_refine_flat_path")
+searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10)
 ```
