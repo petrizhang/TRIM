@@ -9,7 +9,7 @@ and <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faiss</a> In
 ---
 
 - ✅ Up to 10x faster similarity search than HNSWLIB and FAISS
-- ✅ Full-fledged top-k and range search support for HNSW and IVFPQ-RFLAT
+- ✅ Full-fledged top-k and range search support for HNSW and IVFPQ
 - ✅ Transparent speedup without changing your index files
 - ✅ Header-only library with easy-to-use python bindings
 
