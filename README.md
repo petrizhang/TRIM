@@ -1,2 +1,2 @@
 # TOP
-***T***riangle Inequality based Distance Comparison ***Op***erator
+Faster ANN and Range Search for HNSWLIB and Faiss (almost) for Free
