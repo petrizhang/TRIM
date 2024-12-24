@@ -27,7 +27,6 @@ D, I = searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10)
 ### Range Search over Faiss IVFPQ-RFLAT
 ```python
 import topnn
-import topnn
 searcher = topnn.create_fast_searcher("ivfpq_rflat", "faiss_index_ivf_pq_refine_flat_path")
 D, I = searcher.range_search([0.1, 0.2, 0.3, ... ], radious=5)
 ```
