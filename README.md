@@ -1,6 +1,6 @@
 <h1 align="center">TOP</h1>
 <h3 align="center">
-Smaller & <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faster</a> Full-Fledged Similarity Search </br>
+Smaller & <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faster</a> & Full-Fledged Similarity Search </br>
   Over <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Hnswlib</a>
 and <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faiss</a> Indexes (almost) for Free
 </h3>
