@@ -25,12 +25,12 @@
 #include <vector>
 
 #include "top/faiss/FaissAssert.h"
-#include "top/faiss_index.h"
+#include "top/faiss/Index.h"
 #include "top/memory.h"
 
 namespace top {
-
 using namespace faiss;
+
 struct ProductQuantizer {
   size_t d;          ///< size of the input vectors
   size_t code_size;  ///< bytes per indexed vector

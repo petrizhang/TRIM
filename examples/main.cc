@@ -19,7 +19,7 @@
 
 #include <iostream>
 
-#include "top/faiss_index_read.h"
+#include "top/index_read.h"
 #include "top/pq.h"
 
 int main() {
