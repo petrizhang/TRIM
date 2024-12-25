@@ -19,18 +19,34 @@
 
 #include <iostream>
 
-#include "top/faiss_index_read.h"
+#include "top/core/dict.h"
+#include "top/core/object.h"
 #include "top/hnsw/hnsw.h"
 #include "top/pq.h"
+#include "top/read_faiss_index.h"
 
 int main() {
+  using top::Dict;
   using top::Index;
   using top::IndexPQ;
   using top::IndexType;
+  using top::Object;
 
   const char* index_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
   std::unique_ptr<IndexPQ> index_pq = top::read_index_pq(index_path);
 
-  std::cout << (int64_t)index_pq.get() << "\n";
+  std::cout << reinterpret_cast<int64_t>(index_pq.get()) << "\n";
+
+  Object x(true), y(1.3123), z(static_cast<int64_t>(6)), q("this is a string");
+  std::cout << "x: " << x.to_string() << "\n";
+  std::cout << "y: " << y.to_string() << "\n";
+  std::cout << "z: " << z.to_string() << "\n";
+  std::cout << "q: " << q.to_string() << "\n";
+
+  Dict dict;
+  dict.put("test", Object("a"));
+  dict.put("ef", Object(1));
+  dict.put("gamma", Object(3.1415926535459));
+  std::cout << dict.to_string() << "\n";
   return 0;
 }

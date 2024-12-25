@@ -20,8 +20,6 @@
 #pragma once
 
 #include <cstdint>
-#include <cstdlib>
-#include <memory>
 #include <vector>
 
 #include "top/core/memory.h"

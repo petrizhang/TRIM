@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#pragma once
 
 #include "top/faiss/MetricType.h"
 #include "top/faiss/io.h"
@@ -104,7 +105,7 @@ inline std::unique_ptr<typename IndexTypeDispatch<t>::type> checked_cast(
   return std::unique_ptr<ChildType>(static_cast<ChildType*>(ptr.release()));
 }
 
-void check_index_pq_compatibility(IndexPQ* pq) {
+inline void check_index_pq_compatibility(const IndexPQ* pq) {
   FAISS_THROW_IF_MSG(pq->do_polysemous_training,
                      "TOP usage error: IndexPQ must not have polysemous training enabled");
   FAISS_THROW_IF_MSG(pq->metric_type != MetricType::METRIC_L2,

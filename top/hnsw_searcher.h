@@ -17,20 +17,18 @@
  * under the License.
  */
 
-#pragma once
+#include "top/searcher.h"
 
 namespace top {
 
-inline constexpr size_t upper_div(size_t x, size_t y) { return (x + y - 1) / y; }
+struct HNSWSearcher : Searcher {
+  virtual void ann_search() override{
 
-inline constexpr int64_t do_align(int64_t x, int64_t align) {
-  return (x + align - 1) / align * align;
-}
+  };
 
-#define FAST_BEGIN            \
-  _Pragma("GCC push_options") \
-      _Pragma("GCC optimize (\"unroll-loops,associative-math,no-signed-zeros\")")
+  virtual void range_search() override{
 
-#define FAST_END _Pragma("GCC pop_options")
+  };
+};
 
 }  // namespace top
