@@ -24,9 +24,9 @@
 #include <memory>
 #include <vector>
 
+#include "top/core/memory.h"
 #include "top/faiss/FaissAssert.h"
 #include "top/faiss/Index.h"
-#include "top/memory.h"
 
 namespace top {
 using namespace faiss;
@@ -68,7 +68,7 @@ struct IndexPQ : Index {
   std::vector<float, align_alloc<float>> centroid_distances;
 
   /******************************************************
-   * Polysemous codes implementation, not supported by TOP
+   * Polysemous codes implementation, currently not supported by TOP
    ******************************************************/
   bool do_polysemous_training;  ///< false = standard PQ
 

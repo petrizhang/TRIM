@@ -17,20 +17,22 @@
  * under the License.
  */
 
-#include <iostream>
+#pragma once
 
-#include "top/faiss_index_read.h"
-#include "top/hnsw/hnsw.h"
-#include "top/pq.h"
+#include <string>
 
-int main() {
-  using top::Index;
-  using top::IndexPQ;
-  using top::IndexType;
+namespace top {
 
-  const char* index_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
-  std::unique_ptr<IndexPQ> index_pq = top::read_index_pq(index_path);
+inline constexpr size_t upper_div(size_t x, size_t y) { return (x + y - 1) / y; }
 
-  std::cout << (int64_t)index_pq.get() << "\n";
-  return 0;
+inline constexpr int64_t do_align(int64_t x, int64_t align) {
+  return (x + align - 1) / align * align;
 }
+
+#define FAST_BEGIN            \
+  _Pragma("GCC push_options") \
+      _Pragma("GCC optimize (\"unroll-loops,associative-math,no-signed-zeros\")")
+
+#define FAST_END _Pragma("GCC pop_options")
+
+}  // namespace top

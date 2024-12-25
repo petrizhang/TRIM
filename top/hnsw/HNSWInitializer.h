@@ -1,0 +1,74 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+#pragma once
+
+#include <cstdlib>
+#include <fstream>
+#include <vector>
+
+#include "top/core/memory.h"
+
+namespace top {
+
+struct HNSWInitializer {
+  int N, K;
+  int ep;
+  std::vector<int> levels;
+  std::vector<std::vector<int, align_alloc<int>>> lists;
+  HNSWInitializer() = default;
+
+  explicit HNSWInitializer(int n, int K = 0) : N(n), K(K), levels(n), lists(n) {}
+
+  HNSWInitializer(const HNSWInitializer& rhs) = default;
+
+  int at(int level, int u, int i) const { return lists[u][(level - 1) * K + i]; }
+
+  int& at(int level, int u, int i) { return lists[u][(level - 1) * K + i]; }
+
+  const int* edges(int level, int u) const { return lists[u].data() + (level - 1) * K; }
+
+  int* edges(int level, int u) { return lists[u].data() + (level - 1) * K; }
+
+  template <typename Pool, typename Computer>
+  void initialize(Pool& pool, const Computer& computer) const {
+    int u = ep;
+    auto cur_dist = computer(u);
+    for (int level = levels[u]; level > 0; --level) {
+      bool changed = true;
+      while (changed) {
+        changed = false;
+        const int* list = edges(level, u);
+        for (int i = 0; i < K && list[i] != -1; ++i) {
+          int v = list[i];
+          auto dist = computer(v);
+          if (dist < cur_dist) {
+            cur_dist = dist;
+            u = v;
+            changed = true;
+          }
+        }
+      }
+    }
+    pool.insert(u, cur_dist);
+    pool.vis.set(u);
+  }
+};
+
+}  // namespace top

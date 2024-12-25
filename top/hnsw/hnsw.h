@@ -17,20 +17,34 @@
  * under the License.
  */
 
-#include <iostream>
+#pragma once
 
-#include "top/faiss_index_read.h"
-#include "top/hnsw/hnsw.h"
-#include "top/pq.h"
+#include <chrono>
+#include <memory>
 
-int main() {
-  using top::Index;
-  using top::IndexPQ;
-  using top::IndexType;
+#include "top/core/common.h"
+#include "top/hnsw/graph.h"
+#include "top/hnsw/HNSWInitializer.h"
+#include "top/hnswlib/hnswalg.h"
+#include "top/hnswlib/hnswlib.h"
+#include "top/hnswlib/space_ip.h"
+#include "top/hnswlib/space_l2.h"
 
-  const char* index_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
-  std::unique_ptr<IndexPQ> index_pq = top::read_index_pq(index_path);
+namespace top {
 
-  std::cout << (int64_t)index_pq.get() << "\n";
-  return 0;
-}
+struct HNSW {
+  int nb, dim;
+  int M, efConstruction;
+  std::unique_ptr<hnswlib::HierarchicalNSW<float>> hnsw = nullptr;
+  std::unique_ptr<hnswlib::SpaceInterface<float>> space = nullptr;
+
+  Graph<int> final_graph;
+
+  HNSW(int dim, int R = 32, int L = 200) : dim(dim), M(R / 2), efConstruction(L) {
+    space = std::make_unique<hnswlib::L2Space>(dim);
+  }
+
+  Graph<int> GetGraph()  { return final_graph; }
+};
+
+}  // namespace top

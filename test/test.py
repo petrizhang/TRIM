@@ -1,8 +1,9 @@
 import numpy as np
 import faiss
+import hnswlib
 
 # Set the random seed for reproducible results
-np.random.seed(0)
+np.random.seed(42)
 
 # Generate 1000 vectors with 256 dimensions from a standard normal distribution
 vectors = np.random.randn(1000, 256).astype('float32')

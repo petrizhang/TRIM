@@ -100,15 +100,15 @@ template <IndexType t>
 inline std::unique_ptr<typename IndexTypeDispatch<t>::type> checked_cast(
     std::unique_ptr<Index> ptr) {
   using ChildType = typename IndexTypeDispatch<t>::type;
-  FAISS_ASSERT(ptr->index_type == t);
+  FAISS_THROW_IF_NOT(ptr->index_type == t);
   return std::unique_ptr<ChildType>(static_cast<ChildType*>(ptr.release()));
 }
 
 void check_index_pq_compatibility(IndexPQ* pq) {
-  FAISS_ASSERT_MSG(!pq->do_polysemous_training,
-                   "TOP usage error: IndexPQ must not have polysemous training enabled.");
-  FAISS_ASSERT_MSG(pq->metric_type == MetricType::METRIC_L2,
-                   "TOP usage error: only METRIC_L2 is supported.");
+  FAISS_THROW_IF_MSG(pq->do_polysemous_training,
+                     "TOP usage error: IndexPQ must not have polysemous training enabled");
+  FAISS_THROW_IF_MSG(pq->metric_type != MetricType::METRIC_L2,
+                     "TOP usage error: only METRIC_L2 is supported");
 }
 
 }  // namespace detail
