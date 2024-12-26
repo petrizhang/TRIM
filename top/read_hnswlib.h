@@ -16,32 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 #pragma once
 
-#include <chrono>
 #include <memory>
-
-#include "top/hnsw/graph.h"
 #include "top/hnswlib/hnswalg.h"
-#include "top/hnswlib/hnswlib.h"
 #include "top/hnswlib/space_l2.h"
 
 namespace top {
 
-struct HNSW {
-  int nb, dim;
-  int M, efConstruction;
-  std::unique_ptr<hnswlib::HierarchicalNSW<float>> hnsw = nullptr;
-  std::unique_ptr<hnswlib::SpaceInterface<float>> space = nullptr;
-
-  Graph<int> final_graph;
-
-  HNSW(int dim, int R = 32, int L = 200) : dim(dim), M(R / 2), efConstruction(L) {
-    space = std::make_unique<hnswlib::L2Space>(dim);
-  }
-
-  Graph<int> get_graph() const { return final_graph; }
-};
+std::unique_ptr<hnswlib::HierarchicalNSW<float>> read_hnswlib(const std::string & path) {
+    std::make_unique<hnswlib::HierarchicalNSW<float>>(path);
+}
 
 }  // namespace top

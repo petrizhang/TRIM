@@ -25,7 +25,7 @@
 
 #include <cstdint>
 
-namespace glass {
+namespace top {
 
 inline float reduce_add_f32x16(__m512 x) {
   auto sumh = _mm256_add_ps(_mm512_castps512_ps256(x), _mm512_extractf32x8_ps(x, 1));
@@ -42,6 +42,6 @@ inline int32_t reduce_add_i32x16(__m512i x) {
   return _mm_extract_epi32(tmp2, 0) + _mm_extract_epi32(tmp2, 1);
 }
 
-}  // namespace glass
+}  // namespace top
 
 #endif

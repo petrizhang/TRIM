@@ -22,8 +22,10 @@
 #include "top/core/dict.h"
 #include "top/core/object.h"
 #include "top/hnsw/hnsw.h"
-#include "top/pq.h"
-#include "top/read_faiss_index.h"
+#include "top/core/pq.h"
+#include "top/read_faiss.h"
+#include "top/searcher.h"
+#include "top/hnsw_searcher.h"
 
 int main() {
   using top::Dict;

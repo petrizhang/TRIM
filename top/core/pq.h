@@ -33,12 +33,12 @@ struct ProductQuantizer {
   size_t d;          ///< size of the input vectors
   size_t code_size;  ///< bytes per indexed vector
 
-  size_t M;      ///< number of subquantizers
+  size_t M;      ///< number of sub-quantizers
   size_t nbits;  ///< number of bits per quantization index
 
   // values derived from the above
-  size_t dsub;  ///< dimensionality of each subvector
-  size_t ksub;  ///< number of centroids for each subquantizer
+  size_t dsub;  ///< dimensionality of each sub-vector
+  size_t ksub;  ///< number of centroids for each sub-quantizer
 
   /// Centroid table, size M * ksub * dsub.
   /// Layout: (M, ksub, dsub)

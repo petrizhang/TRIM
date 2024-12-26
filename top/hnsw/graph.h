@@ -25,9 +25,9 @@
 #include <memory>
 #include <vector>
 
-#include "top/hnsw/HNSWInitializer.h"
-#include "top/core/memory.h"
 #include "top/core/distance.h"
+#include "top/core/memory.h"
+#include "top/hnsw/HNSWInitializer.h"
 
 namespace top {
 
@@ -89,6 +89,40 @@ struct Graph {
         pool.insert(ep, computer(ep));
       }
     }
+  }
+
+  void save(const std::string& filename) const {
+    static_assert(std::is_same_v<node_t, int32_t>);
+    std::ofstream writer(filename.c_str(), std::ios::binary);
+    int nep = eps.size();
+    writer.write((char*)&nep, 4);
+    writer.write((char*)eps.data(), nep * 4);
+    writer.write((char*)&N, 4);
+    writer.write((char*)&K, 4);
+    writer.write((char*)data, N * K * 4);
+    if (initializer) {
+      initializer->save(writer);
+    }
+    printf("Graph Saving done\n");
+  }
+
+  void load(const std::string& filename) {
+    static_assert(std::is_same_v<node_t, int32_t>);
+    free(data);
+    std::ifstream reader(filename.c_str(), std::ios::binary);
+    int nep;
+    reader.read((char*)&nep, 4);
+    eps.resize(nep);
+    reader.read((char*)eps.data(), nep * 4);
+    reader.read((char*)&N, 4);
+    reader.read((char*)&K, 4);
+    data = (node_t*)alloc2M((size_t)N * K * 4);
+    reader.read((char*)data, N * K * 4);
+    if (reader.peek() != EOF) {
+      initializer = std::make_unique<HNSWInitializer>(N);
+      initializer->load(reader);
+    }
+    printf("Graph Loding done\n");
   }
 };
 

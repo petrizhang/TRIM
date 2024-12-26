@@ -69,6 +69,30 @@ struct HNSWInitializer {
     pool.insert(u, cur_dist);
     pool.vis.set(u);
   }
+
+  void load(std::ifstream& reader) {
+    reader.read((char*)&N, 4);
+    reader.read((char*)&K, 4);
+    reader.read((char*)&ep, 4);
+    for (int i = 0; i < N; ++i) {
+      int cur;
+      reader.read((char*)&cur, 4);
+      levels[i] = cur / K;
+      lists[i].assign(cur, -1);
+      reader.read((char*)lists[i].data(), cur * 4);
+    }
+  }
+
+  void save(std::ofstream& writer) const {
+    writer.write((char*)&N, 4);
+    writer.write((char*)&K, 4);
+    writer.write((char*)&ep, 4);
+    for (int i = 0; i < N; ++i) {
+      int cur = levels[i] * K;
+      writer.write((char*)&cur, 4);
+      writer.write((char*)lists[i].data(), cur * 4);
+    }
+  }
 };
 
 }  // namespace top

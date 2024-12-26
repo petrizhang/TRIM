@@ -21,7 +21,7 @@
 #include "top/faiss/MetricType.h"
 #include "top/faiss/io.h"
 #include "top/faiss/io_macros.h"
-#include "top/pq.h"
+#include "top/core/pq.h"
 
 namespace top {
 
