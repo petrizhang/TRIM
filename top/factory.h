@@ -18,15 +18,43 @@
  */
 #pragma once
 
+#include <string>
+
 #include "top/detail/core/common.h"
+#include "top/detail/io/read_hnswlib.h"
 #include "top/detail/searcher/hnsw_searcher.h"
 
 namespace top {
 
-inline std::unique_ptr<HNSWSearcher> create_hnsw_searcher(const Graph<int>& graph,
-                                                          const std::string& metric) {
-  FAISS_THROW_IF_MSG(metric != "L2", "only L2 metric is supported now");
-  return std::make_unique<HNSWSearcher>(graph, FP32Quantizer());
+namespace detail {
+
+#define TOP_GET_REQUIRED_OPTION_TO(type, options, name, variable)          \
+  do {                                                                 \
+    std::optional<type> name##_opt = options.checked_get<type>(#name); \
+    if (!name##_opt.has_value()) {                                     \
+      TOP_THROW_FMT("option `%s` is required", #name);                 \
+    }                                                                  \
+    variable = name##_opt.value();                                     \
+  } while (false)
+
+std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
+  std::string path;
+  int dim;
+  TOP_GET_REQUIRED_OPTION_TO(std::string, options, hnswlib_index_path, path);
+  TOP_GET_REQUIRED_OPTION_TO(int, options, dim, dim);
+  return nullptr;
 }
+
+}  // namespace detail
+
+struct SearcherBuilder {
+  virtual ~SearcherBuilder() = default;
+  Dict options;
+  SearcherBuilder& set(const std::string& name, const Object& value) {
+    options.put(name, value);
+    return *this;
+  }
+  std::unique_ptr<Searcher> build() { return nullptr; }
+};
 
 }  // namespace top

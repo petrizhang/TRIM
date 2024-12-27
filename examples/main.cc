@@ -26,6 +26,7 @@
 #include "top/detail/io/read_hnswlib.h"
 #include "top/detail/quant/pq.h"
 #include "top/detail/searcher/hnsw_searcher.h"
+#include "top/factory.h"
 
 int main() {
   using top::Dict;
@@ -34,6 +35,8 @@ int main() {
   using top::detail::Index;
   using top::detail::IndexPQ;
   using top::detail::IndexType;
+
+  top::detail::build_hnsw_searcher(Dict());
 
   const char* index_pa_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
   const char* hnswlib_path = "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin";

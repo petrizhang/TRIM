@@ -22,6 +22,7 @@
 #include <unordered_map>
 
 #include "top/common/object.h"
+#include "top/common/top_assert.h"
 
 namespace top {
 
@@ -30,12 +31,46 @@ struct Dict {
 
   void put(const std::string& key, const Object& value) { mapping[key] = value; }
 
-  std::optional<Object> get(const std::string& key) {
+  std::optional<Object> get(const std::string& key) const {
     auto it = mapping.find(key);
     if (it == mapping.end()) {
       return {};
     }
     return std::make_optional(it->second);
+  }
+
+  template <typename T>
+  std::optional<T> checked_get(const std::string& key) const {
+    auto it = mapping.find(key);
+    if (it == mapping.end()) {
+      return {};
+    }
+    const Object& obj = it->second;
+    if constexpr (std::is_same_v<T, bool>) {
+      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::BOOL_TYPE, "%s must be of boolean type",
+                           key.c_str());
+      return obj.get_bool();
+    }
+
+    if constexpr (std::is_integral_v<T>) {
+      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::INTEGER_TYPE, "%s must be of integer type",
+                           key.c_str());
+      return obj.get_integer();
+    }
+
+    if constexpr (std::is_floating_point_v<T>) {
+      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::DOUBLE_TYPE, "%s must be of double type",
+                           key.c_str());
+      return obj.get_double();
+    }
+
+    if constexpr (std::is_same_v<T, std::string>) {
+      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::STRING_TYPE, "%s must be of string type",
+                           key.c_str());
+      return obj.get_string();
+    }
+
+    TOP_THROW_MSG("reading unsupported type from dict");
   }
 
   std::string to_string() const {
