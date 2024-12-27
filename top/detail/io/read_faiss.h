@@ -18,10 +18,12 @@
  */
 #pragma once
 
-#include "top/faiss/MetricType.h"
-#include "top/faiss/io.h"
-#include "top/faiss/io_macros.h"
-#include "top/core/pq.h"
+#include <memory>
+
+#include "top/detail/faiss/MetricType.h"
+#include "top/detail/faiss/io.h"
+#include "top/detail/faiss/io_macros.h"
+#include "top/detail/quant/pq.h"
 
 namespace top {
 
@@ -112,8 +114,6 @@ inline void check_index_pq_compatibility(const IndexPQ* pq) {
                      "TOP usage error: only METRIC_L2 is supported");
 }
 
-}  // namespace detail
-
 inline std::unique_ptr<IndexPQ> read_index_pq(const char* fname) {
   std::unique_ptr<Index> index = detail::read_index(fname);
   std::unique_ptr<IndexPQ> index_pq = detail::checked_cast<IndexType::INDEX_PQ>(std::move(index));
@@ -121,4 +121,5 @@ inline std::unique_ptr<IndexPQ> read_index_pq(const char* fname) {
   return index_pq;
 }
 
+}  // namespace detail
 }  // namespace top

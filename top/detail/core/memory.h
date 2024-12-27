@@ -26,6 +26,7 @@
 #include <cstring>
 
 namespace top {
+namespace detail {
 
 template <typename T>
 struct align_alloc {
@@ -63,4 +64,5 @@ inline void* alloc64B(size_t nbytes) {
   return p;
 }
 
-}  // namespace glass
+}  // namespace detail
+}  // namespace top

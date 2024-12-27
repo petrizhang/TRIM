@@ -18,9 +18,10 @@
  */
 #pragma once
 
+#include <optional>
 #include <unordered_map>
 
-#include "top/core/object.h"
+#include "top/common/object.h"
 
 namespace top {
 
@@ -29,12 +30,12 @@ struct Dict {
 
   void put(const std::string& key, const Object& value) { mapping[key] = value; }
 
-  Object get(const std::string& key) {
+  std::optional<Object> get(const std::string& key) {
     auto it = mapping.find(key);
     if (it == mapping.end()) {
-      return Object();
+      return {};
     }
-    return it->second;
+    return std::make_optional(it->second);
   }
 
   std::string to_string() const {

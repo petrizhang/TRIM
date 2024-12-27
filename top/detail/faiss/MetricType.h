@@ -10,7 +10,7 @@
 #ifndef FAISS_METRIC_TYPE_H
 #define FAISS_METRIC_TYPE_H
 
-#include "top/faiss/platform_macros.h"
+#include "top/detail/faiss/platform_macros.h"
 
 namespace faiss {
 

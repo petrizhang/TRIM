@@ -25,11 +25,12 @@
 #include <memory>
 #include <vector>
 
-#include "top/core/distance.h"
-#include "top/core/memory.h"
-#include "top/hnsw/HNSWInitializer.h"
+#include "top/detail/core/distance.h"
+#include "top/detail/core/memory.h"
+#include "top/detail/hnsw/HNSWInitializer.h"
 
 namespace top {
+namespace detail {
 
 constexpr int EMPTY_ID = -1;
 
@@ -126,4 +127,5 @@ struct Graph {
   }
 };
 
+}  // namespace detail
 }  // namespace top

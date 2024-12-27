@@ -26,6 +26,7 @@
 #include <cstdint>
 
 namespace top {
+namespace detail {
 
 inline float reduce_add_f32x8(__m256 x) {
   auto sumh = _mm_add_ps(_mm256_castps256_ps128(x), _mm256_extractf128_ps(x, 1));
@@ -48,6 +49,7 @@ inline int32_t reduce_add_i16x16(__m256i x) {
   return _mm_extract_epi32(tmp2, 0) + _mm_extract_epi32(tmp2, 1);
 }
 
+}  // namespace detail
 }  // namespace top
 
 #endif

@@ -20,11 +20,12 @@
 
 #include <memory>
 
-#include "top/hnsw/graph.h"
-#include "top/hnswlib/hnswalg.h"
-#include "top/hnswlib/space_l2.h"
+#include "top/detail/hnsw/graph.h"
+#include "top/detail/hnswlib/hnswalg.h"
+#include "top/detail/hnswlib/space_l2.h"
 
 namespace top {
+namespace detail {
 
 Graph<int> read_hnswlib(const std::string& path, int dim) {
   auto space = std::make_unique<hnswlib::L2Space>(dim);
@@ -34,7 +35,7 @@ Graph<int> read_hnswlib(const std::string& path, int dim) {
   Graph<int> final_graph;
   int M = hnsw->M_;
   final_graph.init(nb, hnsw->M_);
-  
+
   // TODO: parallelize it
   for (int i = 0; i < nb; ++i) {
     int* edges = (int*)hnsw->get_linklist0(i);
@@ -63,4 +64,5 @@ Graph<int> read_hnswlib(const std::string& path, int dim) {
   return final_graph;
 }
 
+}  // namespace detail
 }  // namespace top

@@ -19,40 +19,41 @@
 
 #include <iostream>
 
-#include "top/core/dict.h"
-#include "top/core/object.h"
-#include "top/hnsw/hnsw.h"
-#include "top/core/pq.h"
-#include "top/read_faiss.h"
-#include "top/searcher.h"
-#include "top/hnsw_searcher.h"
-#include "top/read_hnswlib.h"
+#include "top/common/dict.h"
+#include "top/common/object.h"
+#include "top/common/searcher.h"
+#include "top/detail/io/read_faiss.h"
+#include "top/detail/io/read_hnswlib.h"
+#include "top/detail/quant/pq.h"
+#include "top/detail/searcher/hnsw_searcher.h"
 
 int main() {
   using top::Dict;
-  using top::Index;
-  using top::IndexPQ;
-  using top::IndexType;
   using top::Object;
+  using top::detail::Graph;
+  using top::detail::Index;
+  using top::detail::IndexPQ;
+  using top::detail::IndexType;
 
   const char* index_pa_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
   const char* hnswlib_path = "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin";
-  top::Graph<int> graph = top::read_hnswlib(hnswlib_path, 256);
+  Graph<int> graph = top::detail::read_hnswlib(hnswlib_path, 256);
 
-  std::unique_ptr<IndexPQ> index_pq = top::read_index_pq(index_pa_path);
+  std::unique_ptr<IndexPQ> index_pq = top::detail::read_index_pq(index_pa_path);
 
   std::cout << reinterpret_cast<int64_t>(index_pq.get()) << "\n";
 
-  Object x(true), y(1.3123), z(static_cast<int64_t>(6)), q("this is a string");
+  Object x(true), y(1.3123), z(6), q("this is a string");
   std::cout << "x: " << x.to_string() << "\n";
   std::cout << "y: " << y.to_string() << "\n";
   std::cout << "z: " << z.to_string() << "\n";
   std::cout << "q: " << q.to_string() << "\n";
 
   Dict dict;
-  dict.put("test", Object("a"));
-  dict.put("ef", Object(1));
-  dict.put("gamma", Object(3.1415926535459));
+  dict.put("test", "a");
+  dict.put("ef", 1);
+  dict.put("gamma", 3.1415926535459);
+  dict.put("use_bounded_queue", false);
   std::cout << dict.to_string() << "\n";
   return 0;
 }

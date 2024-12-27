@@ -7,7 +7,7 @@
 
 // -*- c++ -*-
 
-#include "top/faiss/MetricType.h"
+#include "top/detail/faiss/MetricType.h"
 
 namespace faiss {
 

@@ -18,31 +18,34 @@
  */
 #pragma once
 
-#include "top/f32_quant.h"
-#include "top/hnsw/graph.h"
-#include "top/neighbor.h"
-#include "top/searcher.h"
+#include <atomic>
+
+#include "top/common/searcher.h"
+#include "top/detail/hnsw/graph.h"
+#include "top/detail/hnsw/neighbor.h"
+#include "top/detail/quant/f32_quant.h"
 
 namespace top {
-
+namespace detail {
 struct HNSWSearcher : Searcher {
+  /* Index parameters */
   int d;                   ///< vector dimension
   int nb;                  ///< number of base vectors
   const Graph<int> graph;  ///< the HNSW graph
-  FP32Quantizer quant;
-  // Search parameters
+  FP32Quantizer quant;     ///< Distance computer
+  /* Search parameters */
   int ef = 32;  ///< search parameter
   bool use_bounded_queue = false;
-  // Profile
+  /* Profile */
   bool enable_profile = false;
-  // Memory prefetch parameters
+  /* Memory prefetch parameters */
   int po = 1;
   int pl = 1;
   const int graph_po;
 
-  explicit HNSWSearcher(const Graph<int>& graph) : graph(graph), graph_po(graph.K / 16) {}
+  explicit HNSWSearcher(const Graph<int>& graph, FP32Quantizer quant)
+      : graph(graph), quant(quant), graph_po(graph.K / 16) {}
   ~HNSWSearcher() override = default;
-
   void set_data(const float* data, int n, int dim) override;
   void ann_search(const float* q, int k, int* dst) const override;
   void range_search(const float* q, float radius, int* dst) const override;
@@ -52,7 +55,6 @@ struct HNSWSearcher : Searcher {
 
   template <typename Computer>
   void ann_search_bounded(searcher::LinearPool<float>& pool, const Computer& computer) const;
-
   template <typename Computer>
   void ann_search_unbounded(searcher::LinearPool<float>& pool, const Computer& computer) const;
 };
@@ -68,19 +70,23 @@ inline void HNSWSearcher::ann_search(const float* q, int k, int* dst) const {
 }
 
 inline void HNSWSearcher::range_search(const float* q, float radius, int* dst) const {
-  FAISS_THROW_MSG("not implemented error");
+  TOP_THROW_MSG("not implemented error");
 }
 
 inline void HNSWSearcher::set(const std::string& key, Object value) {
   if (key == "ef") {
-    FAISS_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE, "ef must be an integer");
+    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE, "`ef` must be an integer");
     ef = static_cast<int>(value.get_integer());
+  } else if (key == "use_bounded_queue") {
+    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
+                         "`use_bounded_queue` must be a boolean value");
+    use_bounded_queue = value.get_bool();
+  } else {
+    TOP_THROW_FMT("unknown parameter %s", key.c_str());
   }
-
-  FAISS_THROW_FMT("unknown parameter %s", key.c_str());
 }
 
-inline void HNSWSearcher::optimize(int num_threads) { FAISS_THROW_MSG("not implemented error"); }
+inline void HNSWSearcher::optimize(int num_threads) { TOP_THROW_MSG("not implemented error"); }
 
 inline Dict HNSWSearcher::get_profile() const { return {}; }
 
@@ -114,21 +120,19 @@ void HNSWSearcher::ann_search_bounded(searcher::LinearPool<float>& pool,
 }
 
 template <typename Computer>
-void HNSWSearcher::ann_search_unbounded(searcher::LinearPool<float>& seeds,
+void HNSWSearcher::ann_search_unbounded(searcher::LinearPool<float>& results,
                                         const Computer& computer) const {
-  searcher::UnboundedMaxHeap<float> results;
   searcher::UnboundedMaxHeap<float> candidates;
-     searcher::Bitset<> visited(nb);
+  searcher::Bitset<uint64_t>& visited = results.vis;
 
-  for (auto& neighbor : seeds.data_) {
-    results.emplace(neighbor.id, neighbor.distance);
+  for (auto& neighbor : results.data_) {
     candidates.emplace(neighbor.id, -neighbor.distance);
   }
 
   while (!candidates.empty()) {
     const searcher::Neighbor<> nearest_cand = candidates.top();
     const float furthest_d = results.top().distance;
-    int u = nearest_cand.id;
+    const int u = nearest_cand.id;
     const float cand_d = -nearest_cand.distance;
     if (furthest_d < cand_d) {
       break;
@@ -157,15 +161,13 @@ void HNSWSearcher::ann_search_unbounded(searcher::LinearPool<float>& seeds,
       }
       visited.set(v);
       auto cur_dist = computer(v);
-
-      if (cur_dist < cand_d || results.size() < ef) {
+      if (cur_dist < furthest_d) {
         candidates.emplace(v, -cur_dist);
-        results.emplace(v, -cur_dist);
-        if (results.size() > ef) {
-          results.pop();
-        }
+        results.insert(v, cur_dist);
       }
     }
   }
 }
+
+}  // namespace detail
 }  // namespace top

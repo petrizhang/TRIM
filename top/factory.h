@@ -18,21 +18,15 @@
  */
 #pragma once
 
-#include <string>
-
-#include "top/core/dict.h"
-#include "top/core/object.h"
+#include "top/detail/core/common.h"
+#include "top/detail/searcher/hnsw_searcher.h"
 
 namespace top {
 
-struct Searcher {
-  virtual ~Searcher() = default;
-  virtual void set_data(const float* data, int n, int dim) = 0;
-  virtual void ann_search(const float* q, int k, int* dst) const = 0;
-  virtual void range_search(const float* q, float radius, int* dst) const = 0;
-  virtual void set(const std::string& key, Object value) = 0;
-  virtual void optimize(int num_threads) = 0;
-  virtual Dict get_profile() const = 0;
-};
+inline std::unique_ptr<HNSWSearcher> create_hnsw_searcher(const Graph<int>& graph,
+                                                          const std::string& metric) {
+  FAISS_THROW_IF_MSG(metric != "L2", "only L2 metric is supported now");
+  return std::make_unique<HNSWSearcher>(graph, FP32Quantizer());
+}
 
 }  // namespace top

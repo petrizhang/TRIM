@@ -22,11 +22,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "top/core/memory.h"
-#include "top/faiss/FaissAssert.h"
-#include "top/faiss/Index.h"
+#include "top/common/top_assert.h"
+#include "top/detail/core/memory.h"
+#include "top/detail/faiss/Index.h"
 
 namespace top {
+namespace detail {
 using namespace faiss;
 
 struct ProductQuantizer {
@@ -46,12 +47,12 @@ struct ProductQuantizer {
 
   void set_derived_values() {
     // quite a few derived values
-    FAISS_THROW_IF_NOT_MSG(
+    TOP_THROW_IF_NOT_MSG(
         d % M == 0,
         "The dimension of the vector (d) should be a multiple of the number of subquantizers (M)");
     dsub = d / M;
     code_size = (nbits * M + 7) / 8;
-    FAISS_THROW_IF_MSG(nbits > 24, "nbits larger than 24 is not practical.");
+    TOP_THROW_IF_MSG(nbits > 24, "nbits larger than 24 is not practical.");
     ksub = 1 << nbits;
     centroids.resize(d * ksub);
   }
@@ -90,4 +91,5 @@ struct IndexPQ : Index {
   int polysemous_ht;
 };
 
+}  // namespace detail
 }  // namespace top

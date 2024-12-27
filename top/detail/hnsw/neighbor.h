@@ -8,9 +8,10 @@
 #include <queue>
 #include <vector>
 
-#include "top/core/memory.h"
+#include "top/detail/core/memory.h"
 
 namespace top {
+namespace detail {
 
 namespace searcher {
 
@@ -173,6 +174,8 @@ struct LinearPool {
     return true;
   }
 
+  const Neighbor<dist_t>& top() { return data_[size_ - 1]; }
+
   int pop() {
     set_checked(data_[cur_].id);
     int pre = cur_;
@@ -277,4 +280,5 @@ inline int insert_into_pool(Neighbor* addr, int K, Neighbor nn) {
   return right;
 }
 
+}  // namespace detail
 }  // namespace top

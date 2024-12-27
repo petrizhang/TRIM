@@ -23,9 +23,10 @@
 #include <fstream>
 #include <vector>
 
-#include "top/core/memory.h"
+#include "top/detail/core/memory.h"
 
 namespace top {
+namespace detail {
 
 struct HNSWInitializer {
   int N, K;
@@ -95,4 +96,5 @@ struct HNSWInitializer {
   }
 };
 
+}  // namespace detail
 }  // namespace top

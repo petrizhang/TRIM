@@ -27,11 +27,12 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "top/core/avx2.h"
-#include "top/core/avx512.h"
-#include "top/core/common.h"
+#include "top/detail/core/avx2.h"
+#include "top/detail/core/avx512.h"
+#include "top/detail/core/common.h"
 
 namespace top {
+namespace detail {
 
 template <typename T1, typename T2, typename U, typename... Params>
 using Dist = U (*)(const T1*, const T2*, int, Params...);
@@ -342,4 +343,5 @@ inline int32_t L2SqrSQ4(const uint8_t* x, const uint8_t* y, int d) {
 #endif
 }
 
+}  // namespace detail
 }  // namespace top

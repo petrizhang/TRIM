@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 
-#include "top/faiss/FaissAssert.h"
-#include "top/faiss/io.h"
+#include "top/detail/faiss/FaissAssert.h"
+#include "top/detail/faiss/io.h"
 
 namespace faiss {
 

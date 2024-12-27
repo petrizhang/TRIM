@@ -21,7 +21,7 @@
 #include <any>
 #include <cstdint>
 
-#include "top/faiss/FaissAssert.h"
+#include "top/common/top_assert.h"
 
 namespace top {
 
@@ -31,34 +31,36 @@ struct Object {
   ObjectType type;
   std::any value;
 
-  explicit Object() { this->type = NULL_TYPE; }
+  Object(std::nullptr_t) { this->type = NULL_TYPE; }
 
-  explicit Object(bool value) {
+  Object() { this->type = NULL_TYPE; }
+
+  Object(bool value) {
     this->type = BOOL_TYPE;
     this->value = value;
   }
 
-  explicit Object(int64_t value) {
+  Object(int64_t value) {
     this->type = INTEGER_TYPE;
     this->value = value;
   }
 
-  explicit Object(int32_t value) {
+  Object(int32_t value) {
     this->type = INTEGER_TYPE;
     this->value = static_cast<int64_t>(value);
   }
 
-  explicit Object(double value) {
+  Object(double value) {
     this->type = DOUBLE_TYPE;
     this->value = value;
   }
 
-  explicit Object(std::string value) {
+  Object(std::string value) {
     this->type = STRING_TYPE;
     this->value = std::move(value);
   }
 
-  explicit Object(const char* value) {
+  Object(const char* value) {
     this->type = STRING_TYPE;
     this->value = std::string(value);
   }
@@ -66,22 +68,22 @@ struct Object {
   [[nodiscard]] bool is_null() const { return type == NULL_TYPE; }
 
   [[nodiscard]] bool get_bool() const {
-    FAISS_ASSERT(type == BOOL_TYPE);
+    TOP_ASSERT(type == BOOL_TYPE);
     return std::any_cast<bool>(value);
   }
 
   [[nodiscard]] int64_t get_integer() const {
-    FAISS_ASSERT(type == INTEGER_TYPE);
+    TOP_ASSERT(type == INTEGER_TYPE);
     return std::any_cast<int64_t>(value);
   }
 
   [[nodiscard]] double get_double() const {
-    FAISS_ASSERT(type == DOUBLE_TYPE);
+    TOP_ASSERT(type == DOUBLE_TYPE);
     return std::any_cast<double>(value);
   }
 
   [[nodiscard]] std::string get_string() const {
-    FAISS_ASSERT(type == STRING_TYPE);
+    TOP_ASSERT(type == STRING_TYPE);
     return std::any_cast<std::string>(value);
   }
 
@@ -98,7 +100,7 @@ struct Object {
       case STRING_TYPE:
         return get_string();
       default:
-        throw faiss::FaissException("unexpected code path");
+        throw top::TopException("unexpected code path");
     }
   }
 };

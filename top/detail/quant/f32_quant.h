@@ -1,10 +1,11 @@
 #pragma once
 
-#include "top/core/common.h"
-#include "top/core/distance.h"
-#include "top/core/memory.h"
+#include "top/detail/core/common.h"
+#include "top/detail/core/distance.h"
+#include "top/detail/core/memory.h"
 
 namespace top {
+namespace detail {
 
 struct FP32Quantizer {
   using data_type = float;
@@ -54,4 +55,5 @@ struct FP32Quantizer {
   auto get_computer(const float* query) const { return Computer(*this, query); }
 };
 
+}
 }  // namespace top

@@ -16,21 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 #pragma once
+
+#include <string>
+
+#include "top/common/dict.h"
+#include "top/common/object.h"
 
 namespace top {
 
-inline constexpr size_t upper_div(size_t x, size_t y) { return (x + y - 1) / y; }
-
-inline constexpr int64_t do_align(int64_t x, int64_t align) {
-  return (x + align - 1) / align * align;
-}
-
-#define FAST_BEGIN            \
-  _Pragma("GCC push_options") \
-      _Pragma("GCC optimize (\"unroll-loops,associative-math,no-signed-zeros\")")
-
-#define FAST_END _Pragma("GCC pop_options")
+struct Searcher {
+  virtual ~Searcher() = default;
+  virtual void set_data(const float* data, int n, int dim) = 0;
+  virtual void ann_search(const float* q, int k, int* dst) const = 0;
+  virtual void range_search(const float* q, float radius, int* dst) const = 0;
+  virtual void set(const std::string& key, Object value) = 0;
+  virtual void optimize(int num_threads) = 0;
+  virtual Dict get_profile() const = 0;
+};
 
 }  // namespace top
