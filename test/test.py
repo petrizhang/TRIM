@@ -30,3 +30,14 @@ faiss.write_index(index, "index_pq.bin")
 
 # Print information about the saved index
 print("Index saved to 'index_pq.bin'")
+
+
+# 加载索引
+index = hnswlib.Index(space='l2', dim=256)
+
+# 初始化索引，设置最大元素数量、ef_construction和M
+index.init_index(max_elements=1000, ef_construction=200, M=16)
+
+# 将数据添加到索引中
+index.add_items(vectors)
+index.save_index("hnswlib.bin")

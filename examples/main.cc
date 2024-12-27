@@ -26,6 +26,7 @@
 #include "top/read_faiss.h"
 #include "top/searcher.h"
 #include "top/hnsw_searcher.h"
+#include "top/read_hnswlib.h"
 
 int main() {
   using top::Dict;
@@ -34,8 +35,11 @@ int main() {
   using top::IndexType;
   using top::Object;
 
-  const char* index_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
-  std::unique_ptr<IndexPQ> index_pq = top::read_index_pq(index_path);
+  const char* index_pa_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
+  const char* hnswlib_path = "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin";
+  top::Graph<int> graph = top::read_hnswlib(hnswlib_path, 256);
+
+  std::unique_ptr<IndexPQ> index_pq = top::read_index_pq(index_pa_path);
 
   std::cout << reinterpret_cast<int64_t>(index_pq.get()) << "\n";
 

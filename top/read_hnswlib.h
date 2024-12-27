@@ -19,13 +19,48 @@
 #pragma once
 
 #include <memory>
+
+#include "top/hnsw/graph.h"
 #include "top/hnswlib/hnswalg.h"
 #include "top/hnswlib/space_l2.h"
 
 namespace top {
 
-std::unique_ptr<hnswlib::HierarchicalNSW<float>> read_hnswlib(const std::string & path) {
-    std::make_unique<hnswlib::HierarchicalNSW<float>>(path);
+Graph<int> read_hnswlib(const std::string& path, int dim) {
+  auto space = std::make_unique<hnswlib::L2Space>(dim);
+  auto hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(space.get(), path, false, 0, false);
+  int64_t nb = hnsw->cur_element_count;
+
+  Graph<int> final_graph;
+  int M = hnsw->M_;
+  final_graph.init(nb, hnsw->M_);
+  
+  // TODO: parallelize it
+  for (int i = 0; i < nb; ++i) {
+    int* edges = (int*)hnsw->get_linklist0(i);
+    for (int j = 1; j <= edges[0]; ++j) {
+      final_graph.at(i, j - 1) = edges[j];
+    }
+  }
+
+  auto initializer = std::make_unique<HNSWInitializer>(nb, M);
+  initializer->ep = hnsw->enterpoint_node_;
+  for (int i = 0; i < nb; ++i) {
+    int level = hnsw->element_levels_[i];
+    initializer->levels[i] = level;
+    if (level > 0) {
+      initializer->lists[i].assign(level * M, -1);
+      for (int j = 1; j <= level; ++j) {
+        int* edges = (int*)hnsw->get_linklist(i, j);
+        for (int k = 1; k <= edges[0]; ++k) {
+          initializer->at(j, i, k - 1) = edges[k];
+        }
+      }
+    }
+  }
+
+  final_graph.initializer = std::move(initializer);
+  return final_graph;
 }
 
 }  // namespace top
