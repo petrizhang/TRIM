@@ -34,6 +34,7 @@ namespace detail {
  */
 std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
   using std::string;
+  using std::optional;
   using top::constants::TOP_DIM;
   using top::constants::TOP_EF;
   using top::constants::TOP_HNSWLIB_INDEX_PATH;
@@ -43,11 +44,10 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
   int dim = options.require<int>(TOP_DIM);
   string hnswlib_index_path = options.require<string>(TOP_HNSWLIB_INDEX_PATH);
   string metric = options.require<string>(TOP_METRIC);
-
   if (metric != TOP_METRIC_L2) {
     TOP_THROW_MSG("only L2 metric is supported now");
   }
-
+  
   auto m = top::constants::metric_map(metric);
   Graph<int> graph = read_hnswlib(m, hnswlib_index_path, dim);
   return std::make_unique<HNSWSearcher>(graph, FP32Quantizer());
@@ -61,8 +61,8 @@ struct SearcherBuilder {
 
   SearcherBuilder(const std::string& index_type) : index_type(index_type) {}
 
-  SearcherBuilder& set(const std::string& name, const Object& value) {
-    options.put(name, value);
+  SearcherBuilder& set(const std::string& key, const Object& value) {
+    options.put(key, value);
     return *this;
   }
 
@@ -71,7 +71,7 @@ struct SearcherBuilder {
     if (index_type == TOP_HNSW) {
       return detail::build_hnsw_searcher(options);
     }
-    TOP_THROW_FMT("cannot create searcher for unsupported index type %s", index_type);
+    TOP_THROW_FMT("cannot create searcher for unsupported index type %s", index_type.c_str());
   }
 };
 

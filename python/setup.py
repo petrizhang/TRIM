@@ -44,7 +44,7 @@ def has_flag(compiler, flagname):
     the specified compiler.
     """
     import tempfile
-    with tempfile.NamedTemporaryFile('w', suffix='.cpp') as f:
+    with tempfile.NamedTemporaryFile('w', suffix='.cc') as f:
         f.write('int main (int argc, char **argv) { return 0; }')
         try:
             compiler.compile([f.name], extra_postargs=[flagname])
@@ -58,27 +58,20 @@ def cpp_flag(compiler):
     """
     if has_flag(compiler, '-std=c++17'):
         return '-std=c++17'
-    elif has_flag(compiler, '-std=c++14'):
-        return '-std=c++14'
-    elif has_flag(compiler, '-std=c++11'):
-        return '-std=c++11'
     else:
-        raise RuntimeError('Unsupported compiler -- at least C++11 support '
+        raise RuntimeError('Unsupported compiler -- at least C++17 support '
                            'is needed!')
 
 
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'unix': "-Ofast -lrt -march=native -fpic -fopenmp -ftree-vectorize -ftree-vectorizer-verbose=0".split()
+        'unix': "-O3 -lrt -march=native -fpic -ftree-vectorize -ftree-vectorizer-verbose=0".split()
     }
 
     link_opts = {
-        'unix': [],
+        'unix': ["-pthread"],
     }
-
-    c_opts['unix'].append("-fopenmp")
-    link_opts['unix'].extend(['-fopenmp', '-pthread'])
 
     def build_extensions(self):
         ct = self.compiler.compiler_type
@@ -96,9 +89,7 @@ class BuildExt(build_ext):
         for ext in self.extensions:
             ext.extra_compile_args.extend(opts)
             ext.extra_link_args.extend(self.link_opts.get(ct, []))
-
         build_ext.build_extensions(self)
-
 
 setup(
     name='topnn',

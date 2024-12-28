@@ -20,7 +20,6 @@
 
 #include <string>
 
-#include "top/common/dict.h"
 #include "top/common/object.h"
 
 namespace top {
