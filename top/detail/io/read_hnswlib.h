@@ -20,6 +20,7 @@
 
 #include <memory>
 
+#include "top/common/top_assert.h"
 #include "top/detail/hnsw/graph.h"
 #include "top/detail/hnswlib/hnswalg.h"
 #include "top/detail/hnswlib/space_l2.h"
@@ -27,7 +28,9 @@
 namespace top {
 namespace detail {
 
-Graph<int> read_hnswlib(const std::string& path, int dim) {
+Graph<int> read_hnswlib(Metric metric, const std::string& path, int dim) {
+  TOP_THROW_IF_NOT_MSG(metric == Metric::L2, "only L2 metric is supported now");
+
   auto space = std::make_unique<hnswlib::L2Space>(dim);
   auto hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(space.get(), path, false, 0, false);
   int64_t nb = hnsw->cur_element_count;

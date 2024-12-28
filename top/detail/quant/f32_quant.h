@@ -1,6 +1,6 @@
 #pragma once
 
-#include "top/detail/core/common.h"
+#include "top/common/common.h"
 #include "top/detail/core/distance.h"
 #include "top/detail/core/memory.h"
 
@@ -55,5 +55,5 @@ struct FP32Quantizer {
   auto get_computer(const float* query) const { return Computer(*this, query); }
 };
 
-}
+}  // namespace detail
 }  // namespace top

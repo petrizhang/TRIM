@@ -29,7 +29,7 @@
 
 #include "top/detail/core/avx2.h"
 #include "top/detail/core/avx512.h"
-#include "top/detail/core/common.h"
+#include "top/common/common.h"
 
 namespace top {
 namespace detail {
