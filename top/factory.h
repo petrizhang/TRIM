@@ -33,25 +33,22 @@ namespace detail {
  * Optional options: `ef`, `use_bounded_queue`,
  */
 std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
-  using std::string;
-  using std::optional;
-  using top::constants::TOP_DIM;
-  using top::constants::TOP_EF;
-  using top::constants::TOP_HNSWLIB_INDEX_PATH;
-  using top::constants::TOP_METRIC;
-  using top::constants::TOP_METRIC_L2;
+  namespace constants = top::constants;
 
-  int dim = options.require<int>(TOP_DIM);
-  string hnswlib_index_path = options.require<string>(TOP_HNSWLIB_INDEX_PATH);
-  string metric = options.require<string>(TOP_METRIC);
-  if (metric != TOP_METRIC_L2) {
+  int dim = options.require<int>(constants::TOP_DIM);
+  std::string hnswlib_index_path = options.require<std::string>(constants::TOP_HNSWLIB_INDEX_PATH);
+  std::string metric = options.require<std::string>(constants::TOP_METRIC);
+  if (metric != constants::TOP_METRIC_L2) {
     TOP_THROW_MSG("only L2 metric is supported now");
   }
+  auto searcher = std::make_unique<HNSWSearcher>();
   
-  auto m = top::constants::metric_map(metric);
-  Graph<int> graph = read_hnswlib(m, hnswlib_index_path, dim);
-  FP32Quantizer quant(dim);
-  return std::make_unique<HNSWSearcher>(graph, quant);
+  searcher->owned_space = std::make_unique<hnswlib::L2Space>(dim);
+  auto m = constants::metric_map(metric);
+  std::unique_ptr<hnswlib::HierarchicalNSW<float>> index =
+      read_hnswlib(searcher->owned_space.get(), m, hnswlib_index_path, dim);
+  searcher->owned_index = std::move(index);
+  return searcher;
 }
 
 }  // namespace detail

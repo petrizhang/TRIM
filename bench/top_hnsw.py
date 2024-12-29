@@ -12,7 +12,6 @@ class Algorithm(BaseANN):
         self.dim = dim
         self.p = hnswlib.Index(space=self.metric, dim=dim)
         self.searcher: topnn.Searcher = None
-        self.X = None
 
     def fit(self, X):
         assert len(X[0]) == self.dim
@@ -25,10 +24,9 @@ class Algorithm(BaseANN):
         self.p.add_items(np.asarray(X), data_labels)
         self.p.set_num_threads(1)
 
-    def set_query_arguments(self, ef, use_bounded_queue=False):
+    def set_query_arguments(self, ef):
         assert self.searcher is not None
         self.searcher.set("ef", ef)
-        self.searcher.set("use_bounded_queue", use_bounded_queue)
 
     def query(self, v, n):
         # print(np.expand_dims(v,axis=0).shape)

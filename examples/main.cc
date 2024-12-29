@@ -54,6 +54,7 @@ std::vector<float> random_matrix(int n_row, int n_col) {
 int main() {
   int dim = 16;
   int nb = 1000;
+  int ef = 64;
   const char* save_path = "./hnswlib.test.bin";
 
   // Build hnswlib index
@@ -65,30 +66,36 @@ int main() {
     hnsw.addPoint(&base.at(i), i);
   }
   hnsw.saveIndex(save_path);
+  hnsw.setEf(ef);
   std::cout << "Index saved to " << save_path << "\n";
+  auto hnswlib_knn = hnsw.searchKnnCloserFirst(&base.at(0), 10);
+  for (auto x : hnswlib_knn) {
+    std::cout << x.second << ",";
+  }
+  std::cout << "\n";
 
   // Search hnswlib index with top
   std::cout << "Start to load hnswlib index with TOP...\n";
-  std::unique_ptr<top::Searcher> searcher =
-      top::SearcherBuilder(top::constants::TOP_HNSW)
-          .set("hnswlib_index_path", "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin")
-          .set("dim", dim)
-          .set("metric", "L2")
-          .build();
+  std::unique_ptr<top::Searcher> searcher = top::SearcherBuilder(top::constants::TOP_HNSW)
+                                                .set("hnswlib_index_path", save_path)
+                                                .set("dim", dim)
+                                                .set("metric", "L2")
+                                                .build();
   std::cout << "Index loaded.\n";
 
   constexpr const int k = 10;
   std::vector<int> knn(k);
   const float* data = base.data();
   searcher->set_data(data, nb, dim);
-  searcher->set("use_bounded_queue", true);
+  searcher->set("ef", ef);
+
   searcher->ann_search(&base.at(0), 10, knn.data());
   for (auto x : knn) {
     std::cout << x << ",";
   }
   std::cout << "\n";
 
-  searcher->set("use_bounded_queue", false);
+  searcher->set("use_hnswlib", true);
   searcher->ann_search(&base.at(0), 10, knn.data());
   for (auto x : knn) {
     std::cout << x << ",";

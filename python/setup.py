@@ -66,7 +66,7 @@ def cpp_flag(compiler):
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'unix': "-Ofast -lrt -march=native -mavx2 -fpic -ftree-vectorize -ftree-vectorizer-verbose=0".split()
+        'unix': "-O3 -march=native".split()
     }
 
     link_opts = {

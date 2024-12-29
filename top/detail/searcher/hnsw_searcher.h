@@ -18,33 +18,36 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <atomic>
+#include <memory>
+#include <queue>
 
 #include "top/common/searcher.h"
-#include "top/detail/hnsw/graph.h"
-#include "top/detail/hnsw/neighbor.h"
-#include "top/detail/quant/f32_quant.h"
+#include "top/detail/hnswlib/hnswalg.h"
 
 namespace top {
 namespace detail {
-struct HNSWSearcher : Searcher {
-  /* Index parameters */
-  int d;                   ///< vector dimension
-  int nb;                  ///< number of base vectors
-  const Graph<int> graph;  ///< the HNSW graph
-  FP32Quantizer quant;     ///< Distance computer
-  /* Search parameters */
-  int ef = 32;  ///< search parameter
-  bool use_bounded_queue = false;
-  /* Profile */
-  bool enable_profile = false;
-  /* Memory prefetch parameters */
-  int po = 1;
-  int pl = 1;
-  const int graph_po;
+using Space = hnswlib::SpaceInterface<float>;
+using HnswlibIndex = hnswlib::HierarchicalNSW<float>;
+using CompareByFirst = HnswlibIndex::CompareByFirst;
+using VisitedList = hnswlib::VisitedList;
+using dist_t = float;
+using labeltype = hnswlib::labeltype;
+using tableint = hnswlib::tableint;
+using vl_type = hnswlib::vl_type;
+using linklistsizeint = hnswlib::linklistsizeint;
+using ResultQueue =
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        HnswlibIndex::CompareByFirst>;
 
-  explicit HNSWSearcher(const Graph<int>& graph, FP32Quantizer quant)
-      : graph(graph), quant(quant), graph_po(graph.K / 16) {}
+struct HNSWSearcher : Searcher {
+  std::unique_ptr<Space> owned_space;
+  std::unique_ptr<HnswlibIndex> owned_index;
+  bool use_hnswlib = false;
+  size_t ef = 32;
+
+  HNSWSearcher() = default;
   ~HNSWSearcher() override = default;
   void set_data(const float* data, int n, int dim) override;
   void ann_search(const float* q, int k, int* dst) const override;
@@ -53,29 +56,26 @@ struct HNSWSearcher : Searcher {
   void optimize(int num_threads) override;
   Dict get_profile() const override;
 
-  template <typename Computer>
-  void ann_search_bounded(searcher::LinearPool<float>& pool, const Computer& computer) const;
-  template <typename Computer>
-  void ann_search_unbounded(searcher::LinearPool<float>& pool, const Computer& computer) const;
+  void _index_ann_search(const void* query_data, size_t k, int* dst) const;
+  ResultQueue _index_ann_search_base_layer(tableint ep_id, const void* data_point, size_t ef) const;
 };
 
-inline void HNSWSearcher::set_data(const float* data, int n, int dim) {
-  this->d = dim;
-  this->nb = n;
-  quant.train(data, n);
-}
+inline void HNSWSearcher::set_data(const float* data, int n, int dim) { return; }
 
 inline void HNSWSearcher::ann_search(const float* q, int k, int* dst) const {
-  TOP_THROW_IF_MSG(quant.codes == nullptr, "data not set");
-  const auto computer = quant.get_computer(q);
-  searcher::LinearPool<float> pool(nb, std::max(k, ef), k);
-  graph.initialize_search(pool, computer);
-  if (use_bounded_queue) {
-    ann_search_bounded(pool, computer);
+  if (use_hnswlib) {
+    owned_index->setEf(ef);
+    auto ret = owned_index->searchKnn(q, k);
+    {
+      size_t sz = ret.size();
+      while (!ret.empty()) {
+        dst[--sz] = ret.top().second;
+        ret.pop();
+      }
+    }
   } else {
-    ann_search_unbounded(pool, computer);
+    _index_ann_search(q, k, dst);
   }
-  quant.reorder(pool, q, dst, k);
 }
 
 inline void HNSWSearcher::range_search(const float* q, float radius, int* dst) const {
@@ -86,10 +86,9 @@ inline void HNSWSearcher::set(const std::string& key, Object value) {
   if (key == "ef") {
     TOP_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE, "`ef` must be an integer");
     ef = static_cast<int>(value.get_integer());
-  } else if (key == "use_bounded_queue") {
-    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
-                         "`use_bounded_queue` must be a boolean value");
-    use_bounded_queue = value.get_bool();
+  } else if (key == "use_hnswlib") {
+    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE, "`ef` must be an integer");
+    use_hnswlib = value.get_bool();
   } else {
     TOP_THROW_FMT("unknown parameter %s", key.c_str());
   }
@@ -99,85 +98,148 @@ inline void HNSWSearcher::optimize(int num_threads) { TOP_THROW_MSG("not impleme
 
 inline Dict HNSWSearcher::get_profile() const { return {}; }
 
-template <typename Computer>
-void HNSWSearcher::ann_search_bounded(searcher::LinearPool<float>& pool,
-                                      const Computer& computer) const {
-  while (pool.has_next()) {
-    auto u = pool.pop();
-    graph.prefetch(u, graph_po);
-    for (int i = 0; i < po; ++i) {
-      int to = graph.at(u, i);
-      computer.prefetch(to, pl);
+inline void HNSWSearcher::_index_ann_search(const void* query_data, size_t k, int* dst) const {
+  const HnswlibIndex& index = *owned_index;
+  auto& fstdistfunc_ = index.fstdistfunc_;
+  if (index.cur_element_count == 0) return;
+
+  tableint currObj = index.enterpoint_node_;
+  dist_t curdist = fstdistfunc_(query_data, index.getDataByInternalId(index.enterpoint_node_),
+                                index.dist_func_param_);
+
+  for (int level = index.maxlevel_; level > 0; level--) {
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      unsigned int* data;
+
+      data = (unsigned int*)index.get_linklist(currObj, level);
+      int size = index.getListCount(data);
+      // metric_hops++;
+      // metric_distance_computations += size;
+
+      tableint* datal = (tableint*)(data + 1);
+      for (int i = 0; i < size; i++) {
+        tableint cand = datal[i];
+        if (cand < 0 || cand > index.max_elements_) throw std::runtime_error("cand error");
+        dist_t d =
+            fstdistfunc_(query_data, index.getDataByInternalId(cand), index.dist_func_param_);
+
+        if (d < curdist) {
+          curdist = d;
+          currObj = cand;
+          changed = true;
+        }
+      }
     }
-    for (int i = 0; i < graph.K; ++i) {
-      int v = graph.at(u, i);
-      if (v == -1) {
-        break;
-      }
-      if (i + po < graph.K && graph.at(u, i + po) != -1) {
-        int to = graph.at(u, i + po);
-        computer.prefetch(to, pl);
-      }
-      if (pool.vis.get(v)) {
-        continue;
-      }
-      pool.vis.set(v);
-      auto cur_dist = computer(v);
-      pool.insert(v, cur_dist);
-    }
+  }
+
+  std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                      HnswlibIndex::CompareByFirst>
+      top_candidates;
+
+  top_candidates = _index_ann_search_base_layer(currObj, query_data, std::max(ef, k));
+
+  while (top_candidates.size() > k) {
+    top_candidates.pop();
+  }
+
+  int n = top_candidates.size();
+  while (n > 0) {
+    std::pair<dist_t, tableint> rez = top_candidates.top();
+    dst[n - 1] = index.getExternalLabel(rez.second);
+    top_candidates.pop();
+    n--;
   }
 }
 
-template <typename Computer>
-void HNSWSearcher::ann_search_unbounded(searcher::LinearPool<float>& pool,
-                                        const Computer& computer) const {
-  TOP_ASSERT(pool.size() >= 1);
-  searcher::UnboundedMaxHeap<float> candidates;
-  searcher::Bitset<uint64_t>& visited = pool.vis;
+inline ResultQueue HNSWSearcher::_index_ann_search_base_layer(tableint ep_id,
+                                                              const void* data_point,
+                                                              size_t ef) const {
+  const HnswlibIndex& index = *owned_index;
+  auto* visited_list_pool_ = index.visited_list_pool_.get();
+  auto& fstdistfunc_ = index.fstdistfunc_;
+  auto* dist_func_param_ = index.dist_func_param_;
+  auto* data_level0_memory_ = index.data_level0_memory_;
+  auto size_data_per_element_ = index.size_data_per_element_;
+  auto offsetLevel0_ = index.offsetLevel0_;
+  auto offsetData_ = index.offsetData_;
 
-  for (int i = 0; i < pool.size(); i++) {
-    candidates.emplace(pool.id(i), -pool.data_[i].distance);
-  }
+  VisitedList* vl = visited_list_pool_->getFreeVisitedList();
+  vl_type* visited_array = vl->mass;
+  vl_type visited_array_tag = vl->curV;
 
-  while (!candidates.empty()) {
-    const searcher::Neighbor<>& nearest_cand = candidates.top();
-    const float furthest_d = pool.top().distance;
-    const int u = nearest_cand.id;
-    const float cand_d = -nearest_cand.distance;
-    if (furthest_d < cand_d) {
+  std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                      CompareByFirst>
+      top_candidates;
+  std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                      CompareByFirst>
+      candidate_set;
+
+  // Init search
+  char* ep_data = index.getDataByInternalId(ep_id);
+  dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
+  dist_t lowerBound = dist;
+  top_candidates.emplace(dist, ep_id);
+  candidate_set.emplace(-dist, ep_id);
+  visited_array[ep_id] = visited_array_tag;
+
+  // Unbounded beam search
+  while (!candidate_set.empty()) {
+    std::pair<dist_t, tableint> current_node_pair = candidate_set.top();
+    dist_t candidate_dist = -current_node_pair.first;
+    if (candidate_dist > lowerBound) {
       break;
     }
-    candidates.pop();
+    candidate_set.pop();
 
-    graph.prefetch(u, graph_po);
-    for (int i = 0; i < po; ++i) {
-      int to = graph.at(u, i);
-      computer.prefetch(to, pl);
-    }
+    tableint current_node_id = current_node_pair.second;
+    int* data = (int*)index.get_linklist0(current_node_id);
+    size_t size = index.getListCount((linklistsizeint*)data);
 
-    for (int i = 0; i < graph.K; ++i) {
-      int v = graph.at(u, i);
-      if (v == -1) {
-        break;
-      }
+#ifdef USE_SSE
+    _mm_prefetch((char*)(visited_array + *(data + 1)), _MM_HINT_T0);
+    _mm_prefetch((char*)(visited_array + *(data + 1) + 64), _MM_HINT_T0);
+    _mm_prefetch(data_level0_memory_ + (*(data + 1)) * size_data_per_element_ + offsetData_,
+                 _MM_HINT_T0);
+    _mm_prefetch((char*)(data + 2), _MM_HINT_T0);
+#endif
 
-      if (i + po < graph.K && graph.at(u, i + po) != -1) {
-        int to = graph.at(u, i + po);
-        computer.prefetch(to, pl);
-      }
+    for (size_t j = 1; j <= size; j++) {
+      int candidate_id = *(data + j);
+//                    if (candidate_id == 0) continue;
+#ifdef USE_SSE
+      _mm_prefetch((char*)(visited_array + *(data + j + 1)), _MM_HINT_T0);
+      _mm_prefetch(data_level0_memory_ + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
+                   _MM_HINT_T0);  ////////////
+#endif
+      if (!(visited_array[candidate_id] == visited_array_tag)) {
+        visited_array[candidate_id] = visited_array_tag;
 
-      if (visited.get(v)) {
-        continue;
-      }
-      visited.set(v);
-      auto cur_dist = computer(v);
-      if (cur_dist < furthest_d || pool.size() < ef) {
-        candidates.emplace(v, -cur_dist);
-        pool.insert(v, cur_dist);
+        char* currObj1 = (index.getDataByInternalId(candidate_id));
+        dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+        if (top_candidates.size() < ef || lowerBound > dist) {
+          candidate_set.emplace(-dist, candidate_id);
+#ifdef USE_SSE
+          _mm_prefetch(data_level0_memory_ + candidate_set.top().second * size_data_per_element_ +
+                           offsetLevel0_,  ///////////
+                       _MM_HINT_T0);       ////////////////////////
+#endif
+
+          top_candidates.emplace(dist, candidate_id);
+
+          while (top_candidates.size() > ef) {
+            top_candidates.pop();
+          }
+
+          if (!top_candidates.empty()) lowerBound = top_candidates.top().first;
+        }
       }
     }
   }
-}
 
+  visited_list_pool_->releaseVisitedList(vl);
+  return top_candidates;
+}
 }  // namespace detail
 }  // namespace top

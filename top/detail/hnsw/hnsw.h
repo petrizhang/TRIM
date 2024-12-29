@@ -16,25 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 #pragma once
 
+#include <algorithm>
 #include <memory>
+#include <queue>
 
-#include "top/common/top_assert.h"
-#include "top/detail/hnsw/graph.h"
 #include "top/detail/hnswlib/hnswalg.h"
-#include "top/detail/hnswlib/space_l2.h"
 
 namespace top {
 namespace detail {
-
-std::unique_ptr<hnswlib::HierarchicalNSW<float>> read_hnswlib(hnswlib::SpaceInterface<float>* space,
-                                                              Metric metric,
-                                                              const std::string& path, int dim) {
-  TOP_THROW_IF_NOT_MSG(metric == Metric::L2, "only L2 metric is supported now");
-  auto hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(space, path, false, 0, false);
-  return hnsw;
-}
-
+struct HNSW {
+  
+};
 }  // namespace detail
 }  // namespace top
