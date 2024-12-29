@@ -23,7 +23,7 @@
 #include "top/common/common.h"
 #include "top/common/constants.h"
 #include "top/detail/io/read_hnswlib.h"
-#include "top/detail/searcher/hnsw_searcher.h"
+#include "top/detail/hnsw/hnsw_searcher.h"
 
 namespace top {
 namespace detail {

@@ -17,18 +17,24 @@
  * under the License.
  */
 
-#pragma once
+#include <iostream>
 
-#include <algorithm>
-#include <memory>
-#include <queue>
+#include "top/detail/io/read_faiss.h"
+#include "top/detail/quantization/index_pq.h"
 
-#include "top/detail/hnswlib/hnswalg.h"
+int main() {
+  using top::detail::Index;
+  using top::detail::IndexPQ;
+  using top::detail::IndexType;
+  const char* index_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
+  std::unique_ptr<IndexPQ> index_pq = top::detail::read_index_pq(index_path);
+  std::vector<float> data(1000 * 256);
+  for (int i = 0; i < data.size(); i++) {
+    data[i] = 0;
+  }
 
-namespace top {
-namespace detail {
-struct HNSW {
-  
-};
-}  // namespace detail
-}  // namespace top
+  ctpl::thread_pool pool(10);
+  index_pq->compute_reconstruction_errors(pool, data.data());
+  std::cout << (int64_t)index_pq.get() << "\n";
+  return 0;
+}

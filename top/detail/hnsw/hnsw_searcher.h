@@ -24,10 +24,11 @@
 #include <queue>
 
 #include "top/common/searcher.h"
-#include "top/detail/hnswlib/hnswalg.h"
+#include "top/detail/hnswlib/hnswlib.h"
 
 namespace top {
 namespace detail {
+
 using Space = hnswlib::SpaceInterface<float>;
 using HnswlibIndex = hnswlib::HierarchicalNSW<float>;
 using CompareByFirst = HnswlibIndex::CompareByFirst;
@@ -241,5 +242,6 @@ inline ResultQueue HNSWSearcher::_index_ann_search_base_layer(tableint ep_id,
   visited_list_pool_->releaseVisitedList(vl);
   return top_candidates;
 }
+
 }  // namespace detail
 }  // namespace top

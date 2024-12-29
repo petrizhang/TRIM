@@ -16,55 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 #pragma once
 
-#include <cstdint>
+#include <cmath>
+#include <future>
 #include <vector>
 
-#include "top/common/top_assert.h"
-#include "top/detail/core/memory.h"
-#include "top/detail/faiss/Index.h"
+#include "top/detail/core/thread_pool.h"
+#include "top/detail/hnswlib/hnswlib.h"
+#include "top/detail/quantization/pq.h"
 
 namespace top {
 namespace detail {
-using namespace faiss;
-
-struct ProductQuantizer {
-  size_t d;          ///< size of the input vectors
-  size_t code_size;  ///< bytes per indexed vector
-
-  size_t M;      ///< number of sub-quantizers
-  size_t nbits;  ///< number of bits per quantization index
-
-  // values derived from the above
-  size_t dsub;  ///< dimensionality of each sub-vector
-  size_t ksub;  ///< number of centroids for each sub-quantizer
-
-  /// Centroid table, size M * ksub * dsub.
-  /// Layout: (M, ksub, dsub)
-  std::vector<float, align_alloc<float>> centroids;
-
-  void set_derived_values() {
-    // quite a few derived values
-    TOP_THROW_IF_NOT_MSG(
-        d % M == 0,
-        "The dimension of the vector (d) should be a multiple of the number of subquantizers (M)");
-    dsub = d / M;
-    code_size = (nbits * M + 7) / 8;
-    TOP_THROW_IF_MSG(nbits > 24, "nbits larger than 24 is not practical.");
-    ksub = 1 << nbits;
-    centroids.resize(d * ksub);
-  }
-};
 
 struct IndexPQ : Index {
   ProductQuantizer pq;
   size_t code_size;
   /// encoded dataset, size ntotal * code_size
-  std::vector<uint8_t> codes;
+  std::vector<uint8_t, align_alloc<uint8_t>> codes;
   /// Distances between each base vector and its centroid
-  std::vector<float, align_alloc<float>> centroid_distances;
+  std::vector<float, align_alloc<float>> recons_errors;
 
   /******************************************************
    * Polysemous codes implementation, currently not supported by TOP
@@ -89,7 +60,55 @@ struct IndexPQ : Index {
 
   /// Hamming threshold used for polysemy
   int polysemous_ht;
-};
 
+  /******************************************************
+   * Decode/encode functions
+   ******************************************************/
+  void sa_decode_n(idx_t n, const uint8_t* bytes, float* x) const { pq.decode(bytes, x, n); }
+
+  void reconstruct_n(idx_t i0, idx_t ni, float* recons) const {
+    TOP_THROW_IF_NOT(ni == 0 || (i0 >= 0 && i0 + ni <= ntotal));
+    sa_decode_n(ni, codes.data() + i0 * code_size, recons);
+  }
+
+  void sa_decode(const uint8_t* code, float* x) const { pq.decode(code, x); }
+
+  void reconstruct(idx_t key, float* recons) const {
+    TOP_THROW_IF_NOT(key >= 0 && key <= ntotal);
+    sa_decode(codes.data() + key * code_size, recons);
+  }
+
+  void compute_reconstruction_errors(ctpl::thread_pool& pool, const float* data) {
+    int batch_size = ntotal / pool.size();
+    std::vector<std::future<void>> futures;
+    hnswlib::L2Space space(pq.d);
+    hnswlib::DISTFUNC<float> dist_func = space.get_dist_func();
+    void* dist_func_param = space.get_dist_func_param();
+
+    int end = ntotal;
+    this->recons_errors.resize(ntotal);
+    float* out = this->recons_errors.data();
+
+    for (int task_start = 0, task_end = 0; task_end < end; task_start += batch_size) {
+      task_end = task_start + batch_size;
+      if (task_end > end) {
+        task_end = end;
+      }
+      auto future = pool.push([=](int) {
+        std::vector<float> recons(pq.d);
+        for (int j = task_start; j < task_end; j++) {
+          this->reconstruct(j, recons.data());
+          float dist = dist_func(data + j * d, recons.data(), dist_func_param);
+          out[j] = std::sqrt(dist);
+        }
+      });
+      futures.push_back(std::move(future));
+    }
+
+    for (auto& f : futures) {
+      f.get();
+    }
+  }
+};
 }  // namespace detail
 }  // namespace top

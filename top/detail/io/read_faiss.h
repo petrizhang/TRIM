@@ -23,11 +23,12 @@
 #include "top/detail/faiss/MetricType.h"
 #include "top/detail/faiss/io.h"
 #include "top/detail/faiss/io_macros.h"
-#include "top/detail/quant/pq.h"
+#include "top/detail/quantization/index_pq.h"
+#include "top/detail/quantization/pq.h"
 
 namespace top {
-
 namespace detail {
+
 using namespace faiss;
 
 inline void read_index_header(Index* idx, IOReader* f) {

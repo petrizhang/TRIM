@@ -9,5 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories(${CMAKE_CURRENT_LIST_DIR}
         /data/home/petrizhang/.conda/envs/faiss/lib/python3.12/site-packages/pybind11/include
 )
-add_executable(main examples/main.cc)
+add_executable(hnsw examples/hnsw.cc)
+target_link_libraries(hnsw pthread)
 
+add_executable(pq examples/pq.cc)
+target_link_libraries(pq pthread)

@@ -21,9 +21,7 @@
 #include <memory>
 
 #include "top/common/top_assert.h"
-#include "top/detail/hnsw/graph.h"
-#include "top/detail/hnswlib/hnswalg.h"
-#include "top/detail/hnswlib/space_l2.h"
+#include "top/detail/hnswlib/hnswlib.h"
 
 namespace top {
 namespace detail {
