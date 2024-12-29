@@ -19,22 +19,80 @@
 
 #include <iostream>
 
+#include "top/detail/hnswlib/hnswalg.h"
 #include "top/factory.h"
 
+struct RandomGenerator {
+  std::mt19937 mt;
+
+  explicit RandomGenerator(int64_t seed = 1234) : mt((unsigned int)seed) {}
+
+  /// random positive integer
+  int rand_int() { return mt() & 0x7fffffff; }
+
+  /// random int64_t
+  int64_t rand_int64() { return int64_t(rand_int()) | int64_t(rand_int()) << 31; }
+
+  /// generate random integer between 0 and max-1
+  int rand_int(int max) { return mt() % max; }
+
+  /// between 0 and 1
+  float rand_float() { return mt() / float(mt.max()); }
+
+  double rand_double() { return mt() / double(mt.max()); }
+};
+
+std::vector<float> random_matrix(int n_row, int n_col) {
+  RandomGenerator gen;
+  std::vector<float> x(n_row * n_col);
+  for (int i = 0; i < x.size(); i++) {
+    x[i] = gen.rand_float();
+  }
+  return x;
+}
+
 int main() {
-  using top::Dict;
-  using top::Object;
-  using top::Searcher;
-  using top::SearcherBuilder;
+  int dim = 16;
+  int nb = 1000;
+  const char* save_path = "./hnswlib.test.bin";
 
-  std::unique_ptr<Searcher> searcher =
-      SearcherBuilder(top::constants::TOP_HNSW)
-          .set(top::constants::TOP_HNSWLIB_INDEX_PATH,
-               "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin")
-          .set(top::constants::TOP_DIM, 256)
-          .set(top::constants::TOP_METRIC, top::constants::TOP_METRIC_L2)
+  // Build hnswlib index
+  auto space = std::make_unique<hnswlib::L2Space>(dim);
+  hnswlib::HierarchicalNSW hnsw(space.get(), nb);
+  std::vector<float> base = random_matrix(nb, dim);
+  std::cout << "Start to building hnswlib index...\n";
+  for (int i = 0; i < nb; i++) {
+    hnsw.addPoint(&base.at(i), i);
+  }
+  hnsw.saveIndex(save_path);
+  std::cout << "Index saved to " << save_path << "\n";
+
+  // Search hnswlib index with top
+  std::cout << "Start to load hnswlib index with TOP...\n";
+  std::unique_ptr<top::Searcher> searcher =
+      top::SearcherBuilder(top::constants::TOP_HNSW)
+          .set("hnswlib_index_path", "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin")
+          .set("dim", dim)
+          .set("metric", "L2")
           .build();
+  std::cout << "Index loaded.\n";
 
-  std::cout << searcher->get_profile().to_string() << "\n";
+  constexpr const int k = 10;
+  std::vector<int> knn(k);
+  const float* data = base.data();
+  searcher->set_data(data, nb, dim);
+  searcher->set("use_bounded_queue", true);
+  searcher->ann_search(&base.at(0), 10, knn.data());
+  for (auto x : knn) {
+    std::cout << x << ",";
+  }
+  std::cout << "\n";
+
+  searcher->set("use_bounded_queue", false);
+  searcher->ann_search(&base.at(0), 10, knn.data());
+  for (auto x : knn) {
+    std::cout << x << ",";
+  }
+  std::cout << "\n";
   return 0;
 }

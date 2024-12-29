@@ -50,7 +50,8 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
   
   auto m = top::constants::metric_map(metric);
   Graph<int> graph = read_hnswlib(m, hnswlib_index_path, dim);
-  return std::make_unique<HNSWSearcher>(graph, FP32Quantizer());
+  FP32Quantizer quant(dim);
+  return std::make_unique<HNSWSearcher>(graph, quant);
 }
 
 }  // namespace detail

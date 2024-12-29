@@ -59,13 +59,22 @@ struct HNSWSearcher : Searcher {
   void ann_search_unbounded(searcher::LinearPool<float>& pool, const Computer& computer) const;
 };
 
-inline void HNSWSearcher::set_data(const float* data, int n, int dim) {}
+inline void HNSWSearcher::set_data(const float* data, int n, int dim) {
+  this->d = dim;
+  this->nb = n;
+  quant.train(data, n);
+}
 
 inline void HNSWSearcher::ann_search(const float* q, int k, int* dst) const {
+  TOP_THROW_IF_MSG(quant.codes == nullptr, "data not set");
   const auto computer = quant.get_computer(q);
   searcher::LinearPool<float> pool(nb, std::max(k, ef), k);
   graph.initialize_search(pool, computer);
-  ann_search_bounded(pool, computer);
+  if (use_bounded_queue) {
+    ann_search_bounded(pool, computer);
+  } else {
+    ann_search_unbounded(pool, computer);
+  }
   quant.reorder(pool, q, dst, k);
 }
 
@@ -120,18 +129,19 @@ void HNSWSearcher::ann_search_bounded(searcher::LinearPool<float>& pool,
 }
 
 template <typename Computer>
-void HNSWSearcher::ann_search_unbounded(searcher::LinearPool<float>& results,
+void HNSWSearcher::ann_search_unbounded(searcher::LinearPool<float>& pool,
                                         const Computer& computer) const {
+  TOP_ASSERT(pool.size() >= 1);
   searcher::UnboundedMaxHeap<float> candidates;
-  searcher::Bitset<uint64_t>& visited = results.vis;
+  searcher::Bitset<uint64_t>& visited = pool.vis;
 
-  for (auto& neighbor : results.data_) {
-    candidates.emplace(neighbor.id, -neighbor.distance);
+  for (int i = 0; i < pool.size(); i++) {
+    candidates.emplace(pool.id(i), -pool.data_[i].distance);
   }
 
   while (!candidates.empty()) {
-    const searcher::Neighbor<> nearest_cand = candidates.top();
-    const float furthest_d = results.top().distance;
+    const searcher::Neighbor<>& nearest_cand = candidates.top();
+    const float furthest_d = pool.top().distance;
     const int u = nearest_cand.id;
     const float cand_d = -nearest_cand.distance;
     if (furthest_d < cand_d) {
@@ -161,9 +171,9 @@ void HNSWSearcher::ann_search_unbounded(searcher::LinearPool<float>& results,
       }
       visited.set(v);
       auto cur_dist = computer(v);
-      if (cur_dist < furthest_d) {
+      if (cur_dist < furthest_d || pool.size() < ef) {
         candidates.emplace(v, -cur_dist);
-        results.insert(v, cur_dist);
+        pool.insert(v, cur_dist);
       }
     }
   }
