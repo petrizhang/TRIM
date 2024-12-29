@@ -12,7 +12,6 @@
 
 namespace top {
 namespace detail {
-
 namespace searcher {
 
 template <typename Block = uint64_t>

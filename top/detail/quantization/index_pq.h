@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 #pragma once
 
 #include <cmath>
 #include <future>
 #include <vector>
 
-#include "top/detail/core/thread_pool.h"
 #include "top/detail/faiss/ProductQuantizer.h"
 #include "top/detail/hnswlib/hnswlib.h"
+#include "top/util/thread_pool.h"
 
 namespace top {
 namespace detail {

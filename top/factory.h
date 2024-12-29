@@ -16,14 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 #pragma once
 
 #include <string>
 
 #include "top/common/common.h"
 #include "top/common/constants.h"
-#include "top/detail/io/read_hnswlib.h"
 #include "top/detail/hnsw/hnsw_searcher.h"
+#include "top/detail/io/read_hnswlib.h"
 
 namespace top {
 namespace detail {
@@ -42,7 +43,7 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
     TOP_THROW_MSG("only L2 metric is supported now");
   }
   auto searcher = std::make_unique<HNSWSearcher>();
-  
+
   searcher->owned_space = std::make_unique<hnswlib::L2Space>(dim);
   auto m = constants::metric_map(metric);
   std::unique_ptr<hnswlib::HierarchicalNSW<float>> index =

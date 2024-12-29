@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 #pragma once
 
 #include <algorithm>
@@ -28,7 +29,6 @@
 
 namespace top {
 namespace detail {
-
 using Space = hnswlib::SpaceInterface<float>;
 using HnswlibIndex = hnswlib::HierarchicalNSW<float>;
 using CompareByFirst = HnswlibIndex::CompareByFirst;
