@@ -1,21 +1,10 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+/**
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
+
 #pragma once
 
 #include <cassert>
@@ -23,12 +12,9 @@
 #include <vector>
 
 #include "top/common/top_assert.h"
-#include "top/detail/core/memory.h"
 #include "top/detail/faiss/Index.h"
 
-namespace top {
-namespace detail {
-using namespace faiss;
+namespace faiss {
 
 struct ProductQuantizer {
   size_t d;          ///< size of the input vectors
@@ -43,7 +29,7 @@ struct ProductQuantizer {
 
   /// Centroid table, size M * ksub * dsub.
   /// Layout: (M, ksub, dsub)
-  std::vector<float, align_alloc<float>> centroids;
+  std::vector<float> centroids;
 
   void set_derived_values();
   /// return the centroids associated with subvector m
@@ -143,15 +129,15 @@ void decode(const ProductQuantizer& pq, const uint8_t* code, float* x) {
 void ProductQuantizer::decode(const uint8_t* code, float* x) const {
   switch (nbits) {
     case 8:
-      top::detail::decode<PQDecoder8>(*this, code, x);
+      faiss::decode<PQDecoder8>(*this, code, x);
       break;
 
     case 16:
-      top::detail::decode<PQDecoder16>(*this, code, x);
+      faiss::decode<PQDecoder16>(*this, code, x);
       break;
 
     default:
-      top::detail::decode<PQDecoderGeneric>(*this, code, x);
+      faiss::decode<PQDecoderGeneric>(*this, code, x);
       break;
   }
 }
@@ -250,5 +236,4 @@ inline PQDecoder16::PQDecoder16(const uint8_t* code, int nbits_in) : code((uint1
 
 inline uint64_t PQDecoder16::decode() { return (uint64_t)(*code++); }
 
-}  // namespace detail
-}  // namespace top
+}  // namespace faiss

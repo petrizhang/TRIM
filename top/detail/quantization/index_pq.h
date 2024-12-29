@@ -23,19 +23,20 @@
 #include <vector>
 
 #include "top/detail/core/thread_pool.h"
+#include "top/detail/faiss/ProductQuantizer.h"
 #include "top/detail/hnswlib/hnswlib.h"
-#include "top/detail/quantization/pq.h"
 
 namespace top {
 namespace detail {
+using namespace faiss;
 
 struct IndexPQ : Index {
   ProductQuantizer pq;
   size_t code_size;
   /// encoded dataset, size ntotal * code_size
-  std::vector<uint8_t, align_alloc<uint8_t>> codes;
+  std::vector<uint8_t> codes;
   /// Distances between each base vector and its centroid
-  std::vector<float, align_alloc<float>> recons_errors;
+  std::vector<float> recons_errors;
 
   /******************************************************
    * Polysemous codes implementation, currently not supported by TOP
