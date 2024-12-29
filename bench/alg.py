@@ -37,14 +37,17 @@ class BaseANN(object):
             dict: A dictionary of additional attributes.
         """
         return {}
-    
+
     def set_query_arguments(self, **kwargs):
         pass
 
-    def load_index(self, index_path: str) -> None:
+    def set_data(self, base_data):
         pass
 
     def save_index(self, index_path: str) -> None:
+        pass
+
+    def load_index(self, index_path: str) -> None:
         pass
 
     def __str__(self) -> str:

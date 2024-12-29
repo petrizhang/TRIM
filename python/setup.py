@@ -1,6 +1,6 @@
 import os
-import sys
 import platform
+import sys
 
 import numpy as np
 import pybind11
@@ -66,7 +66,7 @@ def cpp_flag(compiler):
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'unix': "-O3 -lrt -march=native -fpic -ftree-vectorize -ftree-vectorizer-verbose=0".split()
+        'unix': "-Ofast -lrt -march=native -mavx2 -fpic -ftree-vectorize -ftree-vectorizer-verbose=0".split()
     }
 
     link_opts = {

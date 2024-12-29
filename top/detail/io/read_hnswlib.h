@@ -37,7 +37,7 @@ Graph<int> read_hnswlib(Metric metric, const std::string& path, int dim) {
 
   Graph<int> final_graph;
   int M = hnsw->M_;
-  final_graph.init(nb, hnsw->M_);
+  final_graph.init(nb, 2 * hnsw->M_);
 
   // TODO: parallelize it
   for (int i = 0; i < nb; ++i) {
