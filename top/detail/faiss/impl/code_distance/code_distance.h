@@ -64,7 +64,7 @@ inline void distance_four_codes(
 
 #else
 
-#include "top/detail/faiss/code_distance/code_distance-generic.h"
+#include <top/detail/faiss/impl/code_distance/code_distance-generic.h>
 
 namespace faiss {
 

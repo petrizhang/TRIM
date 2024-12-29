@@ -21,6 +21,7 @@
 
 #include "top/detail/io/read_faiss.h"
 #include "top/detail/quantization/index_pq.h"
+#include "top/detail/hnsw/top_deo.h"
 
 int main() {
   using top::detail::Index;
