@@ -23,7 +23,8 @@
 #include <future>
 #include <vector>
 
-#include "top/detail/faiss/ProductQuantizer.h"
+#include "top/detail/faiss/impl/ProductQuantizer.h"
+#include "top/detail/faiss/utils/AlignedTable.h"
 #include "top/detail/hnswlib/hnswlib.h"
 #include "top/util/thread_pool.h"
 
@@ -35,9 +36,9 @@ struct IndexPQ : Index {
   ProductQuantizer pq;
   size_t code_size;
   /// encoded dataset, size ntotal * code_size
-  std::vector<uint8_t> codes;
+  AlignedTable<uint8_t> codes;
   /// Distances between each base vector and its centroid
-  std::vector<float> recons_errors;
+  AlignedTable<float> recons_errors;
 
   /******************************************************
    * Polysemous codes implementation, currently not supported by TOP

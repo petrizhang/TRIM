@@ -21,8 +21,8 @@
 #include <memory>
 
 #include "top/detail/faiss/MetricType.h"
-#include "top/detail/faiss/io.h"
-#include "top/detail/faiss/io_macros.h"
+#include "top/detail/faiss/impl/io.h"
+#include "top/detail/faiss/impl/io_macros.h"
 #include "top/detail/quantization/index_pq.h"
 
 namespace top {

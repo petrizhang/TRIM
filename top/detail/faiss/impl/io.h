@@ -16,15 +16,15 @@
 
 #pragma once
 
+#include <top/detail/faiss/impl/FaissAssert.h>
+#include <top/detail/faiss/impl/io.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
-
-#include "top/detail/faiss/FaissAssert.h"
-#include "top/detail/faiss/io.h"
 
 namespace faiss {
 

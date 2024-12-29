@@ -7,12 +7,13 @@
 
 #pragma once
 
+#include <top/common/top_assert.h>
+#include <top/detail/faiss/Index.h>
+#include <top/detail/faiss/utils/distances_simd.h>
+
 #include <cassert>
 #include <cstdint>
 #include <vector>
-
-#include "top/common/top_assert.h"
-#include "top/detail/faiss/Index.h"
 
 namespace faiss {
 
@@ -32,10 +33,10 @@ struct ProductQuantizer {
   std::vector<float> centroids;
 
   void set_derived_values();
-  /// return the centroids associated with subvector m
   float* get_centroids(size_t m, size_t i);
   const float* get_centroids(size_t m, size_t i) const;
-
+  
+  void compute_distance_table(const float* x, float* dis_table) const;
   /*************************************************
    * Decode/encode functions
    *************************************************/
@@ -66,6 +67,13 @@ const float* ProductQuantizer::get_centroids(size_t m, size_t i) const {
 /*************************************************
  * Objects to encode / decode strings of bits
  *************************************************/
+
+inline void ProductQuantizer::compute_distance_table(const float* x, float* dis_table) const {
+  // use regular version
+  for (size_t m = 0; m < M; m++) {
+    fvec_L2sqr_ny(dis_table + m * ksub, x + m * dsub, get_centroids(m, 0), dsub, ksub);
+  }
+}
 
 struct PQEncoderGeneric {
   uint8_t* code;  ///< code for this vector

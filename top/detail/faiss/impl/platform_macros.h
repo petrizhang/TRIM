@@ -11,11 +11,6 @@
 #include <cstdint>
 #include <cstdio>
 
-// TODO: drop these three lines in production release
-#ifndef __AVX2__
-#define __AVX2__
-#endif
-
 #ifdef _MSC_VER
 
 /*******************************************************

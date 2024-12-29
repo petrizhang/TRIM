@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "top/detail/faiss/platform_macros.h"
+#include <top/detail/faiss/impl/platform_macros.h>
 
 #ifdef __AVX2__
 
@@ -15,8 +15,8 @@
 
 #include <type_traits>
 
-#include "top/detail/faiss/ProductQuantizer.h"
-#include "top/detail/faiss/code_distance/code_distance-generic.h"
+#include <top/detail/faiss/impl/ProductQuantizer.h>
+#include <top/detail/faiss/impl/code_distance/code_distance-generic.h>
 
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=78782
 #if defined(__GNUC__) && __GNUC__ < 9

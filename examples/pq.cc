@@ -35,6 +35,10 @@ int main() {
 
   ctpl::thread_pool pool(10);
   index_pq->compute_reconstruction_errors(pool, data.data());
+
+  std::vector<float> dis_table(index_pq->pq.M * index_pq->pq.ksub);
+  index_pq->pq.compute_distance_table(data.data(), dis_table.data());
+
   std::cout << (int64_t)index_pq.get() << "\n";
   return 0;
 }

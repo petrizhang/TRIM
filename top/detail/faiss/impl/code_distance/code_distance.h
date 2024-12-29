@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "top/detail/faiss/platform_macros.h"
+#include <top/detail/faiss/impl/platform_macros.h>
 
 // This directory contains functions to compute a distance
 // from a given PQ code to a query vector, given that the
@@ -26,7 +26,7 @@
 
 #ifdef __AVX2__
 
-#include "top/detail/faiss/code_distance/code_distance-avx2.h"
+#include <top/detail/faiss/impl/code_distance/code_distance-avx2.h>
 
 namespace faiss {
 

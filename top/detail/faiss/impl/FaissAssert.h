@@ -7,8 +7,7 @@
 
 // -*- c++ -*-
 
-#ifndef FAISS_ASSERT_INCLUDED
-#define FAISS_ASSERT_INCLUDED
+#pragma once
 
 #include "top/common/top_assert.h"
 
@@ -20,5 +19,3 @@
 #define FAISS_THROW_IF_MSG TOP_THROW_IF_MSG
 #define FAISS_THROW_IF_NOT_MSG TOP_THROW_IF_NOT_MSG
 #define FAISS_THROW_IF_NOT_FMT TOP_THROW_IF_NOT_FMT
-
-#endif
