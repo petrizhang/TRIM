@@ -19,27 +19,28 @@
 
 #include <iostream>
 
+#include "top/detail/hnsw/top_deo.h"
 #include "top/detail/io/read_faiss.h"
 #include "top/detail/quantization/index_pq.h"
-#include "top/detail/hnsw/top_deo.h"
+#include "top/top.h"
 
 int main() {
+  using top::Searcher;
   using top::detail::Index;
   using top::detail::IndexPQ;
   using top::detail::IndexType;
-  const char* index_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
-  std::unique_ptr<IndexPQ> index_pq = top::detail::read_index_pq(index_path);
-  std::vector<float> data(1000 * 256);
-  for (int i = 0; i < data.size(); i++) {
-    data[i] = 0;
-  }
 
-  ctpl::thread_pool pool(10);
-  index_pq->compute_reconstruction_errors(pool, data.data());
-
-  std::vector<float> dis_table(index_pq->pq.M * index_pq->pq.ksub);
-  index_pq->pq.compute_distance_table(data.data(), dis_table.data());
-
-  std::cout << (int64_t)index_pq.get() << "\n";
+  // Search hnswlib index with top
+  const char* index_hnsw_path = "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin";
+  const char* index_pq_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
+  const int dim = 256;
+  std::unique_ptr<top::Searcher> searcher = top::SearcherBuilder(top::constants::TOP_HNSW)
+                                                .set("hnswlib_index_path", index_hnsw_path)
+                                                .set("pq_index_path", index_pq_path)
+                                                .set("dim", dim)
+                                                .set("metric", "L2")
+                                                .set("num_threads", 12)
+                                                .build();
+  std::cout << (int64_t)searcher.get() << "\n";
   return 0;
 }

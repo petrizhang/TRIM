@@ -31,9 +31,11 @@ inline constexpr const char* TOP_METRIC_IP = "IP";
 inline constexpr const char* TOP_HNSW = "hnsw";
 inline constexpr const char* TOP_IVFPQR = "ivfpqr";
 
+inline constexpr const char* TOP_NUM_THREADS = "num_threads";
 inline constexpr const char* TOP_DIM = "dim";
 inline constexpr const char* TOP_EF = "ef";
 inline constexpr const char* TOP_HNSWLIB_INDEX_PATH = "hnswlib_index_path";
+inline constexpr const char* TOP_PQ_INDEX_PATH = "pq_index_path";
 
 inline Metric metric_map(const std::string& name) {
   if (name == TOP_METRIC_L2) {

@@ -20,7 +20,7 @@
 #include <iostream>
 
 #include "top/detail/hnswlib/hnswalg.h"
-#include "top/factory.h"
+#include "top/top.h"
 
 struct RandomGenerator {
   std::mt19937 mt;

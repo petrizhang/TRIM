@@ -24,7 +24,9 @@
 #include "top/common/common.h"
 #include "top/common/constants.h"
 #include "top/detail/hnsw/hnsw_searcher.h"
+#include "top/detail/io/read_faiss.h"
 #include "top/detail/io/read_hnswlib.h"
+#include "top/util/thread_pool.h"
 
 namespace top {
 namespace detail {
@@ -38,17 +40,34 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
 
   int dim = options.require<int>(constants::TOP_DIM);
   std::string hnswlib_index_path = options.require<std::string>(constants::TOP_HNSWLIB_INDEX_PATH);
+  std::string pq_index_path = options.require<std::string>(constants::TOP_PQ_INDEX_PATH);
   std::string metric = options.require<std::string>(constants::TOP_METRIC);
+  int num_threads = options.require<int>(constants::TOP_NUM_THREADS);
+
   if (metric != constants::TOP_METRIC_L2) {
     TOP_THROW_MSG("only L2 metric is supported now");
   }
   auto searcher = std::make_unique<HNSWSearcher>();
 
+  // Read HNSW
+  ctpl::thread_pool pool(num_threads);
   searcher->owned_space = std::make_unique<hnswlib::L2Space>(dim);
-  auto m = constants::metric_map(metric);
-  std::unique_ptr<hnswlib::HierarchicalNSW<float>> index =
-      read_hnswlib(searcher->owned_space.get(), m, hnswlib_index_path, dim);
-  searcher->owned_index = std::move(index);
+  std::unique_ptr<hnswlib::HierarchicalNSW<float>> index_hnsw = read_hnswlib(
+      searcher->owned_space.get(), constants::metric_map(metric), hnswlib_index_path, dim);
+  searcher->owned_index_hnsw = std::move(index_hnsw);
+
+  // Read PQ
+  std::unique_ptr<IndexPQ> index_pq = read_index_pq(pq_index_path.c_str());
+  searcher->owned_index_pq = std::move(index_pq);
+  TOP_THROW_IF_NOT_MSG(index_pq->pq.nbits == 8, "only support 8bit PQ");
+  // Rorder PQ codes
+  searcher->_reorder_pq_codes();
+  // Compute reconstruction errors
+  searcher->_compute_pq_reconstruction_errors(pool);
+
+  // Set DEO
+  searcher->owned_deo =
+      std::make_unique<TopDEO8>(searcher->owned_index_pq.get(), searcher->owned_index_hnsw.get());
   return searcher;
 }
 

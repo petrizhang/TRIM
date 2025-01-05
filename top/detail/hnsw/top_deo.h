@@ -32,18 +32,20 @@
 namespace top {
 namespace detail {
 
-template <typename PQEncoderType, bool use_profile = false>
-struct TopDEO : DistanceEstimateOperator<TopDEO<PQEncoderType, use_profile>> {
+template <typename PQEncoderType>
+struct TopDEO : DistanceEstimateOperator<float, TopDEO<PQEncoderType>> {
   using dist_type = float;
-  static constexpr const bool enable_profile = use_profile;
 
-  const IndexPQ* pq;
-  const hnswlib::HierarchicalNSW<float>* hnsw;
-  AlignedTable<dist_type> dist_table;
+  const IndexPQ* pq = nullptr;
+  const hnswlib::HierarchicalNSW<float>* hnsw = nullptr;
   const dist_type* query = nullptr;
+  AlignedTable<dist_type> dist_table;
 
-  void set_query_impl(const dist_type* data) {
-    query = data;
+  TopDEO() = default;
+  TopDEO(const IndexPQ* pq, const hnswlib::HierarchicalNSW<float>* hnsw) : pq(pq), hnsw(hnsw) {}
+
+  void set_query_impl(const dist_type* query_data) {
+    query = query_data;
     dist_table.resize(pq->pq.M * pq->pq.ksub);
     pq->pq.compute_distance_table(query, dist_table.data());
   }
@@ -61,6 +63,10 @@ struct TopDEO : DistanceEstimateOperator<TopDEO<PQEncoderType, use_profile>> {
 
   float compute_impl(int i) { return 0; }
 };
+
+using TopDEO8 = TopDEO<faiss::PQDecoder8>;
+using TopDEO16 = TopDEO<faiss::PQDecoder16>;
+using TopDEOGeneric = TopDEO<faiss::PQDecoderGeneric>;
 
 }  // namespace detail
 }  // namespace top

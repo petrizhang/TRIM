@@ -134,7 +134,7 @@ void decode(const ProductQuantizer& pq, const uint8_t* code, float* x) {
   }
 }
 
-void ProductQuantizer::decode(const uint8_t* code, float* x) const {
+inline void ProductQuantizer::decode(const uint8_t* code, float* x) const {
   switch (nbits) {
     case 8:
       faiss::decode<PQDecoder8>(*this, code, x);
@@ -150,7 +150,7 @@ void ProductQuantizer::decode(const uint8_t* code, float* x) const {
   }
 }
 
-void ProductQuantizer::decode(const uint8_t* code, float* x, size_t n) const {
+inline void ProductQuantizer::decode(const uint8_t* code, float* x, size_t n) const {
   // #pragma omp parallel for if (n > 100)
   for (int64_t i = 0; i < n; i++) {
     this->decode(code + code_size * i, x + d * i);

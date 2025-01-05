@@ -26,9 +26,8 @@
 
 namespace top {
 
-template <typename ChildClass>
+template <typename dist_type, typename ChildClass>
 struct DistanceEstimateOperator {
-  using dist_type = typename ChildClass::dist_type;
   static constexpr const bool enable_profile = ChildClass::enable_profile;
 
   std::atomic<int64_t> num_distance_estimation = 0;
@@ -38,17 +37,18 @@ struct DistanceEstimateOperator {
 
   void prefetch(int i) { ChildClass::prefetch_impl(i); }
 
-  dist_type estimate(int i) {
-    if constexpr (enable_profile) {
-      num_distance_estimation.fetch_add(1);
-    }
+  // Estimate the distance between the query and the i-th data point
+  dist_type estimate(int i) { return ChildClass::estimate_impl(i); };
+  // Compute the distance between the query and the i-th data point
+  dist_type compute(int i) { return ChildClass::compute_impl(i); }
+
+  dist_type estimate_with_profile(int i) {
+    num_distance_estimation.fetch_add(1);
     return ChildClass::estimate_impl(i);
   };
 
-  dist_type compute(int i) {
-    if constexpr (enable_profile) {
-      num_distance_computation.fetch_add(1);
-    }
+  dist_type compute_with_profile(int i) {
+    num_distance_computation.fetch_add(1);
     return ChildClass::compute_impl(i);
   }
 };

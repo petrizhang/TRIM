@@ -28,6 +28,11 @@ searcher = topnn.create_fast_searcher("hnswlib", topnn.sample_hnsw_path, topnn.s
 print(searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10))"""
 ```
 
+## TODO
+-[ ] Unified graph index format
+-[ ] Seperated storage of graph index and data
+-[ ] Support build indexes with TOP directly
+-[ ] Support PQ FastScan
 
 ## Acknowledgements
 

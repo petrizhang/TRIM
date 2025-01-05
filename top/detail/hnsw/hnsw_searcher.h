@@ -25,7 +25,9 @@
 #include <queue>
 
 #include "top/common/searcher.h"
+#include "top/detail/hnsw/top_deo.h"
 #include "top/detail/hnswlib/hnswlib.h"
+#include "top/detail/quantization/index_pq.h"
 
 namespace top {
 namespace detail {
@@ -43,8 +45,10 @@ using ResultQueue =
                         HnswlibIndex::CompareByFirst>;
 
 struct HNSWSearcher : Searcher {
-  std::unique_ptr<Space> owned_space;
-  std::unique_ptr<HnswlibIndex> owned_index;
+  std::unique_ptr<Space> owned_space = nullptr;
+  std::unique_ptr<HnswlibIndex> owned_index_hnsw = nullptr;
+  std::unique_ptr<IndexPQ> owned_index_pq = nullptr;
+  std::unique_ptr<TopDEO8> owned_deo = nullptr;
   bool use_hnswlib = false;
   size_t ef = 32;
 
@@ -57,6 +61,9 @@ struct HNSWSearcher : Searcher {
   void optimize(int num_threads) override;
   Dict get_profile() const override;
 
+  /// Reorder PQ codes by the hnsw's internal ids
+  void _reorder_pq_codes();
+  void _compute_pq_reconstruction_errors(ctpl::thread_pool& pool);
   void _index_ann_search(const void* query_data, size_t k, int* dst) const;
   ResultQueue _index_ann_search_base_layer(tableint ep_id, const void* data_point, size_t ef) const;
 };
@@ -65,8 +72,8 @@ inline void HNSWSearcher::set_data(const float* data, int n, int dim) { return; 
 
 inline void HNSWSearcher::ann_search(const float* q, int k, int* dst) const {
   if (use_hnswlib) {
-    owned_index->setEf(ef);
-    auto ret = owned_index->searchKnn(q, k);
+    owned_index_hnsw->setEf(ef);
+    auto ret = owned_index_hnsw->searchKnn(q, k);
     {
       size_t sz = ret.size();
       while (!ret.empty()) {
@@ -88,7 +95,8 @@ inline void HNSWSearcher::set(const std::string& key, Object value) {
     TOP_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE, "`ef` must be an integer");
     ef = static_cast<int>(value.get_integer());
   } else if (key == "use_hnswlib") {
-    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE, "`ef` must be an integer");
+    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
+                         "`use_hnswlib` must be a boolean value");
     use_hnswlib = value.get_bool();
   } else {
     TOP_THROW_FMT("unknown parameter %s", key.c_str());
@@ -99,8 +107,65 @@ inline void HNSWSearcher::optimize(int num_threads) { TOP_THROW_MSG("not impleme
 
 inline Dict HNSWSearcher::get_profile() const { return {}; }
 
+inline void HNSWSearcher::_reorder_pq_codes() {
+  assert(owned_index_hnsw != nullptr && owned_index_pq != nullptr);
+  faiss::AlignedTable<uint8_t> reordered_codes(owned_index_pq->codes.size());
+  TOP_THROW_IF_NOT_MSG(owned_index_hnsw->cur_element_count.load() == owned_index_pq->ntotal,
+                       "the hnsw and PQ index must have the same number of data points");
+  for (size_t i = 0; i < owned_index_pq->ntotal; i++) {
+    auto it = owned_index_hnsw->label_lookup_.find(i);
+    if (it == owned_index_hnsw->label_lookup_.end()) {
+      TOP_THROW_FMT("cannot find label %zu in hnsw index", i);
+    }
+    unsigned int internal_id = it->second;
+    auto code_size = owned_index_pq->code_size;
+    std::memcpy(reordered_codes.data() + code_size * i,
+                owned_index_pq->codes.data() + code_size * i, code_size);
+  }
+  owned_index_pq->codes = reordered_codes;
+}
+
+inline void HNSWSearcher::_compute_pq_reconstruction_errors(ctpl::thread_pool& pool) {
+  assert(owned_index_pq != nullptr);
+  auto dim = owned_index_pq->d;
+  auto ntotal = owned_index_pq->ntotal;
+  auto& pq = owned_index_pq->pq;
+  auto* index_hnsw = owned_index_hnsw.get();
+  auto* index_pq = owned_index_pq.get();
+
+  int batch_size = owned_index_pq->ntotal / pool.size();
+  std::vector<std::future<void>> futures;
+  hnswlib::L2Space space(dim);
+  hnswlib::DISTFUNC<float> dist_func = space.get_dist_func();
+  void* dist_func_param = space.get_dist_func_param();
+
+  int end = owned_index_pq->ntotal;
+  owned_index_pq->recons_errors.resize(ntotal);
+
+  float* out = owned_index_pq->recons_errors.data();
+  for (int task_start = 0, task_end = 0; task_end < end; task_start += batch_size) {
+    task_end = task_start + batch_size;
+    if (task_end > end) {
+      task_end = end;
+    }
+    auto future = pool.push([=](int task_id) {
+      std::vector<float> recons(index_pq->pq.d);
+      for (int j = task_start; j < task_end; j++) {
+        index_pq->reconstruct(j, recons.data());
+        float dist = dist_func(index_hnsw->getDataByInternalId(j), recons.data(), dist_func_param);
+        out[j] = std::sqrt(dist);
+      }
+    });
+    futures.push_back(std::move(future));
+  }
+
+  for (auto& f : futures) {
+    f.get();
+  }
+}
+
 inline void HNSWSearcher::_index_ann_search(const void* query_data, size_t k, int* dst) const {
-  const HnswlibIndex& index = *owned_index;
+  const HnswlibIndex& index = *owned_index_hnsw;
   auto& fstdistfunc_ = index.fstdistfunc_;
   if (index.cur_element_count == 0) return;
 
@@ -157,7 +222,7 @@ inline void HNSWSearcher::_index_ann_search(const void* query_data, size_t k, in
 inline ResultQueue HNSWSearcher::_index_ann_search_base_layer(tableint ep_id,
                                                               const void* data_point,
                                                               size_t ef) const {
-  const HnswlibIndex& index = *owned_index;
+  const HnswlibIndex& index = *owned_index_hnsw;
   auto* visited_list_pool_ = index.visited_list_pool_.get();
   auto& fstdistfunc_ = index.fstdistfunc_;
   auto* dist_func_param_ = index.dist_func_param_;
