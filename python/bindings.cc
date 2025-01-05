@@ -13,6 +13,7 @@ namespace py = pybind11;
 using namespace pybind11::literals;  // needed to bring in _a literal
 
 namespace top {
+
 Object create_obejct(const py::object& obj) {
   if (obj.is_none()) {
     return Object();
@@ -28,6 +29,7 @@ Object create_obejct(const py::object& obj) {
     throw std::runtime_error("Unsupported type for conversion to TOP Object");
   }
 }
+
 }  // namespace top
 
 inline void get_input_array_shapes(const py::buffer_info& buffer, size_t* rows, size_t* features) {

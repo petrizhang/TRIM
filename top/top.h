@@ -31,10 +31,6 @@
 namespace top {
 namespace detail {
 
-/**
- * Requried options: `dim`, `metric`
- * Optional options: `ef`, `use_bounded_queue`,
- */
 std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
   namespace constants = top::constants;
 
@@ -44,27 +40,24 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
   std::string metric = options.require<std::string>(constants::TOP_METRIC);
   int num_threads = options.require<int>(constants::TOP_NUM_THREADS);
 
-  if (metric != constants::TOP_METRIC_L2) {
-    TOP_THROW_MSG("only L2 metric is supported now");
-  }
+  TOP_THROW_IF_NOT_MSG(metric == constants::TOP_METRIC_L2, "only L2 metric is supported now");
   auto searcher = std::make_unique<HNSWSearcher>();
 
-  // Read HNSW
+  // Read HNSW index
   ctpl::thread_pool pool(num_threads);
   searcher->owned_space = std::make_unique<hnswlib::L2Space>(dim);
   std::unique_ptr<hnswlib::HierarchicalNSW<float>> index_hnsw = read_hnswlib(
       searcher->owned_space.get(), constants::metric_map(metric), hnswlib_index_path, dim);
   searcher->owned_index_hnsw = std::move(index_hnsw);
 
-  // Read PQ
+  // Read PQ index
   std::unique_ptr<IndexPQ> index_pq = read_index_pq(pq_index_path.c_str());
-  searcher->owned_index_pq = std::move(index_pq);
   TOP_THROW_IF_NOT_MSG(index_pq->pq.nbits == 8, "only support 8bit PQ");
+  searcher->owned_index_pq = std::move(index_pq);
   // Rorder PQ codes
   searcher->_reorder_pq_codes();
-  // Compute reconstruction errors
+  // Compute PQ reconstruction errors
   searcher->_compute_pq_reconstruction_errors(pool);
-
   // Set DEO
   searcher->owned_deo =
       std::make_unique<TopDEO8>(searcher->owned_index_pq.get(), searcher->owned_index_hnsw.get());
