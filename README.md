@@ -1,6 +1,6 @@
 <h1 align="center">UNITY</h1>
 <h3 align="center">
-Smaller & <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Faster</a> Full-Featured Similarity Search Engine</br>
+Header-Only Library for Faster Top-K and Range Similarity Search</br>
   over <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Hnswlib</a>
 and <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Faiss</a> Indexes
 </h3>
