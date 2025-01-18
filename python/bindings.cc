@@ -26,7 +26,7 @@ Object create_obejct(const py::object& obj) {
   } else if (py::isinstance<py::str>(obj)) {
     return Object(obj.cast<std::string>());
   } else {
-    throw std::runtime_error("Unsupported type for conversion to TOP Object");
+    throw std::runtime_error("Unsupported type for conversion to UNITY Object");
   }
 }
 
@@ -36,7 +36,7 @@ inline void get_input_array_shapes(const py::buffer_info& buffer, size_t* rows, 
   if (buffer.ndim != 2 && buffer.ndim != 1) {
     char msg[256];
     snprintf(msg, sizeof(msg),
-             "Input vector data wrong shape. Number of dimensions %d. Data "
+             "Input vector data wrong shape. Number of dimensions %ld. Data "
              "must be a 1D or 2D array.",
              buffer.ndim);
   }
@@ -70,12 +70,12 @@ struct Searcher {
     int* ids;
     ids = new int[k];
     searcher->ann_search(items.data(0), k, ids);
-    py::capsule free_when_done(ids, [](void* f) { delete[] f; });
+    py::capsule free_when_done(ids, [](void* f) { delete[] (int*)f; });
     return py::array_t<int>({k}, {sizeof(int)}, ids, free_when_done);
   }
 
   void set(py::object py_name, py::object py_value) {
-    TOP_THROW_IF_NOT_MSG(py::isinstance<py::str>(py_name), "name must be a string");
+    U_THROW_IF_NOT_MSG(py::isinstance<py::str>(py_name), "name must be a string");
     std::string name = py_name.cast<std::string>();
     unity::Object value = unity::create_obejct(py_value);
     searcher->set(name, value);
@@ -92,7 +92,7 @@ struct SearcherCreator {
   }
 
   SearcherCreator& set(py::object py_name, py::object py_value) {
-    TOP_THROW_IF_NOT_MSG(py::isinstance<py::str>(py_name), "name must be a string");
+    U_THROW_IF_NOT_MSG(py::isinstance<py::str>(py_name), "name must be a string");
     std::string name = py_name.cast<std::string>();
     unity::Object value = unity::create_obejct(py_value);
     builder->set(name, value);

@@ -109,9 +109,9 @@ inline std::unique_ptr<typename IndexTypeDispatch<t>::type> checked_cast(
 
 inline void check_index_pq_compatibility(const IndexPQ* pq) {
   FAISS_THROW_IF_MSG(pq->do_polysemous_training,
-                     "TOP usage error: IndexPQ must not have polysemous training enabled");
+                     "UNITY error: IndexPQ must not have polysemous training enabled");
   FAISS_THROW_IF_MSG(pq->metric_type != MetricType::METRIC_L2,
-                     "TOP usage error: only METRIC_L2 is supported");
+                     "UNITY error: only METRIC_L2 is supported");
 }
 
 inline std::unique_ptr<IndexPQ> read_index_pq(const char* fname) {

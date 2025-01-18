@@ -70,22 +70,22 @@ struct Object {
   [[nodiscard]] bool is_null() const { return type == NULL_TYPE; }
 
   [[nodiscard]] bool get_bool() const {
-    TOP_ASSERT(type == BOOL_TYPE);
+    U_ASSERT(type == BOOL_TYPE);
     return std::any_cast<bool>(value);
   }
 
   [[nodiscard]] int64_t get_integer() const {
-    TOP_ASSERT(type == INTEGER_TYPE);
+    U_ASSERT(type == INTEGER_TYPE);
     return std::any_cast<int64_t>(value);
   }
 
   [[nodiscard]] double get_double() const {
-    TOP_ASSERT(type == DOUBLE_TYPE);
+    U_ASSERT(type == DOUBLE_TYPE);
     return std::any_cast<double>(value);
   }
 
   [[nodiscard]] std::string get_string() const {
-    TOP_ASSERT(type == STRING_TYPE);
+    U_ASSERT(type == STRING_TYPE);
     return std::any_cast<std::string>(value);
   }
 
@@ -102,7 +102,7 @@ struct Object {
       case STRING_TYPE:
         return get_string();
       default:
-        throw unity::TopException("unexpected code path");
+        throw unity::UnityException("unexpected code path");
     }
   }
 };
@@ -160,37 +160,37 @@ struct Dict {
 
     if (it == mapping.end()) {
       if constexpr (is_required) {
-        TOP_THROW_FMT("missing required key `%s`", key.c_str());
+        U_THROW_FMT("missing required key `%s`", key.c_str());
       }
       return {};
     }
 
     const Object& obj = it->second;
     if constexpr (std::is_same_v<T, bool>) {
-      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::BOOL_TYPE, "`%s` must be a boolean value",
+      U_THROW_IF_NOT_FMT(obj.type == ObjectType::BOOL_TYPE, "`%s` must be a boolean value",
                            key.c_str());
       return obj.get_bool();
     }
 
     if constexpr (std::is_integral_v<T>) {
-      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::INTEGER_TYPE, "`%s` must be an integer type",
+      U_THROW_IF_NOT_FMT(obj.type == ObjectType::INTEGER_TYPE, "`%s` must be an integer type",
                            key.c_str());
       return obj.get_integer();
     }
 
     if constexpr (std::is_floating_point_v<T>) {
-      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::DOUBLE_TYPE, "`%s` must be a double value",
+      U_THROW_IF_NOT_FMT(obj.type == ObjectType::DOUBLE_TYPE, "`%s` must be a double value",
                            key.c_str());
       return obj.get_double();
     }
 
     if constexpr (std::is_same_v<T, std::string>) {
-      TOP_THROW_IF_NOT_FMT(obj.type == ObjectType::STRING_TYPE, "`%s` must be a string",
+      U_THROW_IF_NOT_FMT(obj.type == ObjectType::STRING_TYPE, "`%s` must be a string",
                            key.c_str());
       return obj.get_string();
     }
 
-    TOP_THROW_MSG("reading unsupported type from Dict");
+    U_THROW_MSG("reading unsupported type from Dict");
   }
 };
 

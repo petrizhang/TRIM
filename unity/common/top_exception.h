@@ -30,12 +30,12 @@
 
 namespace unity {
 
-/// Base class for TOP exceptions
-class TopException : public std::exception {
+/// Base class for UNITY exceptions
+class UnityException : public std::exception {
  public:
-  explicit TopException(const std::string& msg);
+  explicit UnityException(const std::string& msg);
 
-  TopException(const std::string& msg, const char* funcName, const char* file, int line);
+  UnityException(const std::string& msg, const char* funcName, const char* file, int line);
 
   /// from std::exception
   const char* what() const noexcept override;
@@ -55,15 +55,15 @@ std::string demangle_cpp_symbol(const char* name);
 
 namespace unity {
 
-TopException::TopException(const std::string& m) : msg(m) {}
+UnityException::UnityException(const std::string& m) : msg(m) {}
 
-TopException::TopException(const std::string& m, const char* funcName, const char* file, int line) {
+UnityException::UnityException(const std::string& m, const char* funcName, const char* file, int line) {
   int size = snprintf(nullptr, 0, "Error in %s at %s:%d: %s", funcName, file, line, m.c_str());
   msg.resize(size + 1);
   snprintf(&msg[0], msg.size(), "Error in %s at %s:%d: %s", funcName, file, line, m.c_str());
 }
 
-const char* TopException::what() const noexcept { return msg.c_str(); }
+const char* UnityException::what() const noexcept { return msg.c_str(); }
 
 void handleExceptions(std::vector<std::pair<int, std::exception_ptr>>& exceptions) {
   if (exceptions.size() == 1) {
@@ -90,7 +90,7 @@ void handleExceptions(std::vector<std::pair<int, std::exception_ptr>>& exception
       }
     }
 
-    throw TopException(ss.str());
+    throw UnityException(ss.str());
   }
 }
 

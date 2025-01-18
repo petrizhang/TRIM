@@ -41,7 +41,7 @@ struct IndexPQ : Index {
   AlignedTable<float> recons_errors;
 
   /******************************************************
-   * Polysemous codes implementation, currently not supported by TOP
+   * Polysemous codes implementation, currently not supported by UNITY
    ******************************************************/
   bool do_polysemous_training;  ///< false = standard PQ
 
@@ -78,14 +78,14 @@ inline void IndexPQ::sa_decode_n(idx_t n, const uint8_t* bytes, float* x) const 
 }
 
 inline void IndexPQ::reconstruct_n(idx_t i0, idx_t ni, float* recons) const {
-  TOP_THROW_IF_NOT(ni == 0 || (i0 >= 0 && i0 + ni <= ntotal));
+  U_THROW_IF_NOT(ni == 0 || (i0 >= 0 && i0 + ni <= ntotal));
   sa_decode_n(ni, codes.data() + i0 * code_size, recons);
 }
 
 inline void IndexPQ::sa_decode(const uint8_t* code, float* x) const { pq.decode(code, x); }
 
 inline void IndexPQ::reconstruct(idx_t key, float* recons) const {
-  TOP_THROW_IF_NOT(key >= 0 && key <= ntotal);
+  U_THROW_IF_NOT(key >= 0 && key <= ntotal);
   sa_decode(codes.data() + key * code_size, recons);
 }
 

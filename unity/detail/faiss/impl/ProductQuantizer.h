@@ -47,12 +47,12 @@ struct ProductQuantizer {
 
 void ProductQuantizer::set_derived_values() {
   // quite a few derived values
-  TOP_THROW_IF_NOT_MSG(
+  U_THROW_IF_NOT_MSG(
       d % M == 0,
       "The dimension of the vector (d) should be a multiple of the number of subquantizers (M)");
   dsub = d / M;
   code_size = (nbits * M + 7) / 8;
-  TOP_THROW_IF_MSG(nbits > 24, "nbits larger than 24 is not practical.");
+  U_THROW_IF_MSG(nbits > 24, "nbits larger than 24 is not practical.");
   ksub = 1 << nbits;
   centroids.resize(d * ksub);
 }

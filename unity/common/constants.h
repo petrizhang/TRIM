@@ -43,7 +43,7 @@ inline Metric metric_map(const std::string& name) {
   } else if (name == U_METRIC_IP) {
     return Metric::IP;
   }
-  TOP_THROW_FMT("unknown metric `%s`, please use valid metric %s or %s", name.c_str(), U_METRIC_L2,
+  U_THROW_FMT("unknown metric `%s`, please use valid metric %s or %s", name.c_str(), U_METRIC_L2,
                 U_METRIC_IP);
 }
 }  // namespace constants

@@ -40,7 +40,7 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
   std::string metric = options.require<std::string>(constants::U_METRIC);
   int num_threads = options.require<int>(constants::U_NUM_THREADS);
 
-  TOP_THROW_IF_NOT_MSG(metric == constants::U_METRIC_L2, "only L2 metric is supported now");
+  U_THROW_IF_NOT_MSG(metric == constants::U_METRIC_L2, "only L2 metric is supported now");
   auto searcher = std::make_unique<HNSWSearcher>();
 
   // Read HNSW index
@@ -52,7 +52,7 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
 
   // Read PQ index
   std::unique_ptr<IndexPQ> index_pq = read_index_pq(pq_index_path.c_str());
-  TOP_THROW_IF_NOT_MSG(index_pq->pq.nbits == 8, "only support 8bit PQ");
+  U_THROW_IF_NOT_MSG(index_pq->pq.nbits == 8, "only support 8bit PQ");
   searcher->owned_index_pq = std::move(index_pq);
   // Rorder PQ codes
   searcher->_reorder_pq_codes();
@@ -82,7 +82,7 @@ struct SearcherCreator {
     if (index_type == U_HNSW) {
       return detail::build_hnsw_searcher(options);
     }
-    TOP_THROW_FMT("cannot create searcher for unsupported index type %s", index_type.c_str());
+    U_THROW_FMT("cannot create searcher for unsupported index type %s", index_type.c_str());
   }
 };
 

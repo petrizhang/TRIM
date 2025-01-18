@@ -29,7 +29,7 @@ namespace detail {
 std::unique_ptr<hnswlib::HierarchicalNSW<float>> read_hnswlib(hnswlib::SpaceInterface<float>* space,
                                                               Metric metric,
                                                               const std::string& path, int dim) {
-  TOP_THROW_IF_NOT_MSG(metric == Metric::L2, "only L2 metric is supported now");
+  U_THROW_IF_NOT_MSG(metric == Metric::L2, "only L2 metric is supported now");
   auto hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(space, path, false, 0, false);
   return hnsw;
 }

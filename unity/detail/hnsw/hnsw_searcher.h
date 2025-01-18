@@ -87,39 +87,39 @@ inline void HNSWSearcher::ann_search(const float* q, int k, int* dst) const {
 }
 
 inline void HNSWSearcher::range_search(const float* q, float radius, int* dst) const {
-  TOP_THROW_MSG("not implemented error");
+  U_THROW_MSG("not implemented error");
 }
 
 inline void HNSWSearcher::set(const std::string& key, Object value) {
   if (key == "ef") {
-    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE, "`ef` must be an integer");
+    U_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE, "`ef` must be an integer");
     ef = static_cast<int>(value.get_integer());
   } else if (key == "use_hnswlib") {
-    TOP_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
-                         "`use_hnswlib` must be a boolean value");
+    U_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
+                       "`use_hnswlib` must be a boolean value");
     use_hnswlib = value.get_bool();
   } else {
-    TOP_THROW_FMT("unknown parameter %s", key.c_str());
+    U_THROW_FMT("unknown parameter %s", key.c_str());
   }
 }
 
-inline void HNSWSearcher::optimize(int num_threads) { TOP_THROW_MSG("not implemented error"); }
+inline void HNSWSearcher::optimize(int num_threads) { U_THROW_MSG("not implemented error"); }
 
 inline Dict HNSWSearcher::get_profile() const { return {}; }
 
 inline void HNSWSearcher::_reorder_pq_codes() {
   assert(owned_index_hnsw != nullptr && owned_index_pq != nullptr);
   faiss::AlignedTable<uint8_t> reordered_codes(owned_index_pq->codes.size());
-  TOP_THROW_IF_NOT_MSG(owned_index_hnsw->cur_element_count.load() == owned_index_pq->ntotal,
-                       "the hnsw and PQ index must have the same number of data points");
-  for (size_t i = 0; i < owned_index_pq->ntotal; i++) {
+  U_THROW_IF_NOT_MSG(owned_index_hnsw->cur_element_count.load() == (size_t)owned_index_pq->ntotal,
+                     "the hnsw and PQ index must have the same number of data points");
+  for (size_t i = 0; i < (size_t)owned_index_pq->ntotal; i++) {
     auto it = owned_index_hnsw->label_lookup_.find(i);
     if (it == owned_index_hnsw->label_lookup_.end()) {
-      TOP_THROW_FMT("cannot find label %zu in hnsw index", i);
+      U_THROW_FMT("cannot find label %zu in hnsw index", i);
     }
     unsigned int internal_id = it->second;
     auto code_size = owned_index_pq->code_size;
-    std::memcpy(reordered_codes.data() + code_size * i,
+    std::memcpy(reordered_codes.data() + code_size * internal_id,
                 owned_index_pq->codes.data() + code_size * i, code_size);
   }
   owned_index_pq->codes = reordered_codes;
@@ -129,7 +129,6 @@ inline void HNSWSearcher::_compute_pq_reconstruction_errors(ctpl::thread_pool& p
   assert(owned_index_pq != nullptr);
   auto dim = owned_index_pq->d;
   auto ntotal = owned_index_pq->ntotal;
-  auto& pq = owned_index_pq->pq;
   auto* index_hnsw = owned_index_hnsw.get();
   auto* index_pq = owned_index_pq.get();
 
