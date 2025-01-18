@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "unity/common/top_assert.h"
+#include "unity/common/u_assert.h"
 
 #define FAISS_ASSERT U_ASSERT
 #define FAISS_ASSERT_MSG U_ASSERT_MSG

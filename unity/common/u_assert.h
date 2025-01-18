@@ -22,7 +22,7 @@
 #include <cstdlib>
 #include <string>
 
-#include "unity/common/top_exception.h"
+#include "unity/common/u_exception.h"
 
 ///
 /// Assertions

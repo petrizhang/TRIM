@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include "unity/common/top_assert.h"
+#include "unity/common/u_assert.h"
 #include "unity/detail/hnswlib/hnswlib.h"
 
 namespace unity {

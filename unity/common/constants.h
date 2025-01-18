@@ -19,7 +19,7 @@
 #pragma once
 
 #include "unity/common/common.h"
-#include "unity/common/top_assert.h"
+#include "unity/common/u_assert.h"
 
 namespace unity {
 namespace constants {

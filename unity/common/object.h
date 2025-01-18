@@ -23,7 +23,7 @@
 #include <cstdint>
 #include <unordered_map>
 
-#include "unity/common/top_assert.h"
+#include "unity/common/u_assert.h"
 
 namespace unity {
 

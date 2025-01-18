@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <unity/common/top_assert.h>
+#include <unity/common/u_assert.h>
 #include <unity/detail/faiss/Index.h>
 #include <unity/detail/faiss/utils/distances_simd.h>
 
