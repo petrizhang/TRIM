@@ -33,7 +33,7 @@ namespace unity {
 namespace detail {
 
 template <typename PQEncoderType>
-struct TopDEO : DistanceEstimateOperator<float, TopDEO<PQEncoderType>> {
+struct UnityDEO : DistanceEstimateOperator<float, UnityDEO<PQEncoderType>> {
   using dist_type = float;
 
   const IndexPQ* pq = nullptr;
@@ -41,8 +41,8 @@ struct TopDEO : DistanceEstimateOperator<float, TopDEO<PQEncoderType>> {
   const dist_type* query = nullptr;
   AlignedTable<dist_type> dist_table;
 
-  TopDEO() = default;
-  TopDEO(const IndexPQ* pq, const hnswlib::HierarchicalNSW<float>* hnsw) : pq(pq), hnsw(hnsw) {}
+  UnityDEO() = default;
+  UnityDEO(const IndexPQ* pq, const hnswlib::HierarchicalNSW<float>* hnsw) : pq(pq), hnsw(hnsw) {}
 
   void set_query_impl(const dist_type* query_data) {
     query = query_data;
@@ -64,9 +64,9 @@ struct TopDEO : DistanceEstimateOperator<float, TopDEO<PQEncoderType>> {
   float compute_impl(int i) { return 0; }
 };
 
-using TopDEO8 = TopDEO<faiss::PQDecoder8>;
-using TopDEO16 = TopDEO<faiss::PQDecoder16>;
-using TopDEOGeneric = TopDEO<faiss::PQDecoderGeneric>;
+using UnityDEO8 = UnityDEO<faiss::PQDecoder8>;
+using UnityDEO16 = UnityDEO<faiss::PQDecoder16>;
+using UnityDEOGeneric = UnityDEO<faiss::PQDecoderGeneric>;
 
 }  // namespace detail
 }  // namespace unity

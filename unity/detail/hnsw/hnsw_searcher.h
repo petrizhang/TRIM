@@ -48,7 +48,7 @@ struct HNSWSearcher : Searcher {
   std::unique_ptr<Space> owned_space = nullptr;
   std::unique_ptr<HnswlibIndex> owned_index_hnsw = nullptr;
   std::unique_ptr<IndexPQ> owned_index_pq = nullptr;
-  std::unique_ptr<TopDEO8> owned_deo = nullptr;
+  std::unique_ptr<UnityDEO8> owned_deo = nullptr;
   bool use_hnswlib = false;
   size_t ef = 32;
 

@@ -60,7 +60,7 @@ std::unique_ptr<Searcher> build_hnsw_searcher(const Dict& options) {
   searcher->_compute_pq_reconstruction_errors(pool);
   // Set DEO
   searcher->owned_deo =
-      std::make_unique<TopDEO8>(searcher->owned_index_pq.get(), searcher->owned_index_hnsw.get());
+      std::make_unique<UnityDEO8>(searcher->owned_index_pq.get(), searcher->owned_index_hnsw.get());
   return searcher;
 }
 
