@@ -40,7 +40,7 @@ int main() {
                                                 .set("dim", dim)
                                                 .set("metric", "L2")
                                                 .set("num_threads", 12)
-                                                .build();
+                                                .create();
   std::cout << (int64_t)searcher.get() << "\n";
   return 0;
 }

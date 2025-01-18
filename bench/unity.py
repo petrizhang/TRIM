@@ -43,11 +43,11 @@ class Algorithm(BaseANN):
 
     def load_index(self, index_path: str) -> None:
         if self.searcher is None:
-            builder = unitylib.SearcherCreator("hnsw")
-            builder.set("hnswlib_index_path", index_path)
-            builder.set("dim", self.dim)
-            builder.set("metric", "L2")
-            self.searcher = builder.build()
+            creator = unitylib.SearcherCreator("hnsw")
+            creator.set("hnswlib_index_path", index_path)
+            creator.set("dim", self.dim)
+            creator.set("metric", "L2")
+            self.searcher = creator.create()
 
     def freeIndex(self):
         del self.p

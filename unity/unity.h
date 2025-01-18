@@ -77,7 +77,7 @@ struct SearcherCreator {
     return *this;
   }
 
-  std::unique_ptr<Searcher> build() {
+  std::unique_ptr<Searcher> create() {
     using unity::constants::U_HNSW;
     if (index_type == U_HNSW) {
       return detail::build_hnsw_searcher(options);

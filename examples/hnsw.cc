@@ -80,7 +80,7 @@ int main() {
                                                 .set("hnswlib_index_path", save_path)
                                                 .set("dim", dim)
                                                 .set("metric", "L2")
-                                                .build();
+                                                .create();
   std::cout << "Index loaded.\n";
 
   constexpr const int k = 10;

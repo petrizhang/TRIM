@@ -99,8 +99,8 @@ struct SearcherCreator {
     return *this;
   }
 
-  Searcher build() {
-    Searcher searcher(builder->build());
+  Searcher create() {
+    Searcher searcher(builder->create());
     return searcher;
   }
 };
@@ -116,5 +116,5 @@ PYBIND11_MODULE(unitylib, m) {
   py::class_<SearcherCreator>(m, "SearcherCreator")
       .def(py::init<std::string>(), py::arg("index_type"))
       .def("set", &SearcherCreator::set, py::arg("key"), py::arg("value"))
-      .def("build", &SearcherCreator::build);
+      .def("create", &SearcherCreator::create);
 }

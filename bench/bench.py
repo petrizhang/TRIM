@@ -118,8 +118,8 @@ def main():
                         help="Number of neighbors to search")
     parser.add_argument("-d", "--dataset", required=True,
                         help="Path to the dataset.")
-    parser.add_argument("-m", "--method", required=True, choices=['hnsw', 'faiss_ivfpq_rflat',
-                        'top_hnsw', 'top_ivfpq_rflat', 'top_fast_hnsw', 'top_fast_ivfpq_rflat'], help="Method to test")
+    parser.add_argument("-m", "--method", required=True,
+                        choices=['hnsw', 'faiss', 'unity'], help="Method to test")
     parser.add_argument("-b", "--build_args", required=True,
                         help="Build parameters in the format: M:16;efConstruction:500")
     parser.add_argument("-s", "--search_args", required=True,
@@ -147,7 +147,7 @@ def main():
     #             search_args="ef:[10,20,30,40,50,60,70,80,90,100,200,400,800]",
     #             save_index_path="./tmp/index/sift_hnswlib16x500.bin",
     #             save_result_path="./tmp/results/sift_hnsw16x500.csv")
-    
+
     # Parse build and search arguments
     build_args = parse_index_config(args.build_args)
     search_args = parse_index_config(args.search_args)
