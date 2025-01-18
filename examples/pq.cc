@@ -19,22 +19,22 @@
 
 #include <iostream>
 
-#include "top/detail/hnsw/top_deo.h"
-#include "top/detail/io/read_faiss.h"
-#include "top/detail/quantization/index_pq.h"
-#include "top/top.h"
+#include "unity/detail/hnsw/top_deo.h"
+#include "unity/detail/io/read_faiss.h"
+#include "unity/detail/quantization/index_pq.h"
+#include "unity/unity.h"
 
 int main() {
-  using top::Searcher;
-  using top::detail::Index;
-  using top::detail::IndexPQ;
-  using top::detail::IndexType;
+  using unity::Searcher;
+  using unity::detail::Index;
+  using unity::detail::IndexPQ;
+  using unity::detail::IndexType;
 
   // Search hnswlib index with top
   const char* index_hnsw_path = "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin";
   const char* index_pq_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
   const int dim = 256;
-  std::unique_ptr<top::Searcher> searcher = top::SearcherBuilder(top::constants::TOP_HNSW)
+  std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                 .set("hnswlib_index_path", index_hnsw_path)
                                                 .set("pq_index_path", index_pq_path)
                                                 .set("dim", dim)

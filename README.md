@@ -1,8 +1,8 @@
-<h1 align="center">TOP</h1>
+<h1 align="center">UNITY</h1>
 <h3 align="center">
-Smaller & <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faster</a> Full-Featured Similarity Search Engine</br>
-  over <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Hnswlib</a>
-and <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faiss</a> Indexes
+Smaller & <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Faster</a> Full-Featured Similarity Search Engine</br>
+  over <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Hnswlib</a>
+and <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Faiss</a> Indexes
 </h3>
 <br/>
 
@@ -18,25 +18,25 @@ and <a href="https://github.com/petrizhang/TOP/edit/main/README.md">Faiss</a> In
 ### Install
 Ensure that there is a cxx17 compatible compiler installed in your system, and execute:
 ```bash
-pip install topnn
+pip install unitylib
 ```
 
 ### 10x Search Performance with 3 Lines of Code
 ```python
-python -c """import topnn
-searcher = topnn.create_fast_searcher("hnswlib", topnn.sample_hnsw_path, topnn.sample_pq_path)
+python -c """import unitylib
+searcher = unitylib.create_fast_searcher("hnswlib", unitylib.sample_hnsw_path, unitylib.sample_pq_path)
 print(searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10))"""
 ```
 
 ## TODO
 - [ ] Unified graph index format
 - [ ] Seperated storage of graph index and data
-- [ ] Support build indexes with TOP directly
+- [ ] Support build indexes with UNITY directly
 - [ ] Support PQ FastScan
 
 ## Acknowledgements
 
-We learned a lot from the following projects when building TOP.
+We learned a lot from the following projects when building UNITY.
 - [faiss](https://github.com/facebookresearch/faiss)
 - [hnswlib](https://github.com/nmslib/hnswlib)
 - [glass](https://github.com/zilliztech/pyglass)

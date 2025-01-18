@@ -19,8 +19,8 @@
 
 #include <iostream>
 
-#include "top/detail/hnswlib/hnswalg.h"
-#include "top/top.h"
+#include "unity/detail/hnswlib/hnswalg.h"
+#include "unity/unity.h"
 
 struct RandomGenerator {
   std::mt19937 mt;
@@ -76,7 +76,7 @@ int main() {
 
   // Search hnswlib index with top
   std::cout << "Start to load hnswlib index with TOP...\n";
-  std::unique_ptr<top::Searcher> searcher = top::SearcherBuilder(top::constants::TOP_HNSW)
+  std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                 .set("hnswlib_index_path", save_path)
                                                 .set("dim", dim)
                                                 .set("metric", "L2")

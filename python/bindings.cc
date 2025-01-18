@@ -5,14 +5,14 @@
 
 #include <thread>
 
-#include "top/common/object.h"
-#include "top/common/searcher.h"
-#include "top/factory.h"
+#include "unity/common/object.h"
+#include "unity/common/searcher.h"
+#include "unity/unity.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;  // needed to bring in _a literal
 
-namespace top {
+namespace unity {
 
 Object create_obejct(const py::object& obj) {
   if (obj.is_none()) {
@@ -30,7 +30,7 @@ Object create_obejct(const py::object& obj) {
   }
 }
 
-}  // namespace top
+}  // namespace unity
 
 inline void get_input_array_shapes(const py::buffer_info& buffer, size_t* rows, size_t* features) {
   if (buffer.ndim != 2 && buffer.ndim != 1) {
@@ -50,10 +50,10 @@ inline void get_input_array_shapes(const py::buffer_info& buffer, size_t* rows, 
 }
 
 struct Searcher {
-  std::unique_ptr<top::Searcher> searcher;
+  std::unique_ptr<unity::Searcher> searcher;
 
   Searcher() : searcher(nullptr) {}
-  Searcher(std::unique_ptr<top::Searcher> searcher) : searcher(std::move(searcher)) {};
+  Searcher(std::unique_ptr<unity::Searcher> searcher) : searcher(std::move(searcher)) {};
 
   // TODO: delete this method, read data from hnswlib directly
   void set_data(py::object input) {
@@ -77,24 +77,24 @@ struct Searcher {
   void set(py::object py_name, py::object py_value) {
     TOP_THROW_IF_NOT_MSG(py::isinstance<py::str>(py_name), "name must be a string");
     std::string name = py_name.cast<std::string>();
-    top::Object value = top::create_obejct(py_value);
+    unity::Object value = unity::create_obejct(py_value);
     searcher->set(name, value);
   }
 
   void optimize(int num_threads = 0) { searcher->optimize(num_threads); }
 };
 
-struct SearcherBuilder {
-  std::unique_ptr<top::SearcherBuilder> builder;
+struct SearcherCreator {
+  std::unique_ptr<unity::SearcherCreator> builder;
 
-  explicit SearcherBuilder(const std::string& index_type) {
-    builder = std::make_unique<top::SearcherBuilder>(index_type);
+  explicit SearcherCreator(const std::string& index_type) {
+    builder = std::make_unique<unity::SearcherCreator>(index_type);
   }
 
-  SearcherBuilder& set(py::object py_name, py::object py_value) {
+  SearcherCreator& set(py::object py_name, py::object py_value) {
     TOP_THROW_IF_NOT_MSG(py::isinstance<py::str>(py_name), "name must be a string");
     std::string name = py_name.cast<std::string>();
-    top::Object value = top::create_obejct(py_value);
+    unity::Object value = unity::create_obejct(py_value);
     builder->set(name, value);
     return *this;
   }
@@ -105,7 +105,7 @@ struct SearcherBuilder {
   }
 };
 
-PYBIND11_MODULE(topnn, m) {
+PYBIND11_MODULE(unitylib, m) {
   py::class_<Searcher>(m, "Searcher")
       .def(py::init<>())
       .def("set_data", &Searcher::set_data, py::arg("data"))
@@ -113,8 +113,8 @@ PYBIND11_MODULE(topnn, m) {
       .def("set", &Searcher::set, py::arg("name"), py::arg("value"))
       .def("optimize", &Searcher::optimize, py::arg("num_threads") = 0);
 
-  py::class_<SearcherBuilder>(m, "SearcherBuilder")
+  py::class_<SearcherCreator>(m, "SearcherCreator")
       .def(py::init<std::string>(), py::arg("index_type"))
-      .def("set", &SearcherBuilder::set, py::arg("key"), py::arg("value"))
-      .def("build", &SearcherBuilder::build);
+      .def("set", &SearcherCreator::set, py::arg("key"), py::arg("value"))
+      .def("build", &SearcherCreator::build);
 }

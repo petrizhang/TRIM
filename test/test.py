@@ -1,8 +1,8 @@
-import topnn
+import unitylib
 
-builder = topnn.SearcherBuilder("hnsw")
+builder = unitylib.SearcherCreator("hnsw")
 builder.set("hnswlib_index_path",
-            "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin")
+            "/data/home/petrizhang/develop/unity/examples/hnswlib.bin")
 builder.set("dim", 256) 
 builder.set("metric", "L2") 
 searcher = builder.build()

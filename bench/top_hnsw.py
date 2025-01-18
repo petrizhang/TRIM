@@ -1,6 +1,6 @@
 import hnswlib
 import numpy as np
-import topnn
+import unitylib
 from alg import BaseANN
 
 
@@ -11,7 +11,7 @@ class Algorithm(BaseANN):
         self.name = f"hnswlib ({self.method_param})"
         self.dim = dim
         self.p = hnswlib.Index(space=self.metric, dim=dim)
-        self.searcher: topnn.Searcher = None
+        self.searcher: unitylib.Searcher = None
 
     def fit(self, X):
         assert len(X[0]) == self.dim
@@ -43,7 +43,7 @@ class Algorithm(BaseANN):
 
     def load_index(self, index_path: str) -> None:
         if self.searcher is None:
-            builder = topnn.SearcherBuilder("hnsw")
+            builder = unitylib.SearcherCreator("hnsw")
             builder.set("hnswlib_index_path", index_path)
             builder.set("dim", self.dim)
             builder.set("metric", "L2")

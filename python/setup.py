@@ -29,7 +29,7 @@ extra_objects = []
 
 ext_modules = [
     Extension(
-        'topnn',
+        'unitylib',
         source_files,
         include_dirs=include_dirs,
         libraries=libraries,
@@ -92,7 +92,7 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 setup(
-    name='topnn',
+    name='unitylib',
     version=__version__,
     description='Smaller & Faster Full-Featured Similarity Search Engine',
     author='',
