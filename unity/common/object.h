@@ -74,7 +74,7 @@ struct Object {
     return std::any_cast<bool>(value);
   }
 
-  [[nodiscard]] int64_t get_integer() const {
+  [[nodiscard]] int64_t get_int64() const {
     U_ASSERT(type == INTEGER_TYPE);
     return std::any_cast<int64_t>(value);
   }
@@ -96,7 +96,7 @@ struct Object {
       case BOOL_TYPE:
         return get_bool() ? "true" : "false";
       case INTEGER_TYPE:
-        return std::to_string(get_integer());
+        return std::to_string(get_int64());
       case DOUBLE_TYPE:
         return std::to_string(get_double());
       case STRING_TYPE:
@@ -175,7 +175,7 @@ struct Dict {
     if constexpr (std::is_integral_v<T>) {
       U_THROW_IF_NOT_FMT(obj.type == ObjectType::INTEGER_TYPE, "`%s` must be an integer value",
                            key.c_str());
-      return obj.get_integer();
+      return obj.get_int64();
     }
 
     if constexpr (std::is_floating_point_v<T>) {

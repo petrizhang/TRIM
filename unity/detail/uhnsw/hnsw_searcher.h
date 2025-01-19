@@ -93,7 +93,7 @@ struct HNSWSearcher : Searcher {
     if (key == "ef") {
       U_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE,
                          "parameter `ef` must be an integer");
-      _ef = static_cast<int>(value.get_integer());
+      _ef = static_cast<size_t>(value.get_int64());
     } else if (key == "enable_profile") {
       U_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
                          "parameter  `enable_profile` must be a boolean value");
