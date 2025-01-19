@@ -92,7 +92,7 @@ std::unique_ptr<Searcher> create_hnsw_searcher(const Dict& options) {
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     }
   } else {
-    U_THROW_FMT("unknown DCO %s", dco_type);
+    U_THROW_FMT("unknown DCO %s", dco_type.c_str());
   }
 
   return searcher;

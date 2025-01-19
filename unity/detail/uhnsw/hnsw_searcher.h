@@ -45,15 +45,39 @@ using ResultQueue =
 
 template <typename DCO = UnityOp8<false>>
 struct HNSWSearcher : Searcher {
+  // DCO
+  mutable DCO _dco;
+  // HNSW members
+  const HnswlibIndex* _hnsw;
+  hnswlib::VisitedListPool* _visited_list_pool{nullptr};
+  char* _data_level0_memory{nullptr};
+  size_t _size_data_per_element{0};
+  size_t _size_links_per_element{0};
+  size_t _offset_data{0}, _offset_level0{0};
+
+  // Index
   std::shared_ptr<UnityHNSW> _shared_uhnsw = nullptr;  // a UnityHNSW index with shared ownership
   const UnityHNSW* _uhnsw = nullptr;                   // the underlying pointer of [shared_uhnsw]
+
+  // Parameters
   size_t _ef = 32;
   bool _enable_profile = false;
-  mutable DCO _dco;
 
   HNSWSearcher() = delete;
+
   explicit HNSWSearcher(const std::shared_ptr<UnityHNSW>& index, DCO dco)
-      : _shared_uhnsw(index), _uhnsw(index.get()), _dco(std::move(dco)) {}
+      : _shared_uhnsw(index), _uhnsw(index.get()), _dco(std::move(dco)) {
+    U_ASSERT(_uhnsw != nullptr);
+    _hnsw = _uhnsw->owned_index_hnsw.get();
+    U_ASSERT(_hnsw != nullptr);
+    _visited_list_pool = _hnsw->visited_list_pool_.get();
+    _data_level0_memory = _hnsw->data_level0_memory_;
+    _size_data_per_element = _hnsw->size_data_per_element_;
+    _size_links_per_element = _hnsw->size_links_per_element_;
+    _offset_data = _hnsw->offsetData_;
+    _offset_level0 = _hnsw->offsetLevel0_;
+  }
+
   ~HNSWSearcher() override = default;
 
   void set_data(const float* data, int n, int dim) override {};
@@ -86,7 +110,7 @@ struct HNSWSearcher : Searcher {
     const HnswlibIndex& index = *_uhnsw->owned_index_hnsw;
 
     tableint node = index.enterpoint_node_;
-    dist_t curdist;
+    dist_t curdist = -1;
     _dco.distance_less_than(-1, index.enterpoint_node_, &curdist);
 
     for (int level = index.maxlevel_; level > 0; level--) {
@@ -104,7 +128,7 @@ struct HNSWSearcher : Searcher {
           if (cand < 0 || cand >= index.max_elements_) {
             U_THROW_FMT("search error, got illegal candidcate %u", cand);
           }
-          dist_t d;
+          dist_t d = -1;
           if (_dco.distance_less_than(curdist, cand, &d)) {
             curdist = d;
             node = cand;
@@ -122,15 +146,13 @@ struct HNSWSearcher : Searcher {
     const HnswlibIndex& index = *_uhnsw->owned_index_hnsw;
     if (index.cur_element_count.load() == 0) return;
 
+    _dco.set_query((dist_t*)query_data);
+    dist_t seed_dist = -1;
+    tableint seed = _init_search_seed(query_data, &seed_dist);
+
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         HnswlibIndex::CompareByFirst>
-        top_candidates;
-
-    _dco.set_query((dist_t*)query_data);
-
-    dist_t seed_dist;
-    tableint seed = _init_search_seed(query_data, &seed_dist);
-    top_candidates = _ann_search_level0(seed, seed_dist, query_data, std::max(_ef, k));
+        top_candidates = _ann_search_level0(seed, seed_dist, std::max(_ef, k));
 
     while (top_candidates.size() > k) {
       top_candidates.pop();
@@ -146,16 +168,8 @@ struct HNSWSearcher : Searcher {
   };
 
   /// Peform ANN search over the bottom layer
-  ResultQueue _ann_search_level0(tableint seed, dist_t seed_dist, const void* data_point,
-                                 size_t ef) const {
-    const HnswlibIndex& index = *_uhnsw->owned_index_hnsw;
-    auto* visited_list_pool_ = index.visited_list_pool_.get();
-    auto* data_level0_memory_ = index.data_level0_memory_;
-    auto size_data_per_element_ = index.size_data_per_element_;
-    auto offsetLevel0_ = index.offsetLevel0_;
-    auto offsetData_ = index.offsetData_;
-
-    VisitedList* vl = visited_list_pool_->getFreeVisitedList();
+  ResultQueue _ann_search_level0(tableint seed, dist_t seed_dist, size_t ef) const {
+    VisitedList* vl = _visited_list_pool->getFreeVisitedList();
     vl_type* visited = vl->mass;
     vl_type visited_array_tag = vl->curV;
 
@@ -182,14 +196,14 @@ struct HNSWSearcher : Searcher {
       candidates.pop();
 
       tableint current_node_id = current_node_pair.second;
-      int* neighbors = (int*)index.get_linklist0(current_node_id);
-      size_t size = index.getListCount((linklistsizeint*)neighbors);
+      int* neighbors = (int*)_hnsw->get_linklist0(current_node_id);
+      size_t size = _hnsw->getListCount((linklistsizeint*)neighbors);
 
       // Prefetch visited array
       _prefetch((char*)(visited + *(neighbors + 1)));
       _prefetch((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch vector data of the first neighbor
-      _prefetch(data_level0_memory_ + (*(neighbors + 1)) * size_data_per_element_ + offsetData_);
+      _prefetch(_data_level0_memory + (*(neighbors + 1)) * _size_data_per_element + _offset_data);
       // Prefetch the second neighbor
       _prefetch((char*)(neighbors + 2));
 
@@ -199,20 +213,20 @@ struct HNSWSearcher : Searcher {
         // Prefetch visited array of the next neighbor
         _prefetch((char*)(visited + *(neighbors + j + 1)));
         // Prefetch vector data of the next neighbor
-        _prefetch(data_level0_memory_ + (*(neighbors + j + 1)) * size_data_per_element_ +
-                  offsetData_);
+        _prefetch(_data_level0_memory + (*(neighbors + j + 1)) * _size_data_per_element +
+                  _offset_data);
 
         if (!(visited[cand_id] == visited_array_tag)) {
           visited[cand_id] = visited_array_tag;
 
-          dist_t dist;
+          dist_t dist = -1;
           bool found_better_cand = _dco.distance_less_than(max_dist, cand_id, &dist);
-          if (results.size() < ef || found_better_cand) {
+          if (found_better_cand || results.size() < ef) {
             candidates.emplace(-dist, cand_id);
 
             // Prefetch neighbor list of the top object in candidate queue
-            _prefetch(data_level0_memory_ + candidates.top().second * size_data_per_element_ +
-                      offsetLevel0_);
+            _prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                      _offset_level0);
 
             results.emplace(dist, cand_id);
 
@@ -226,11 +240,11 @@ struct HNSWSearcher : Searcher {
       }
     }
 
-    visited_list_pool_->releaseVisitedList(vl);
+    _visited_list_pool->releaseVisitedList(vl);
     return results;
   }
 
-  __always_inline void _prefetch(const void* p) const {
+  void _prefetch(const void* p) const {
 #ifdef USE_SSE
     _mm_prefetch(p, _MM_HINT_T0);
 #endif

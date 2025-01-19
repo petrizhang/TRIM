@@ -33,11 +33,11 @@ template <bool enable_profile = false>
 struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
   using idx_t = unsigned;
   using dist_t = float;
-
+  
+  const dist_t* _query = nullptr;
   hnswlib::DISTFUNC<dist_t> _dist_func = nullptr;
   void* _dist_func_param = nullptr;
   const HnswlibIndex* _hnsw = nullptr;
-  const dist_t* _query = nullptr;
   mutable Atomic<int64_t> _num_distance_computation = Atomic<int64_t>(0);
 
   explicit ExactDCO(const UnityHNSW* uhnsw) {
