@@ -108,7 +108,7 @@ struct HNSWSearcher : Searcher {
   Dict get_profile() const override final { return _dco.get_profile(); };
 
   inline tableint _init_search_seed(const void* query_data, dist_t* dist) const {
-    const HnswlibIndex& index = *_uhnsw->owned_index_hnsw;
+    const HnswlibIndex& index = *_hnsw;
 
     tableint node = index.enterpoint_node_;
     dist_t curdist = -1;
@@ -144,7 +144,7 @@ struct HNSWSearcher : Searcher {
 
   /// ANN search implementation
   inline void _ann_search(const void* query_data, size_t k, int* dst) const {
-    const HnswlibIndex& index = *_uhnsw->owned_index_hnsw;
+    const HnswlibIndex& index = *_hnsw;
     if (index.cur_element_count.load() == 0) return;
 
     _dco.set_query((dist_t*)query_data);
@@ -203,19 +203,30 @@ struct HNSWSearcher : Searcher {
       // Prefetch visited array
       _prefetch((char*)(visited + *(neighbors + 1)));
       _prefetch((char*)(visited + *(neighbors + 1) + 64));
-      // Prefetch vector data of the first neighbor
-      _prefetch(_data_level0_memory + (*(neighbors + 1)) * _size_data_per_element + _offset_data);
+
+      if constexpr (std::is_same_v<DCO, ExactDCO<true>> || std::is_same_v<DCO, ExactDCO<false>>) {
+        // Prefetch vector data of the first neighbor
+        _prefetch(_data_level0_memory + (*(neighbors + 1)) * _size_data_per_element + _offset_data);
+      } else {
+        _dco.prefetch(*(neighbors + 1));
+      }
+
       // Prefetch the second neighbor
       _prefetch((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         int cand_id = *(neighbors + j);
-
         // Prefetch visited array of the next neighbor
         _prefetch((char*)(visited + *(neighbors + j + 1)));
-        // Prefetch vector data of the next neighbor
-        _prefetch(_data_level0_memory + (*(neighbors + j + 1)) * _size_data_per_element +
-                  _offset_data);
+
+        if constexpr (std::is_same_v<DCO, ExactDCO<true>> || std::is_same_v<DCO, ExactDCO<false>>) {
+          // Prefetch vector data of the next neighbor
+          _prefetch(_data_level0_memory + (*(neighbors + j + 1)) * _size_data_per_element +
+                    _offset_data);
+        } else {
+          // Prefetch data of the next neighbor
+          _dco.prefetch(*(neighbors + 1));
+        }
 
         if (!(visited[cand_id] == visited_array_tag)) {
           visited[cand_id] = visited_array_tag;

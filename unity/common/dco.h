@@ -77,6 +77,8 @@ struct IDistanceComparisonOperator {
     return result->is_d0_valid && result->is_d1_valid && result->is_d2_valid && result->is_d3_valid;
   }
 
+  virtual void prefetch(idx_t) {}
+
   virtual Dict get_profile() const { return {}; }
 };
 
