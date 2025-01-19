@@ -56,13 +56,13 @@ struct HNSWSearcher : Searcher {
   size_t _offset_data{0}, _offset_level0{0};
 
   // Index
-  const HnswlibIndex* _hnsw;
-  std::shared_ptr<UnityHNSW> _shared_uhnsw = nullptr;  // a UnityHNSW index with shared ownership
-  const UnityHNSW* _uhnsw = nullptr;                   // the underlying pointer of [shared_uhnsw]
+  const HnswlibIndex* _hnsw{nullptr};
+  std::shared_ptr<UnityHNSW> _shared_uhnsw{nullptr};  // a UnityHNSW index with shared ownership
+  const UnityHNSW* _uhnsw{nullptr};                   // the underlying pointer of [shared_uhnsw]
 
   // Parameters
-  size_t _ef = 32;
-  bool _enable_profile = false;
+  size_t _ef{32};
+  bool _enable_profile{false};
 
   HNSWSearcher() = delete;
 
@@ -81,11 +81,11 @@ struct HNSWSearcher : Searcher {
 
   ~HNSWSearcher() override = default;
 
-  void set_data(const float* data, int n, int dim) override {};
+  void set_data(const float* data, int n, int dim) override final {};
 
-  void ann_search(const float* q, int k, int* dst) const override { _ann_search(q, k, dst); };
+  void ann_search(const float* q, int k, int* dst) const override final { _ann_search(q, k, dst); };
 
-  void range_search(const float* q, float radius, int* dst) const override {
+  void range_search(const float* q, float radius, int* dst) const override final {
     U_THROW_MSG("not implemented error");
   };
 
@@ -103,11 +103,11 @@ struct HNSWSearcher : Searcher {
     }
   };
 
-  void optimize(int num_threads) override { U_THROW_MSG("not implemented error"); };
+  void optimize(int num_threads) override final { U_THROW_MSG("not implemented error"); };
 
-  Dict get_profile() const override { return _dco.get_profile(); };
+  Dict get_profile() const override final { return _dco.get_profile(); };
 
-  tableint _init_search_seed(const void* query_data, dist_t* dist) const {
+  inline tableint _init_search_seed(const void* query_data, dist_t* dist) const {
     const HnswlibIndex& index = *_uhnsw->owned_index_hnsw;
 
     tableint node = index.enterpoint_node_;
@@ -143,7 +143,7 @@ struct HNSWSearcher : Searcher {
   };
 
   /// ANN search implementation
-  void _ann_search(const void* query_data, size_t k, int* dst) const {
+  inline void _ann_search(const void* query_data, size_t k, int* dst) const {
     const HnswlibIndex& index = *_uhnsw->owned_index_hnsw;
     if (index.cur_element_count.load() == 0) return;
 
@@ -169,7 +169,7 @@ struct HNSWSearcher : Searcher {
   };
 
   /// Peform ANN search over the bottom layer
-  ResultQueue _ann_search_level0(tableint seed, dist_t seed_dist, size_t ef) const {
+  inline ResultQueue _ann_search_level0(tableint seed, dist_t seed_dist, size_t ef) const {
     VisitedList* vl = _visited_list_pool->getFreeVisitedList();
     vl_type* visited = vl->mass;
     vl_type visited_array_tag = vl->curV;
@@ -197,8 +197,8 @@ struct HNSWSearcher : Searcher {
       candidates.pop();
 
       tableint current_node_id = current_node_pair.second;
-      int* neighbors = (int*)_hnsw->get_linklist0(current_node_id);
-      size_t size = _hnsw->getListCount((linklistsizeint*)neighbors);
+      int* neighbors = (int*)get_linklist0(current_node_id);
+      size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
       _prefetch((char*)(visited + *(neighbors + 1)));
@@ -249,6 +249,15 @@ struct HNSWSearcher : Searcher {
 #ifdef USE_SSE
     _mm_prefetch(p, _MM_HINT_T0);
 #endif
+  }
+
+  linklistsizeint* get_linklist0(tableint internal_id) const {
+    return (linklistsizeint*)(_data_level0_memory + internal_id * _size_data_per_element +
+                              _offset_level0);
+  }
+
+  unsigned short int get_list_count(linklistsizeint* ptr) const {
+    return *((unsigned short int*)ptr);
   }
 };
 
