@@ -47,8 +47,8 @@ template <typename DCO = UnityOp8<false>>
 struct HNSWSearcher : Searcher {
   // DCO
   mutable DCO _dco;
+
   // HNSW members
-  const HnswlibIndex* _hnsw;
   hnswlib::VisitedListPool* _visited_list_pool{nullptr};
   char* _data_level0_memory{nullptr};
   size_t _size_data_per_element{0};
@@ -56,6 +56,7 @@ struct HNSWSearcher : Searcher {
   size_t _offset_data{0}, _offset_level0{0};
 
   // Index
+  const HnswlibIndex* _hnsw;
   std::shared_ptr<UnityHNSW> _shared_uhnsw = nullptr;  // a UnityHNSW index with shared ownership
   const UnityHNSW* _uhnsw = nullptr;                   // the underlying pointer of [shared_uhnsw]
 
@@ -66,7 +67,7 @@ struct HNSWSearcher : Searcher {
   HNSWSearcher() = delete;
 
   explicit HNSWSearcher(const std::shared_ptr<UnityHNSW>& index, DCO dco)
-      : _shared_uhnsw(index), _uhnsw(index.get()), _dco(std::move(dco)) {
+      : _dco(std::move(dco)), _shared_uhnsw(index), _uhnsw(index.get()) {
     U_ASSERT(_uhnsw != nullptr);
     _hnsw = _uhnsw->owned_index_hnsw.get();
     U_ASSERT(_hnsw != nullptr);
