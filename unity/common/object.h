@@ -173,7 +173,7 @@ struct Dict {
     }
 
     if constexpr (std::is_integral_v<T>) {
-      U_THROW_IF_NOT_FMT(obj.type == ObjectType::INTEGER_TYPE, "`%s` must be an integer type",
+      U_THROW_IF_NOT_FMT(obj.type == ObjectType::INTEGER_TYPE, "`%s` must be an integer value",
                            key.c_str());
       return obj.get_integer();
     }

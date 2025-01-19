@@ -31,6 +31,11 @@ inline constexpr const char* U_METRIC_IP = "IP";
 inline constexpr const char* U_HNSW = "hnsw";
 inline constexpr const char* U_IVFPQR = "ivfpqr";
 
+inline constexpr const char* U_DCO = "dco";
+inline constexpr const char* U_DCO_EXACT = "exact";
+inline constexpr const char* U_DCO_UNITY = "unity";
+
+inline constexpr const char* U_ENABLE_PROFILE = "enable_profile";
 inline constexpr const char* U_NUM_THREADS = "num_threads";
 inline constexpr const char* U_DIM = "dim";
 inline constexpr const char* U_EF = "ef";
@@ -44,7 +49,7 @@ inline Metric metric_map(const std::string& name) {
     return Metric::IP;
   }
   U_THROW_FMT("unknown metric `%s`, please use valid metric %s or %s", name.c_str(), U_METRIC_L2,
-                U_METRIC_IP);
+              U_METRIC_IP);
 }
 }  // namespace constants
 }  // namespace unity

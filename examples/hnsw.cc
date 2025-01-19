@@ -77,10 +77,11 @@ int main() {
   // Search hnswlib index with top
   std::cout << "Start to load hnswlib index with UNITY...\n";
   std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
-                                                .set("hnswlib_index_path", save_path)
-                                                .set("dim", dim)
-                                                .set("metric", "L2")
-                                                .create();
+                                                  .set("hnswlib_index_path", save_path)
+                                                  .set("dim", dim)
+                                                  .set("metric", "L2")
+                                                  .set("dco", "exact")
+                                                  .create();
   std::cout << "Index loaded.\n";
 
   constexpr const int k = 10;
@@ -95,7 +96,6 @@ int main() {
   }
   std::cout << "\n";
 
-  searcher->set("use_hnswlib", true);
   searcher->ann_search(&base.at(0), 10, knn.data());
   for (auto x : knn) {
     std::cout << x << ",";

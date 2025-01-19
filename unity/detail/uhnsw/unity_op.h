@@ -23,50 +23,61 @@
 #include <xmmintrin.h>
 #endif
 
-#include "unity/common/deo.h"
+#include "unity/common/dco.h"
 #include "unity/detail/faiss/impl/ProductQuantizer.h"
 #include "unity/detail/faiss/impl/code_distance/code_distance.h"
 #include "unity/detail/hnswlib/hnswlib.h"
-#include "unity/detail/quantization/index_pq.h"
+#include "unity/detail/uhnsw/unity_hnsw.h"
 
 namespace unity {
 namespace detail {
 
-template <typename PQEncoderType>
-struct UnityDEO : DistanceEstimateOperator<float, UnityDEO<PQEncoderType>> {
-  using dist_type = float;
+template <typename PQEncoderType, bool enable_profile = false>
+struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
+  using idx_t = unsigned;
+  using dist_t = float;
 
+  AlignedTable<dist_t> dist_table;
   const IndexPQ* pq = nullptr;
   const hnswlib::HierarchicalNSW<float>* hnsw = nullptr;
-  const dist_type* query = nullptr;
-  AlignedTable<dist_type> dist_table;
+  const dist_t* query = nullptr;
+  float gamma = 1;
 
-  UnityDEO() = default;
-  UnityDEO(const IndexPQ* pq, const hnswlib::HierarchicalNSW<float>* hnsw) : pq(pq), hnsw(hnsw) {}
+  ~UnityOp() override = default;
 
-  void set_query_impl(const dist_type* query_data) {
+  explicit UnityOp(const UnityHNSW* u_hnsw) {
+    U_ASSERT(u_hnsw != nullptr);
+    U_ASSERT(u_hnsw->owned_index_hnsw != nullptr);
+    U_ASSERT(u_hnsw->owned_index_pq != nullptr);
+    U_ASSERT(u_hnsw->owned_space != nullptr);
+    pq = u_hnsw->owned_index_pq.get();
+    hnsw = u_hnsw->owned_index_hnsw.get();
+  }
+
+  virtual void set_query(const dist_t* query_data) override {
     query = query_data;
     dist_table.resize(pq->pq.M * pq->pq.ksub);
     pq->pq.compute_distance_table(query, dist_table.data());
   }
 
-  void prefetch_impl(int i) {
+  void prefetch_pq_codes(unsigned i) {
 #ifdef __SSE__
     _mm_prefetch((char*)(pq->codes.data() + pq->code_size * i), _MM_HINT_T0);
 #endif
   }
 
-  float estimate_impl(int i) {
-    return distance_single_code<PQEncoderType>(pq->pq.M, pq->pq.nbits, dist_table.data(),
-                                               pq->codes.data() + pq->code_size * i);
+  virtual bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override {
+    return true;
   }
 
-  float compute_impl(int i) { return 0; }
+  virtual bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                                   ComparisonResult4<dist_t>* __restrict result) const override {
+    return true;
+  }
 };
 
-using UnityDEO8 = UnityDEO<faiss::PQDecoder8>;
-using UnityDEO16 = UnityDEO<faiss::PQDecoder16>;
-using UnityDEOGeneric = UnityDEO<faiss::PQDecoderGeneric>;
+template <bool enable_profile>
+using UnityOp8 = UnityOp<faiss::PQDecoder8, enable_profile>;
 
 }  // namespace detail
 }  // namespace unity

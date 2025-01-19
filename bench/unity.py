@@ -47,6 +47,7 @@ class Algorithm(BaseANN):
             creator.set("hnswlib_index_path", index_path)
             creator.set("dim", self.dim)
             creator.set("metric", "L2")
+            creator.set("dco", "exact")
             self.searcher = creator.create()
 
     def freeIndex(self):
