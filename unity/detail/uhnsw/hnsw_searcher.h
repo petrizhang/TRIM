@@ -32,23 +32,19 @@
 namespace unity {
 namespace detail {
 
-using CompareByFirst = HnswlibIndex::CompareByFirst;
-using VisitedList = hnswlib::VisitedList;
-using dist_t = float;
-using labeltype = hnswlib::labeltype;
-using tableint = hnswlib::tableint;
-using vl_type = hnswlib::vl_type;
-using linklistsizeint = hnswlib::linklistsizeint;
-using ResultQueue =
-    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
-                        HnswlibIndex::CompareByFirst>;
-
-template <typename T>
-constexpr const bool is_exact_dco_v = std::is_same_v<std::remove_cv_t<T>, ExactDCO<false>> ||
-                                      std::is_same_v<std::remove_cv_t<T>, ExactDCO<false>>;
-
 template <typename DCO = UnityOp8<false>>
 struct HNSWSearcher : Searcher {
+  using CompareByFirst = HnswlibIndex::CompareByFirst;
+  using VisitedList = hnswlib::VisitedList;
+  using dist_t = float;
+  using labeltype = hnswlib::labeltype;
+  using tableint = hnswlib::tableint;
+  using vl_type = hnswlib::vl_type;
+  using linklistsizeint = hnswlib::linklistsizeint;
+  using ResultQueue =
+      std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                          HnswlibIndex::CompareByFirst>;
+
   // DCO
   mutable DCO _dco;
 
