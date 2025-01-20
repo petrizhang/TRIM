@@ -115,6 +115,14 @@ struct IDistanceComparisonOperator {
   }
 
   /**
+   * Set the DCO parameter with the specified key and value.
+   *
+   * @param key The unique identifier for the parameter.
+   * @param value The value to be assigned to the parameter.
+   */
+  virtual void set(const std::string& key, const Object& value) {};
+
+  /**
    * Compute the exact distance from the query point to the data point at index i.
    * Note: This function is intended for testing purposes only and
    * is not used during the actual search process.

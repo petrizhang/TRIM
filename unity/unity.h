@@ -55,7 +55,7 @@ std::unique_ptr<UnityHNSW> read_uhnsw(const Dict& options) {
     ctpl::thread_pool pool(opt_num_threads.value_or(16));
 
     std::unique_ptr<IndexPQ> index_pq = read_index_pq(pq_index_path.c_str());
-    U_THROW_IF_NOT_MSG(index_pq->pq.nbits == 8, "only support 8bit PQ");
+    U_THROW_IF_NOT_MSG(index_pq->quantizer.nbits == 8, "only support 8bit PQ");
 
     uhnsw->owned_index_pq = std::move(index_pq);
     // Rorder PQ codes

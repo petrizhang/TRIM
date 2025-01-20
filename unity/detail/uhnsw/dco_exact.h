@@ -40,6 +40,8 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
   const HnswlibIndex* _hnsw{nullptr};
   mutable Atomic<int64_t> _num_distance_computation{0};
 
+  ~ExactDCO() override = default;
+
   explicit ExactDCO(const UnityHNSW* uhnsw) {
     U_ASSERT(uhnsw != nullptr);
     _hnsw = uhnsw->owned_index_hnsw.get();
@@ -47,9 +49,9 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     _dist_func_param = _hnsw->dist_func_param_;
   }
 
-  void set_query(const dist_t* query_data) override final { this->_query = query_data; }
+  void set_query(const dist_t* query_data) override { this->_query = query_data; }
 
-  bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override final {
+  bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(1);
@@ -60,7 +62,7 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
   }
 
   bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                           float* __restrict dist4, bool4& flag4) const override final {
+                           float* __restrict dist4, bool4& flag4) const override {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(4);
@@ -68,7 +70,7 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     return _distance4_less_than_simd(max_dist, i0, i1, i2, i3, dist4, flag4);
   }
 
-  dist_t compute(idx_t i) const override final {
+  dist_t compute(idx_t i) const override {
     assert(_query != nullptr);
     return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
   }
@@ -112,13 +114,13 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     return flag4.has_true();
   }
 
-  void prefetch(idx_t i) const override final {
+  void prefetch(idx_t i) const override {
 #ifdef USE_SSE
     _mm_prefetch(_hnsw->getDataByInternalId(i), _MM_HINT_T0);
 #endif
   }
 
-  Dict get_profile() const override final {
+  Dict get_profile() const override {
     Dict dict;
     dict.put("num_distance_computation", Object(_num_distance_computation.value.load()));
     return dict;

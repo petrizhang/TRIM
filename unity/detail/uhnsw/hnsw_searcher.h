@@ -23,17 +23,20 @@
 #include <atomic>
 #include <memory>
 #include <queue>
+#include <type_traits>
 
 #include "unity/common/searcher.h"
-#include "unity/detail/uhnsw/exact_dco.h"
+#include "unity/detail/uhnsw/dco_exact.h"
+#include "unity/detail/uhnsw/dco_unity.h"
 #include "unity/detail/uhnsw/unity_hnsw.h"
-#include "unity/detail/uhnsw/unity_op.h"
 
 namespace unity {
 namespace detail {
 
 template <typename DCO = UnityOp8<false>>
 struct HNSWSearcher : Searcher {
+  static_assert(std::is_base_of_v<DefaultDCOType, DCO>,
+                "Error: DCO must inherit from DefaultDCOType.");
   using CompareByFirst = HnswlibIndex::CompareByFirst;
   using VisitedList = hnswlib::VisitedList;
   using dist_t = float;
@@ -82,11 +85,11 @@ struct HNSWSearcher : Searcher {
 
   ~HNSWSearcher() override = default;
 
-  void set_data(const float* data, int n, int dim) override final {};
+  void set_data(const float* data, int n, int dim) override {};
 
-  void ann_search(const float* q, int k, int* dst) const override final { _ann_search(q, k, dst); };
+  void ann_search(const float* q, int k, int* dst) const override { _ann_search(q, k, dst); };
 
-  void range_search(const float* q, float radius, int* dst) const override final {
+  void range_search(const float* q, float radius, int* dst) const override {
     U_THROW_MSG("not implemented error");
   };
 
@@ -108,11 +111,13 @@ struct HNSWSearcher : Searcher {
     }
   };
 
-  void optimize(int num_threads) override final { U_THROW_MSG("not implemented error"); };
+  void optimize(int num_threads) override { U_THROW_MSG("not implemented error"); };
 
-  Dict get_profile() const override final { return _dco.get_profile(); };
+  DefaultDCOType* get_dco() const override { return &_dco; }
 
-  inline tableint _init_search_seed(const void* query_data, dist_t* dist) const {
+  Dict get_profile() const override { return _dco.get_profile(); };
+
+  tableint _init_search_seed(const void* query_data, dist_t* dist) const {
     const HnswlibIndex& index = *_hnsw;
 
     tableint node = index.enterpoint_node_;
@@ -148,7 +153,7 @@ struct HNSWSearcher : Searcher {
   };
 
   /// ANN search implementation
-  inline void _ann_search(const void* query_data, size_t k, int* dst) const {
+  void _ann_search(const void* query_data, size_t k, int* dst) const {
     const HnswlibIndex& index = *_hnsw;
     if (index.cur_element_count.load() == 0) return;
 
@@ -180,7 +185,7 @@ struct HNSWSearcher : Searcher {
   };
 
   /// Peform ANN search over the bottom layer
-  inline ResultQueue _ann_search_level0(tableint seed, dist_t seed_dist, size_t ef) const {
+  ResultQueue _ann_search_level0(tableint seed, dist_t seed_dist, size_t ef) const {
     VisitedList* vl = _visited_list_pool->getFreeVisitedList();
     vl_type* visited = vl->mass;
     vl_type visited_array_tag = vl->curV;
@@ -255,7 +260,7 @@ struct HNSWSearcher : Searcher {
   }
 
   /// Peform ANN search over the bottom layer using batch dco
-  inline ResultQueue _ann_search_level0_batch4(tableint seed, dist_t seed_dist, size_t ef) const {
+  ResultQueue _ann_search_level0_batch4(tableint seed, dist_t seed_dist, size_t ef) const {
     VisitedList* vl = _visited_list_pool->getFreeVisitedList();
     vl_type* visited = vl->mass;
     vl_type visited_array_tag = vl->curV;

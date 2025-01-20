@@ -33,7 +33,7 @@ namespace detail {
 using namespace faiss;
 
 struct IndexPQ : Index {
-  ProductQuantizer pq;
+  ProductQuantizer quantizer;
   size_t code_size;
   /// encoded dataset, size ntotal * code_size
   AlignedTable<uint8_t> codes;
@@ -74,7 +74,7 @@ struct IndexPQ : Index {
 };
 
 inline void IndexPQ::sa_decode_n(idx_t n, const uint8_t* bytes, float* x) const {
-  pq.decode(bytes, x, n);
+  quantizer.decode(bytes, x, n);
 }
 
 inline void IndexPQ::reconstruct_n(idx_t i0, idx_t ni, float* recons) const {
@@ -82,7 +82,7 @@ inline void IndexPQ::reconstruct_n(idx_t i0, idx_t ni, float* recons) const {
   sa_decode_n(ni, codes.data() + i0 * code_size, recons);
 }
 
-inline void IndexPQ::sa_decode(const uint8_t* code, float* x) const { pq.decode(code, x); }
+inline void IndexPQ::sa_decode(const uint8_t* code, float* x) const { quantizer.decode(code, x); }
 
 inline void IndexPQ::reconstruct(idx_t key, float* recons) const {
   U_THROW_IF_NOT(key >= 0 && key <= ntotal);

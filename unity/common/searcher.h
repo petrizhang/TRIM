@@ -20,9 +20,12 @@
 
 #include <string>
 
+#include "unity/common/dco.h"
 #include "unity/common/object.h"
 
 namespace unity {
+
+using DefaultDCOType = IDistanceComparisonOperator<unsigned, float>;
 
 struct Searcher {
   virtual ~Searcher() = default;
@@ -31,6 +34,7 @@ struct Searcher {
   virtual void range_search(const float* q, float radius, int* dst) const = 0;
   virtual void set(const std::string& key, Object value) = 0;
   virtual void optimize(int num_threads) = 0;
+  virtual DefaultDCOType* get_dco() const = 0;
   virtual Dict get_profile() const = 0;
 };
 

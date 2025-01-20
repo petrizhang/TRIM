@@ -17,30 +17,80 @@
  * under the License.
  */
 
+#include <algorithm>
+#include <iomanip>
 #include <iostream>
 
 #include "unity/detail/io/read_faiss.h"
 #include "unity/detail/quantization/index_pq.h"
-#include "unity/detail/uhnsw/unity_op.h"
+#include "unity/detail/uhnsw/dco_unity.h"
+#include "unity/detail/uhnsw/hnsw_searcher.h"
 #include "unity/unity.h"
+
+void bench(const unity::detail::HNSWSearcher<>* hnsw_searcher, double gamma, size_t n_test) {
+  size_t nb = hnsw_searcher->_uhnsw->owned_index_hnsw->cur_element_count.load();
+  auto* dco = hnsw_searcher->get_dco();
+  dco->set("gamma", gamma);
+
+  n_test = std::min(nb, n_test);
+  size_t n_pair = n_test * n_test;
+  std::vector<float> distances(n_pair);
+  std::vector<float> lowerbounds(n_pair);
+
+  for (size_t i = 0; i < n_test; i++) {
+    const float* query =
+        (const float*)hnsw_searcher->_uhnsw->owned_index_hnsw->getDataByInternalId(0);
+    dco->set_query(query);
+    for (size_t j = 0; j < n_test; j++) {
+      distances[i + j * n_test] = dco->compute(j);
+      lowerbounds[i + j * n_test] = dco->relaxed_lowerbound(j);
+    }
+  }
+
+  double mse = 0, rmae = 0;
+  size_t success = 0;
+  for (size_t i = 0; i < n_pair; i++) {
+    if (distances[i] - lowerbounds[i] < -10e-9) {
+      if (gamma == 0) {
+        U_THROW_MSG("test failed");
+      }
+    } else {
+      success += 1;
+    }
+
+    mse += double(distances[i] - lowerbounds[i]) * double(distances[i] - lowerbounds[i]);
+    if (distances[i] > 10e-9) {
+      rmae += std::abs(double(distances[i] - lowerbounds[i])) / double(distances[i]);
+    }
+  }
+
+  std::cout << "Results for gamma=" << std::setprecision(4) << gamma
+            << ": p=" << double(success) / n_pair << ", mse=" << mse / n_pair
+            << ", rmae=" << rmae / n_pair << "\n";
+}
 
 int main() {
   using unity::Searcher;
+  using unity::detail::HNSWSearcher;
   using unity::detail::Index;
   using unity::detail::IndexPQ;
   using unity::detail::IndexType;
 
   // Search hnswlib index with top
-  const char* index_hnsw_path = "/data/home/petrizhang/develop/TOP/examples/hnswlib.bin";
-  const char* index_pq_path = "/data/home/petrizhang/develop/TOP/examples/index_pq.bin";
+  const char* index_hnsw_path = "/data/home/petrizhang/develop/TOP/test/hnswlib.bin";
+  const char* index_pq_path = "/data/home/petrizhang/develop/TOP/test/index_pq.bin";
   const int dim = 256;
   std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                   .set("hnswlib_index_path", index_hnsw_path)
                                                   .set("pq_index_path", index_pq_path)
                                                   .set("dim", dim)
                                                   .set("metric", "L2")
+                                                  .set("dco", "unity")
                                                   .set("num_threads", 12)
                                                   .create();
-  std::cout << (int64_t)searcher.get() << "\n";
+  auto* hnsw_searcher = static_cast<HNSWSearcher<>*>(searcher.get());
+  for (double gamma = 0; gamma < 1.1; gamma += 0.1) {
+    bench(hnsw_searcher, gamma, 1000);
+  } 
   return 0;
 }

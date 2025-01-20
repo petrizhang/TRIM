@@ -52,6 +52,11 @@ struct Object {
     this->value = static_cast<int64_t>(value);
   }
 
+  Object(float value) {
+    this->type = DOUBLE_TYPE;
+    this->value = static_cast<double>(value);
+  }
+
   Object(double value) {
     this->type = DOUBLE_TYPE;
     this->value = value;
@@ -168,25 +173,24 @@ struct Dict {
     const Object& obj = it->second;
     if constexpr (std::is_same_v<T, bool>) {
       U_THROW_IF_NOT_FMT(obj.type == ObjectType::BOOL_TYPE, "`%s` must be a boolean value",
-                           key.c_str());
+                         key.c_str());
       return obj.get_bool();
     }
 
     if constexpr (std::is_integral_v<T>) {
       U_THROW_IF_NOT_FMT(obj.type == ObjectType::INTEGER_TYPE, "`%s` must be an integer value",
-                           key.c_str());
+                         key.c_str());
       return obj.get_int64();
     }
 
     if constexpr (std::is_floating_point_v<T>) {
       U_THROW_IF_NOT_FMT(obj.type == ObjectType::DOUBLE_TYPE, "`%s` must be a double value",
-                           key.c_str());
+                         key.c_str());
       return obj.get_double();
     }
 
     if constexpr (std::is_same_v<T, std::string>) {
-      U_THROW_IF_NOT_FMT(obj.type == ObjectType::STRING_TYPE, "`%s` must be a string",
-                           key.c_str());
+      U_THROW_IF_NOT_FMT(obj.type == ObjectType::STRING_TYPE, "`%s` must be a string", key.c_str());
       return obj.get_string();
     }
 

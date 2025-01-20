@@ -59,8 +59,8 @@ inline std::unique_ptr<Index> read_index(IOReader* f) {
     // IxPQ and IxPo were merged into the same IndexPQ object
     std::unique_ptr<IndexPQ> idxp = std::make_unique<IndexPQ>();
     read_index_header(idxp.get(), f);
-    read_product_quantizer(&idxp->pq, f);
-    idxp->code_size = idxp->pq.code_size;
+    read_product_quantizer(&idxp->quantizer, f);
+    idxp->code_size = idxp->quantizer.code_size;
     READVECTOR(idxp->codes);
     if (h == fourcc("IxPo") || h == fourcc("IxPq")) {
       READ1(idxp->search_type);
