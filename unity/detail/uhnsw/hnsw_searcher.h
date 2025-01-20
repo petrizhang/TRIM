@@ -67,7 +67,7 @@ struct HNSWSearcher : Searcher {
   // Parameters
   size_t ef{32};
   bool enable_profile{false};
-  bool enable_batch_dco{false};
+  bool enable_batch_dco{true};
 
   HNSWSearcher() = delete;
 
