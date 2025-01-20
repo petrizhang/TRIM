@@ -39,7 +39,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   using dist_t = float;
 
   // Data structures for query
-  AlignedTable<dist_t> _dist_table;
+  const dist_t* _dist_table_data{nullptr};
   const uint8_t* _codes;
   const float* _recons_errors;
   size_t _M{0};
@@ -47,6 +47,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   size_t _code_size{0};
   hnswlib::DISTFUNC<dist_t> _dist_func{nullptr};
   void* _dist_func_param{nullptr};
+  AlignedTable<dist_t> _dist_table;
   const IndexPQ* _pq{nullptr};
   const hnswlib::HierarchicalNSW<float>* _hnsw{nullptr};
   const dist_t* _query{nullptr};
@@ -82,6 +83,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     _query = query_data;
     _dist_table.resize(_pq->quantizer.M * _pq->quantizer.ksub);
     _pq->quantizer.compute_distance_table(_query, _dist_table.data());
+    _dist_table_data = _dist_table.data();
   }
 
   bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override final {
@@ -128,6 +130,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
 
   void prefetch(idx_t i) const override {
 #ifdef __SSE__
+    _mm_prefetch(_recons_errors + i, _MM_HINT_T0);
     _mm_prefetch((char*)(_codes + _code_size * i), _MM_HINT_T0);
 #endif
   }

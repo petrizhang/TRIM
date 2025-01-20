@@ -79,11 +79,8 @@ def bench(alg_class, dataset: DataSet, k: int, nq: int, build_args: dict,
           search_args: dict, save_index_path: str, save_result_path: str) -> None:
     dim = dataset.base.shape[1]
     # Build or load index
-    alg: BaseANN = alg_class(dim, build_args)
-    if os.path.exists(save_index_path):
-        print(f"Loading index from {save_index_path}...")
-        alg.load_index(save_index_path)
-    else:
+    if not os.path.exists(save_index_path):
+        alg: BaseANN = alg_class(dim, build_args)
         print(f"Index not found at {
               save_index_path}. Creating and fitting a new index...")
         start = time.time()
@@ -93,6 +90,11 @@ def bench(alg_class, dataset: DataSet, k: int, nq: int, build_args: dict,
         alg.save_index(save_index_path)
         with open(f"{save_index_path}.build.seconds.txt", "w") as f:
             f.write(f"{duration}")
+    
+    print(f"Loading index from {save_index_path}...")
+    alg = alg_class(dim, build_args)
+    alg.load_index(save_index_path)
+
     alg.set_data(dataset.base)
     # Run queries, record time and recall
     search_args_combinations = enumerate_combinations(search_args)
