@@ -409,10 +409,8 @@ struct HNSWSearcher : Searcher {
         _prefetch((char*)(visited + *(neighbors + j + 1)));
 
         if (!(visited[cand_id] == visited_array_tag)) {
-          if (n_batched == 3) {
-            _dco.prefetch(batched_nodes[0]);
-          }
           n_batched += 1;
+          _dco.prefetch(batched_nodes[n_batched - 1]);
           visited[cand_id] = visited_array_tag;
           batched_nodes[n_batched - 1] = cand_id;
         }
