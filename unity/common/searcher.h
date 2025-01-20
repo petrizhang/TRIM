@@ -29,7 +29,9 @@ using DefaultDCOType = IDistanceComparisonOperator<unsigned, float>;
 
 struct Searcher {
   virtual ~Searcher() = default;
-  virtual void set_data(const float* data, int n, int dim) = 0;
+  virtual void set_data(const float* data, int n, int dim) { U_THROW_NOT_IMPLEMENTED; };
+  virtual const float* get_data(unsigned i) const { U_THROW_NOT_IMPLEMENTED; }
+  virtual size_t num_data_points() const { U_THROW_NOT_IMPLEMENTED; }
   virtual void ann_search(const float* q, int k, int* dst) const = 0;
   virtual void range_search(const float* q, float radius, int* dst) const = 0;
   virtual void set(const std::string& key, Object value) = 0;

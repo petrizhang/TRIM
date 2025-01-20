@@ -27,9 +27,9 @@
 #include "unity/detail/uhnsw/hnsw_searcher.h"
 #include "unity/unity.h"
 
-void bench(const unity::detail::HNSWSearcher<>* hnsw_searcher, double gamma, size_t n_test) {
-  size_t nb = hnsw_searcher->_uhnsw->owned_index_hnsw->cur_element_count.load();
-  auto* dco = hnsw_searcher->get_dco();
+void bench(const unity::Searcher* searcher, double gamma, size_t n_test) {
+  size_t nb = searcher->num_data_points();
+  auto* dco = searcher->get_dco();
   dco->set("gamma", gamma);
 
   n_test = std::min(nb, n_test);
@@ -38,8 +38,7 @@ void bench(const unity::detail::HNSWSearcher<>* hnsw_searcher, double gamma, siz
   std::vector<float> lowerbounds(n_pair);
 
   for (size_t i = 0; i < n_test; i++) {
-    const float* query =
-        (const float*)hnsw_searcher->_uhnsw->owned_index_hnsw->getDataByInternalId(0);
+    const float* query = searcher->get_data(i);
     dco->set_query(query);
     for (size_t j = 0; j < n_test; j++) {
       distances[i + j * n_test] = dco->compute(j);
@@ -88,9 +87,15 @@ int main() {
                                                   .set("dco", "unity")
                                                   .set("num_threads", 12)
                                                   .create();
-  auto* hnsw_searcher = static_cast<HNSWSearcher<>*>(searcher.get());
-  for (double gamma = 0; gamma < 1.1; gamma += 0.1) {
-    bench(hnsw_searcher, gamma, 1000);
-  } 
+  bench(searcher.get(), 0.8, 1000);
+
+  const int k = 10;
+  std::vector<int> knn(k);
+  searcher->set("ef", 16);
+  searcher->ann_search(searcher->get_data(0), k, knn.data());
+  for (auto i : knn) {
+    std::cout << i << ",";
+  }
+  std::cout << "\n";
   return 0;
 }

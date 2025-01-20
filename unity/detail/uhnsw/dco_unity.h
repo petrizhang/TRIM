@@ -57,7 +57,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   Atomic<int64_t> _num_lowerbound_computation;
 
   // Search parameters
-  float gamma{0};
+  float gamma{0.8};
 
   ~UnityOp() override = default;
 
@@ -71,7 +71,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     _nbits = _pq->quantizer.nbits;
     _code_size = _pq->code_size;
     _codes = _pq->codes.data();
-    _recons_errors= _pq->recons_errors.data();
+    _recons_errors = _pq->recons_errors.data();
 
     _hnsw = uhnsw->owned_index_hnsw.get();
     _dist_func = _hnsw->fstdistfunc_;
@@ -85,12 +85,35 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   }
 
   bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override final {
-    return true;
+    dist_t lowerbound = relaxed_lowerbound(i);
+    if (lowerbound >= max_dist) {
+      return false;
+    }
+
+    *dist = compute(i);
+    return *dist < max_dist;
   }
 
   bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
                            float* __restrict dist4, bool4& flag4) const override final {
-    return true;
+    return IDistanceComparisonOperator<unsigned, float>::distance4_less_than(max_dist, i0, i1, i2,
+                                                                             i3, dist4, flag4);
+  }
+
+  dist_t compute(idx_t i) const override {
+    assert(_query != nullptr);
+    return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
+  }
+
+  dist_t relaxed_lowerbound(idx_t i) const override {
+    dist_t a = std::sqrt(estimate(i));
+    dist_t b = _recons_errors[i];
+    return (a - b) * (a - b) + 2 * gamma * a * b;
+  }
+
+  dist_t estimate(idx_t i) const override {
+    return faiss::distance_single_code<PQDecoderType>(_M, _nbits, _dist_table.data(),
+                                                      _codes + i * _code_size);
   }
 
   void set(const std::string& key, const Object& value) override {
@@ -101,22 +124,6 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     } else {
       U_THROW_FMT("unknown parameter %s", key.c_str());
     }
-  }
-
-  dist_t compute(idx_t i) const override {
-    assert(_query != nullptr);
-    return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
-  }
-
-  virtual dist_t relaxed_lowerbound(idx_t i) const override {
-    dist_t a = std::sqrt(estimate(i));
-    dist_t b = _recons_errors[i];
-    return (a - b) * (a - b) + 2 * gamma * a * b;
-  }
-
-  virtual dist_t estimate(idx_t i) const {
-    return faiss::distance_single_code<PQDecoderType>(_M, _nbits, _dist_table.data(),
-                                                      _codes + i * _code_size);
   }
 
   void prefetch(idx_t i) const override {

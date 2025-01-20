@@ -43,7 +43,7 @@
   do {                                                      \
     if (!(X)) {                                             \
       fprintf(stderr,                                       \
-              "UNITY assertion '%s' failed in %s "            \
+              "UNITY assertion '%s' failed in %s "          \
               "at %s:%d; details: " MSG "\n",               \
               #X, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
       abort();                                              \
@@ -54,7 +54,7 @@
   do {                                                                   \
     if (!(X)) {                                                          \
       fprintf(stderr,                                                    \
-              "UNITY assertion '%s' failed in %s "                         \
+              "UNITY assertion '%s' failed in %s "                       \
               "at %s:%d; details: " FMT "\n",                            \
               #X, __PRETTY_FUNCTION__, __FILE__, __LINE__, __VA_ARGS__); \
       abort();                                                           \
@@ -105,3 +105,5 @@
       U_THROW_FMT("Error: '%s' failed: " FMT, #X, __VA_ARGS__); \
     }                                                           \
   } while (false)
+
+#define U_THROW_NOT_IMPLEMENTED U_THROW_MSG("not implemented error")

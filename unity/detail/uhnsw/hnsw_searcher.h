@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <limits>
 #include <memory>
 #include <queue>
 #include <type_traits>
@@ -87,6 +88,24 @@ struct HNSWSearcher : Searcher {
 
   void set_data(const float* data, int n, int dim) override {};
 
+  const float* get_data(unsigned i) const override {
+    if (_uhnsw == nullptr) {
+      return nullptr;
+    }
+
+    auto iter = _uhnsw->owned_index_hnsw->label_lookup_.find(i);
+    if (iter == _uhnsw->owned_index_hnsw->label_lookup_.end()) {
+      return nullptr;
+    }
+
+    return reinterpret_cast<const float*>(
+        _uhnsw->owned_index_hnsw->getDataByInternalId(iter->second));
+  }
+
+  size_t num_data_points() const override {
+    return _uhnsw == nullptr ? 0 : _uhnsw->owned_index_hnsw->getCurrentElementCount();
+  }
+
   void ann_search(const float* q, int k, int* dst) const override { _ann_search(q, k, dst); };
 
   void range_search(const float* q, float radius, int* dst) const override {
@@ -121,8 +140,7 @@ struct HNSWSearcher : Searcher {
     const HnswlibIndex& index = *_hnsw;
 
     tableint node = index.enterpoint_node_;
-    dist_t curdist = -1;
-    _dco.distance_less_than(-1, index.enterpoint_node_, &curdist);
+    dist_t curdist = _dco.compute(node);
 
     for (int level = index.maxlevel_; level > 0; level--) {
       bool changed = true;
@@ -139,7 +157,7 @@ struct HNSWSearcher : Searcher {
           if (cand < 0 || cand >= index.max_elements_) {
             U_THROW_FMT("search error, got illegal candidcate %u", cand);
           }
-          dist_t d = -1;
+          dist_t d = std::numeric_limits<dist_t>::max();
           if (_dco.distance_less_than(curdist, cand, &d)) {
             curdist = d;
             node = cand;
@@ -158,7 +176,7 @@ struct HNSWSearcher : Searcher {
     if (index.cur_element_count.load() == 0) return;
 
     _dco.set_query((dist_t*)query_data);
-    dist_t seed_dist = -1;
+    dist_t seed_dist = std::numeric_limits<dist_t>::max();
     tableint seed = _init_search_seed(query_data, &seed_dist);
 
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
@@ -234,7 +252,7 @@ struct HNSWSearcher : Searcher {
         if (!(visited[cand_id] == visited_array_tag)) {
           visited[cand_id] = visited_array_tag;
 
-          dist_t dist = -1;
+          dist_t dist = std::numeric_limits<dist_t>::max();
           bool found_closer_node = _dco.distance_less_than(max_dist, cand_id, &dist);
           if (found_closer_node || results.size() < ef) {
             candidates.emplace(-dist, cand_id);
