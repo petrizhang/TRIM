@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # set(CMAKE_CXX_FLAGS  "-Wall -Wextra -O3 -lrt -std=c++17 -march=native -fpic -fopenmp -ftree-vectorize -fno-rtti" )
+# set(CMAKE_CXX_FLAGS  "-march=native" )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}
         /data/home/petrizhang/.conda/envs/faiss/lib/python3.12/site-packages/pybind11/include

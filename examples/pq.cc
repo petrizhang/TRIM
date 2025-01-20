@@ -86,6 +86,7 @@ int main() {
                                                   .set("metric", "L2")
                                                   .set("dco", "unity")
                                                   .set("num_threads", 12)
+                                                  .set("enable_batch_dco", true)
                                                   .create();
   bench(searcher.get(), 0.8, 1000);
 
