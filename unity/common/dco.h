@@ -76,6 +76,10 @@ template <typename idx_t, typename dist_t>
 struct IDistanceComparisonOperator {
   virtual ~IDistanceComparisonOperator() = default;
 
+  /**
+   * Set the query data.
+   * @param data Pointer to query data.
+   */
   virtual void set_query(const dist_t* data) = 0;
 
   /**
@@ -92,8 +96,7 @@ struct IDistanceComparisonOperator {
 
   /**
    * Test whether the distances between the query point and the data points at indices i0, i1, i2,
-   * i3 are all less than max_dist. Checks if the distances from the query point to the data points
-   * at indices i0, i1, i2, i3 are all less than the specified maximum distance.
+   * i3 are all less than max_dist.
    * @param max_dist The maximum distance threshold.
    * @param i0 The index of the first data point.
    * @param i1 The index of the second data point.
@@ -111,8 +114,45 @@ struct IDistanceComparisonOperator {
     return flag4.has_true();
   }
 
-  virtual void prefetch(idx_t) const {}
+  /**
+   * Compute the exact distance from the query point to the data point at index i.
+   * Note: This function is intended for testing purposes only and
+   * is not used during the actual search process.
+   * @param i The index of the data point.
+   * @return The exact distance value.
+   */
+  virtual dist_t compute(idx_t i) const = 0;
 
+  /**
+   * Compute the lower bound of the distance from the query point to the data point at index i.
+   * Note: This function is intended for testing purposes only and
+   * is not used during the actual search process.
+   * @param i The index of the data point.
+   * @return The lower bound distance value.
+   */
+  virtual dist_t relaxed_lowerbound(idx_t i) const { return compute(i); };
+
+  /**
+   * Estimate the distance from the query point to the data point at index i.
+   * Note: This function is intended for testing purposes only and
+   * is not used during the actual search process.
+   * @param i The index of the data point.
+   * @return The estimated distance value.
+   */
+  virtual dist_t estimate(idx_t i) const { return compute(i); };
+
+  /**
+   * Prefetch data for data point at a specified index. This function can be used to optimize
+   * performance by loading data into cache.
+   * @param idx The index of the data point to prefetch.
+   */
+  virtual void prefetch(idx_t idx) const {}
+
+  /**
+   * Get a profile dictionary containing performance metrics.
+   * This function returns a dictionary with relevant metrics.
+   * @return A dictionary containing profile information.
+   */
   virtual Dict get_profile() const { return {}; }
 };
 

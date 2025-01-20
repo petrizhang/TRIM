@@ -41,7 +41,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   const IndexPQ* pq = nullptr;
   const hnswlib::HierarchicalNSW<float>* hnsw = nullptr;
   const dist_t* query = nullptr;
-  float gamma = 1;
+  float gamma = 0;
 
   ~UnityOp() override = default;
 
@@ -54,21 +54,21 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     hnsw = u_hnsw->owned_index_hnsw.get();
   }
 
-  virtual void set_query(const dist_t* query_data) override {
+  void set_query(const dist_t* query_data) override {
     query = query_data;
     dist_table.resize(pq->pq.M * pq->pq.ksub);
     pq->pq.compute_distance_table(query, dist_table.data());
   }
 
-  void prefetch_pq_codes(unsigned i) {
+  virtual dist_t compute(idx_t i) const override { return 0; }
+
+  void prefetch(idx_t i) const override final  {
 #ifdef __SSE__
     _mm_prefetch((char*)(pq->codes.data() + pq->code_size * i), _MM_HINT_T0);
 #endif
   }
 
-  virtual bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override {
-    return true;
-  }
+  bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override { return true; }
 };
 
 template <bool enable_profile>

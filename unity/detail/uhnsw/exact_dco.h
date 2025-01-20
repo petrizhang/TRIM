@@ -47,9 +47,9 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     _dist_func_param = _hnsw->dist_func_param_;
   }
 
-  virtual void set_query(const dist_t* query_data) override final { this->_query = query_data; }
+  void set_query(const dist_t* query_data) override final { this->_query = query_data; }
 
-  virtual bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override final {
+  bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override final {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(1);
@@ -59,14 +59,18 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     return cur_dist < max_dist;
   }
 
-  virtual bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                                   float* __restrict dist4, bool4& flag4) const override final {
+  bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                           float* __restrict dist4, bool4& flag4) const override final {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(4);
     }
-
     return _distance4_less_than_simd(max_dist, i0, i1, i2, i3, dist4, flag4);
+  }
+
+  dist_t compute(idx_t i) const override final {
+    assert(_query != nullptr);
+    return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
   }
 
   bool _distance4_less_than_simd(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
@@ -108,13 +112,13 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     return flag4.has_true();
   }
 
-  virtual void prefetch(idx_t i) const override final {
+  void prefetch(idx_t i) const override final {
 #ifdef USE_SSE
     _mm_prefetch(_hnsw->getDataByInternalId(i), _MM_HINT_T0);
 #endif
   }
 
-  virtual Dict get_profile() const override final {
+  Dict get_profile() const override final {
     Dict dict;
     dict.put("num_distance_computation", Object(_num_distance_computation.value.load()));
     return dict;
