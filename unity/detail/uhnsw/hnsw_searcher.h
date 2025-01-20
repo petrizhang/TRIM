@@ -43,6 +43,10 @@ using ResultQueue =
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         HnswlibIndex::CompareByFirst>;
 
+template <typename T>
+constexpr const bool is_exact_dco_v = std::is_same_v<std::remove_cv_t<T>, ExactDCO<false>> ||
+                                      std::is_same_v<std::remove_cv_t<T>, ExactDCO<false>>;
+
 template <typename DCO = UnityOp8<false>>
 struct HNSWSearcher : Searcher {
   // DCO
@@ -61,8 +65,9 @@ struct HNSWSearcher : Searcher {
   const UnityHNSW* _uhnsw{nullptr};                   // the underlying pointer of [shared_uhnsw]
 
   // Parameters
-  size_t _ef{32};
-  bool _enable_profile{false};
+  size_t ef{32};
+  bool enable_profile{false};
+  bool enable_batch_dco{false};
 
   HNSWSearcher() = delete;
 
@@ -93,11 +98,15 @@ struct HNSWSearcher : Searcher {
     if (key == "ef") {
       U_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE,
                          "parameter `ef` must be an integer");
-      _ef = static_cast<size_t>(value.get_int64());
+      ef = static_cast<size_t>(value.get_int64());
     } else if (key == "enable_profile") {
       U_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
                          "parameter  `enable_profile` must be a boolean value");
-      _enable_profile = value.get_bool();
+      enable_profile = value.get_bool();
+    } else if (key == "enable_batch_dco") {
+      U_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
+                         "parameter  `enable_batch_dco` must be a boolean value");
+      enable_batch_dco = value.get_bool();
     } else {
       U_THROW_FMT("unknown parameter %s", key.c_str());
     }
@@ -153,7 +162,13 @@ struct HNSWSearcher : Searcher {
 
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         HnswlibIndex::CompareByFirst>
-        top_candidates = _ann_search_level0(seed, seed_dist, std::max(_ef, k));
+        top_candidates;
+
+    if (enable_batch_dco) {
+      top_candidates = _ann_search_level0_batch4(seed, seed_dist, std::max(ef, k));
+    } else {
+      top_candidates = _ann_search_level0(seed, seed_dist, std::max(ef, k));
+    }
 
     while (top_candidates.size() > k) {
       top_candidates.pop();
@@ -203,14 +218,8 @@ struct HNSWSearcher : Searcher {
       // Prefetch visited array
       _prefetch((char*)(visited + *(neighbors + 1)));
       _prefetch((char*)(visited + *(neighbors + 1) + 64));
-
-      if constexpr (std::is_same_v<DCO, ExactDCO<true>> || std::is_same_v<DCO, ExactDCO<false>>) {
-        // Prefetch vector data of the first neighbor
-        _prefetch(_data_level0_memory + (*(neighbors + 1)) * _size_data_per_element + _offset_data);
-      } else {
-        _dco.prefetch(*(neighbors + 1));
-      }
-
+      // Prefetch data of the first neighbor
+      _dco.prefetch(*(neighbors + 1));
       // Prefetch the second neighbor
       _prefetch((char*)(neighbors + 2));
 
@@ -218,22 +227,15 @@ struct HNSWSearcher : Searcher {
         int cand_id = *(neighbors + j);
         // Prefetch visited array of the next neighbor
         _prefetch((char*)(visited + *(neighbors + j + 1)));
-
-        if constexpr (std::is_same_v<DCO, ExactDCO<true>> || std::is_same_v<DCO, ExactDCO<false>>) {
-          // Prefetch vector data of the next neighbor
-          _prefetch(_data_level0_memory + (*(neighbors + j + 1)) * _size_data_per_element +
-                    _offset_data);
-        } else {
-          // Prefetch data of the next neighbor
-          _dco.prefetch(*(neighbors + 1));
-        }
+        // Prefetch data of the next neighbor
+        _dco.prefetch(*(neighbors + j + 1));
 
         if (!(visited[cand_id] == visited_array_tag)) {
           visited[cand_id] = visited_array_tag;
 
           dist_t dist = -1;
-          bool found_better_cand = _dco.distance_less_than(max_dist, cand_id, &dist);
-          if (found_better_cand || results.size() < ef) {
+          bool found_closer_node = _dco.distance_less_than(max_dist, cand_id, &dist);
+          if (found_closer_node || results.size() < ef) {
             candidates.emplace(-dist, cand_id);
 
             // Prefetch neighbor list of the top object in candidate queue
@@ -248,6 +250,152 @@ struct HNSWSearcher : Searcher {
 
             if (!results.empty()) max_dist = results.top().first;
           }
+        }
+      }
+    }
+
+    _visited_list_pool->releaseVisitedList(vl);
+    return results;
+  }
+
+  /// Peform ANN search over the bottom layer using batch dco
+  inline ResultQueue _ann_search_level0_batch4(tableint seed, dist_t seed_dist, size_t ef) const {
+    VisitedList* vl = _visited_list_pool->getFreeVisitedList();
+    vl_type* visited = vl->mass;
+    vl_type visited_array_tag = vl->curV;
+
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        CompareByFirst>
+        results;
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        CompareByFirst>
+        candidates;
+
+    // Init search
+    dist_t max_dist = seed_dist;
+    results.emplace(max_dist, seed);
+    candidates.emplace(-max_dist, seed);
+    visited[seed] = visited_array_tag;
+
+    tableint batched_nodes[4];
+    dist_t distances[4];
+    bool4 flags;
+    int n_batched = 0;
+
+    auto process_remaining_batched_nodes = [&]() {
+      for (int i = 0; i < n_batched; i++) {
+        bool found_closer_node = _dco.distance_less_than(max_dist, batched_nodes[i], &distances[i]);
+        if (found_closer_node || results.size() < ef) {
+          candidates.emplace(-distances[i], batched_nodes[i]);
+
+          // Prefetch neighbor list of the top object in candidate queue
+          _prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                    _offset_level0);
+
+          results.emplace(distances[i], batched_nodes[i]);
+
+          while (results.size() > ef) {
+            results.pop();
+          }
+
+          if (!results.empty()) max_dist = results.top().first;
+        }
+      }
+    };
+
+    // Unbounded beam search
+    while (true) {
+      if (candidates.empty()) {
+        // No more nodes to visit.
+        if (n_batched == 0) {
+          // No batched nodes left; exit the loop.
+          break;
+        }
+
+        // Process remaining batched nodes.
+        process_remaining_batched_nodes();
+        n_batched = 0;
+        continue;
+      }
+
+      std::pair<dist_t, tableint> current_node_pair = candidates.top();
+      dist_t candidate_dist = -current_node_pair.first;
+      candidates.pop();
+
+      if (candidate_dist > max_dist) {
+        // No more nodes to visit.
+        if (n_batched == 0) {
+          // No batched nodes left; exit the loop.
+          break;
+        }
+
+        // Process remaining batched nodes.
+        process_remaining_batched_nodes();
+        n_batched = 0;
+        continue;
+      }
+
+      tableint current_node_id = current_node_pair.second;
+      int* neighbors = (int*)get_linklist0(current_node_id);
+      size_t size = get_list_count((linklistsizeint*)neighbors);
+
+      // Prefetch visited array
+      _prefetch((char*)(visited + *(neighbors + 1)));
+      _prefetch((char*)(visited + *(neighbors + 1) + 64));
+      // Prefetch the second neighbor
+      _prefetch((char*)(neighbors + 2));
+
+      for (size_t j = 1; j <= size; j++) {
+        tableint cand_id = *(neighbors + j);
+
+        if (n_batched == 4) {
+          bool found_closer_node =
+              _dco.distance4_less_than(max_dist, batched_nodes[0], batched_nodes[1],
+                                       batched_nodes[2], batched_nodes[3], distances, flags);
+          if (found_closer_node || results.size() < ef) {
+            if (flags.get_bool0()) {
+              candidates.emplace(-distances[0], batched_nodes[0]);
+              results.emplace(distances[0], batched_nodes[0]);
+            }
+
+            if (flags.get_bool1()) {
+              candidates.emplace(-distances[1], batched_nodes[1]);
+              results.emplace(distances[1], batched_nodes[1]);
+            }
+
+            if (flags.get_bool2()) {
+              candidates.emplace(-distances[2], batched_nodes[2]);
+              results.emplace(distances[2], batched_nodes[2]);
+            }
+
+            if (flags.get_bool3()) {
+              candidates.emplace(-distances[3], batched_nodes[3]);
+              results.emplace(distances[3], batched_nodes[3]);
+            }
+
+            // Prefetch neighbor list of the top object in candidate queue
+            _prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                      _offset_level0);
+
+            while (results.size() > ef) {
+              results.pop();
+            }
+
+            if (!results.empty()) max_dist = results.top().first;
+          }
+          n_batched = 0;
+        }
+
+        // Prefetch visited array of the next neighbor
+        _prefetch((char*)(visited + *(neighbors + j + 1)));
+
+        if (!(visited[cand_id] == visited_array_tag)) {
+          if (n_batched == 3) {
+            _dco.prefetch(batched_nodes[0]);
+          }
+          n_batched += 1;
+          visited[cand_id] = visited_array_tag;
+          batched_nodes[n_batched - 1] = cand_id;
         }
       }
     }

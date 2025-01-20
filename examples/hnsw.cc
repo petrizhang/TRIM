@@ -96,6 +96,7 @@ int main() {
   }
   std::cout << "\n";
 
+  searcher->set("enable_batch_dco", true);
   searcher->ann_search(&base.at(0), 10, knn.data());
   for (auto x : knn) {
     std::cout << x << ",";

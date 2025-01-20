@@ -69,11 +69,6 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   virtual bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override {
     return true;
   }
-
-  virtual bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                                   ComparisonResult4<dist_t>* __restrict result) const override {
-    return true;
-  }
 };
 
 template <bool enable_profile>

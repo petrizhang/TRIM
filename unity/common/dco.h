@@ -26,16 +26,50 @@
 
 namespace unity {
 
-template <typename dist_t>
-struct ComparisonResult4 {
-  dist_t d0 = -1;
-  dist_t d1 = -1;
-  dist_t d2 = -1;
-  dist_t d3 = -1;
-  bool is_d0_valid = false;
-  bool is_d1_valid = false;
-  bool is_d2_valid = false;
-  bool is_d3_valid = false;
+struct bool4 {
+  int mask{0};
+
+  inline void set_bool0(bool value) {
+    if (value) {
+      mask |= 0x1;
+    } else {
+      mask &= ~0x1;
+    }
+  }
+
+  inline void set_bool1(bool value) {
+    if (value) {
+      mask |= 0x2;
+    } else {
+      mask &= ~0x2;
+    }
+  }
+
+  inline void set_bool2(bool value) {
+    if (value) {
+      mask |= 0x4;
+    } else {
+      mask &= ~0x4;
+    }
+  }
+
+  inline void set_bool3(bool value) {
+    if (value) {
+      mask |= 0x8;
+    } else {
+      mask &= ~0x8;
+    }
+  }
+
+  inline bool get_bool0() { return (mask & 0x1) != 0; }
+
+  inline bool get_bool1() { return (mask & 0x2) != 0; }
+
+  inline bool get_bool2() { return (mask & 0x4) != 0; }
+
+  inline bool get_bool3() { return (mask & 0x8) != 0; }
+
+  inline bool has_true() { return mask != 0; }
 };
 
 template <typename idx_t, typename dist_t>
@@ -69,15 +103,15 @@ struct IDistanceComparisonOperator {
    * @return Returns true if all four distances are less than max_dist, otherwise returns false.
    */
   virtual bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                                   ComparisonResult4<dist_t>* __restrict result) const {
-    result->is_d0_valid = distance_less_than(max_dist, i0, &result->d0);
-    result->is_d1_valid = distance_less_than(max_dist, i1, &result->d1);
-    result->is_d2_valid = distance_less_than(max_dist, i2, &result->d2);
-    result->is_d3_valid = distance_less_than(max_dist, i3, &result->d3);
-    return result->is_d0_valid && result->is_d1_valid && result->is_d2_valid && result->is_d3_valid;
+                                   float* __restrict dist4, bool4& flag4) const {
+    flag4.set_bool0(distance_less_than(max_dist, i0, dist4));
+    flag4.set_bool1(distance_less_than(max_dist, i1, dist4 + 1));
+    flag4.set_bool2(distance_less_than(max_dist, i2, dist4 + 2));
+    flag4.set_bool3(distance_less_than(max_dist, i3, dist4 + 3));
+    return flag4.has_true();
   }
 
-  virtual void prefetch(idx_t) {}
+  virtual void prefetch(idx_t) const {}
 
   virtual Dict get_profile() const { return {}; }
 };

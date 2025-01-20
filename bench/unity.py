@@ -26,6 +26,7 @@ class Algorithm(BaseANN):
 
     def set_query_arguments(self, ef):
         assert self.searcher is not None
+        self.searcher.set("enable_batch_dco", True)
         self.searcher.set("ef", ef)
 
     def query(self, v, n):

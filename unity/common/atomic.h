@@ -23,6 +23,7 @@
 #include <utility>
 
 namespace unity {
+
 template <typename T>
 struct Atomic {
   std::atomic<T> value;
@@ -47,14 +48,6 @@ struct Atomic {
       value.store(other.value.load());
     }
     return *this;
-  }
-
-  void swap(Atomic& other) noexcept {
-    if (this != &other) {
-      T temp = value.load();
-      value.store(other.value.load());
-      other.value.store(temp);
-    }
   }
 };
 

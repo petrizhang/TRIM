@@ -59,6 +59,61 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     return cur_dist < max_dist;
   }
 
+  virtual bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                                   float* __restrict dist4, bool4& flag4) const override final {
+    assert(_query != nullptr);
+    if constexpr (enable_profile) {
+      _num_distance_computation.value.fetch_add(4);
+    }
+
+    return _distance4_less_than_simd(max_dist, i0, i1, i2, i3, dist4, flag4);
+  }
+
+  bool _distance4_less_than_simd(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                                 float* __restrict dist4, bool4& flag4) const {
+#ifdef USE_SSE
+    prefetch(i1);
+    dist4[0] = _dist_func(_query, _hnsw->getDataByInternalId(i0), _dist_func_param);
+
+    prefetch(i2);
+    dist4[1] = _dist_func(_query, _hnsw->getDataByInternalId(i1), _dist_func_param);
+
+    prefetch(i3);
+    dist4[2] = _dist_func(_query, _hnsw->getDataByInternalId(i2), _dist_func_param);
+
+    dist4[3] = _dist_func(_query, _hnsw->getDataByInternalId(i3), _dist_func_param);
+
+    __m128 dist_vec = _mm_loadu_ps(dist4);
+    __m128 max_dist_vec = _mm_set1_ps(max_dist);
+    __m128 less_than_result = _mm_cmplt_ps(dist_vec, max_dist_vec);
+    flag4.mask = _mm_movemask_ps(less_than_result);
+    return flag4.has_true();
+#else
+    return _distance4_less_than_plain(max_dist, i0, i1, i2, i3, dist4, flag4);
+#endif
+  }
+
+  bool _distance4_less_than_plain(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                                  float* __restrict dist4, bool4& flag4) const {
+    prefetch(i1);
+    flag4.set_bool0(distance_less_than(max_dist, i0, dist4));
+
+    prefetch(i2);
+    flag4.set_bool1(distance_less_than(max_dist, i1, dist4 + 1));
+
+    prefetch(i3);
+    flag4.set_bool2(distance_less_than(max_dist, i2, dist4 + 2));
+
+    flag4.set_bool3(distance_less_than(max_dist, i3, dist4 + 3));
+    return flag4.has_true();
+  }
+
+  virtual void prefetch(idx_t i) const override final {
+#ifdef USE_SSE
+    _mm_prefetch(_hnsw->getDataByInternalId(i), _MM_HINT_T0);
+#endif
+  }
+
   virtual Dict get_profile() const override final {
     Dict dict;
     dict.put("num_distance_computation", Object(_num_distance_computation.value.load()));
