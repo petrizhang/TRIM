@@ -325,7 +325,7 @@ struct HNSWSearcher : Searcher {
 
     // Unbounded beam search
     while (true) {
-      if (candidates.empty()) {
+      if (UNLIKELY(candidates.empty())) {
         // No more nodes to visit.
         if (n_batched == 0) {
           // No batched nodes left; exit the loop.
@@ -342,7 +342,7 @@ struct HNSWSearcher : Searcher {
       dist_t candidate_dist = -current_node_pair.first;
       candidates.pop();
 
-      if (candidate_dist > max_dist) {
+      if (UNLIKELY(candidate_dist > max_dist)) {
         // No more nodes to visit.
         if (n_batched == 0) {
           // No batched nodes left; exit the loop.
@@ -420,10 +420,6 @@ struct HNSWSearcher : Searcher {
               n_batched = 0;
             }
 
-            // We have batched enough nodes for computation
-            // if (n_batched == 3) {
-            //   _dco.prefetch(batched_nodes[0]);
-            // }
             n_batched += 1;
             batched_nodes[n_batched - 1] = neighbor_id;
           }
