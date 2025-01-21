@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,32 @@ def get_file_name(file_path):
     return file_name_without_extension
 
 
+def list_files_with_prefix(directory, prefix):
+    """
+    列出指定目录中以prefix开头的全部文件。
+
+    参数:
+        directory (str): 指定的目录路径
+        prefix (str): 文件名前缀
+
+    返回:
+        list: 匹配的文件列表
+    """
+    # 检查目录是否存在
+    if not os.path.isdir(directory):
+        print(f"错误：目录 '{directory}' 不存在。")
+        return []
+
+    # 获取目录中的所有文件和文件夹
+    all_files = os.listdir(directory)
+
+    # 筛选出以prefix开头的文件
+    matched_files = [f"{directory}/{file}" for file in all_files if file.startswith(
+        prefix) and os.path.isfile(os.path.join(directory, file))]
+
+    return matched_files
+
+
 plt.rcParams['font.size'] = 16
 plt.rcParams['axes.labelsize'] = 18
 plt.rcParams['axes.titlesize'] = 20
@@ -19,7 +46,7 @@ plt.rcParams['xtick.labelsize'] = 16
 plt.rcParams['ytick.labelsize'] = 16
 
 
-def clean_data(recall, qps, threshold=0.8):
+def clean_data(recall, qps, threshold=0.95):
     recall, qps = np.array(recall), np.array(qps)
     assert len(recall) == len(qps)
     not_dominated_flags = []
@@ -59,7 +86,7 @@ def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
         recall = df["recall"].values
         qps = df["QPS"].values
         plot(ax, legend, recall, qps)
-    
+
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     ax.set_title(title)
@@ -68,21 +95,9 @@ def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
     plt.savefig(f"{title}.png", bbox_inches="tight", dpi=400)
 
 
-sift_path_list = [
-    "./tmp/results/sift_unity_hnsw16x500.csv",
-    "./tmp/results/sift_unity_hnsw16x500_pq8x32.csv",
-]
+result_dir = "./tmp/results"
 
-nytimes_path_list = [
-    "./tmp/results/nytimes_unity_hnsw16x500.csv",
-    "./tmp/results/nytimes_unity_hnsw16x500_pq8x64.csv",
-]
-
-gist_path_list = [
-    "./tmp/results/gist_unity_hnsw16x500.csv",
-    "./tmp/results/gist_unity_hnsw16x500_pq8x240.csv",
-]
-
-plot_group(sift_path_list, "tmp_sift", ylim=(500, 10000))
-plot_group(nytimes_path_list, "tmp_nytimes", ylim=(0, 2500))
-plot_group(gist_path_list, "tmp_gist", ylim=(0, 1200))
+plot_group(list_files_with_prefix(result_dir, "nytimes"),
+           "tmp_nytimes", ylim=(0, 2500))
+plot_group(list_files_with_prefix(result_dir, "gist"),
+           "tmp_gist", ylim=(0, 1200))
