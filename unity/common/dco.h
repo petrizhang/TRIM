@@ -27,13 +27,19 @@
 namespace unity {
 
 struct bool4 {
-  int mask{0};
+  int32_t mask{0};
 
-  void reset() {
-    mask = 0;
-  }
+  void reset() { mask = 0; }
 
-   void set_bool0(bool value) {
+  bool get0() { return (mask & 0x1) != 0; }
+
+  bool get1() { return (mask & 0x2) != 0; }
+
+  bool get2() { return (mask & 0x4) != 0; }
+
+  bool get3() { return (mask & 0x8) != 0; }
+
+  void set0(bool value) {
     if (value) {
       mask |= 0x1;
     } else {
@@ -41,7 +47,7 @@ struct bool4 {
     }
   }
 
-   void set_bool1(bool value) {
+  void set1(bool value) {
     if (value) {
       mask |= 0x2;
     } else {
@@ -49,7 +55,7 @@ struct bool4 {
     }
   }
 
-   void set_bool2(bool value) {
+  void set2(bool value) {
     if (value) {
       mask |= 0x4;
     } else {
@@ -57,7 +63,7 @@ struct bool4 {
     }
   }
 
-   void set_bool3(bool value) {
+  void set3(bool value) {
     if (value) {
       mask |= 0x8;
     } else {
@@ -65,15 +71,43 @@ struct bool4 {
     }
   }
 
-   bool get_bool0() { return (mask & 0x1) != 0; }
+  bool has_true() { return mask != 0; }
 
-   bool get_bool1() { return (mask & 0x2) != 0; }
+  bool get(int i) {
+    assert(i >= 0 && i < 4);
+    switch (i) {
+      case 0:
+        return get0();
+      case 1:
+        return get1();
+      case 2:
+        return get2();
+      case 3:
+        return get3();
+      default:
+        U_THROW_UNEXPECTED_CODE_PATH;
+    }
+  }
 
-   bool get_bool2() { return (mask & 0x4) != 0; }
-
-   bool get_bool3() { return (mask & 0x8) != 0; }
-
-   bool has_true() { return mask != 0; }
+  void set(int i, bool value) {
+    assert(i >= 0 && i < 4);
+    switch (i) {
+      case 0:
+        set0(value);
+        break;
+      case 1:
+        set1(value);
+        break;
+      case 2:
+        set2(value);
+        break;
+      case 3:
+        set3(value);
+        break;
+      default:
+        U_THROW_UNEXPECTED_CODE_PATH;
+    }
+  }
 };
 
 template <typename idx_t, typename dist_t>
@@ -111,10 +145,10 @@ struct IDistanceComparisonOperator {
    */
   virtual bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
                                    float* __restrict dist4, bool4& flag4) const {
-    flag4.set_bool0(distance_less_than(max_dist, i0, dist4));
-    flag4.set_bool1(distance_less_than(max_dist, i1, dist4 + 1));
-    flag4.set_bool2(distance_less_than(max_dist, i2, dist4 + 2));
-    flag4.set_bool3(distance_less_than(max_dist, i3, dist4 + 3));
+    flag4.set0(distance_less_than(max_dist, i0, dist4));
+    flag4.set1(distance_less_than(max_dist, i1, dist4 + 1));
+    flag4.set2(distance_less_than(max_dist, i2, dist4 + 2));
+    flag4.set3(distance_less_than(max_dist, i3, dist4 + 3));
     return flag4.has_true();
   }
 

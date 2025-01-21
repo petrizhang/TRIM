@@ -107,3 +107,5 @@
   } while (false)
 
 #define U_THROW_NOT_IMPLEMENTED U_THROW_MSG("not implemented error")
+
+#define U_THROW_UNEXPECTED_CODE_PATH U_THROW_MSG("unexpected code path")

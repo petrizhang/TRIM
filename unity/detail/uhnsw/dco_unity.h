@@ -19,6 +19,10 @@
 
 #pragma once
 
+#ifdef USE_AVX
+#include <immintrin.h>
+#endif
+
 #include "unity/common/atomic.h"
 #include "unity/common/dco.h"
 #include "unity/common/prefetch.h"
@@ -130,53 +134,78 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     prefetch_L1(_codes + _code_size * i);
   }
 
+  void _prefetch_vector(idx_t i) const { prefetch_L1(_hnsw->getDataByInternalId(i)); }
+
 #ifdef USE_AVX
   bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
                             float* __restrict dist4, bool4& flag4) const {
     flag4.reset();
 
-    float a[4] = {0, 0, 0, 0};
-    float b[4] = {0, 0, 0, 0};
-    float lowerbounds[4] = {0, 0, 0, 0};
+    float pq_dist[4] = {0, 0, 0, 0};  // PQ distances
+    faiss::distance_four_codes<PQDecoderType>(_M, _nbits, _dist_table_data,
+                                              _codes + i0 * _code_size, _codes + i1 * _code_size,
+                                              _codes + i2 * _code_size, _codes + i3 * _code_size,
+                                              pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
 
-    faiss::distance_four_codes<PQDecoderType>(
-        _M, _nbits, _dist_table_data, _codes + i0 * _code_size, _codes + i1 * _code_size,
-        _codes + i2 * _code_size, _codes + i3 * _code_size, a[0], a[1], a[2], a[3]);
+    // PQ distances
+    __m128 vec_pq_dist = _mm_loadu_ps(pq_dist);
+    __m128 vec_recons_error =
+        _mm_set_ps(_recons_errors[i3], _recons_errors[i2], _recons_errors[i1], _recons_errors[i0]);
+    // Lowerbounds
+    __m128 lowerbounds = _relaxed_lowerbound4(gamma, vec_pq_dist, vec_recons_error);
+    // lt flags
+    __m128 vec_max_dist = _mm_set1_ps(max_dist);
+    __m128 lt_flags_vec = _mm_cmplt_ps(lowerbounds, vec_max_dist);
+    bool4 lt_flags;
+    lt_flags.mask = _mm_movemask_ps(lt_flags_vec);
 
-    b[0] = _recons_errors[i0];
-    b[1] = _recons_errors[i1];
-    b[2] = _recons_errors[i2];
-    b[3] = _recons_errors[i3];
+    if (!lt_flags.has_true()) {
+      return false;
+    }
 
+    idx_t indices[4] = {i0, i1, i2, i3};
+    idx_t lt_indices[4];
+    int lt_pos[4];
+    int lt_size = 0;
     for (int i = 0; i < 4; i++) {
-      a[i] = std::sqrt(a[i]);
+      if (lt_flags.get(i)) {
+        lt_pos[lt_size] = i;
+        lt_indices[lt_size] = indices[i];
+        lt_size += 1;
+      }
     }
 
-    for (int i = 0; i < 4; i++) {
-      lowerbounds[i] = (a[i] - b[i]) * (a[i] - b[i]) + 2 * gamma * a[i] * b[i];
+    int i = 0;
+    for (; i < lt_size - 1; i++) {
+      _prefetch_vector(lt_indices[i + 1]);
+      int pos = lt_pos[i];
+      idx_t idx = lt_indices[i];
+      dist_t dist = compute(idx);
+      dist4[pos] = dist;
+      flag4.set(pos, dist < max_dist);
     }
 
-    if (lowerbounds[0] < max_dist) {
-      dist4[0] = compute(i0);
-      flag4.set_bool0(dist4[0] < max_dist);
-    }
+    int pos = lt_pos[i];
+    idx_t idx = lt_indices[lt_size - 1];
+    dist_t dist = compute(idx);
+    dist4[pos] = dist;
+    flag4.set(pos, dist < max_dist);
+    return true;
+  }
 
-    if (lowerbounds[1] < max_dist) {
-      dist4[1] = compute(i1);
-      flag4.set_bool1(dist4[1] < max_dist);
-    }
-
-    if (lowerbounds[2] < max_dist) {
-      dist4[2] = compute(i2);
-      flag4.set_bool2(dist4[2] < max_dist);
-    }
-
-    if (lowerbounds[3] < max_dist) {
-      dist4[3] = compute(i3);
-      flag4.set_bool3(dist4[3] < max_dist);
-    }
-
-    return flag4.has_true();
+  static __m128 _relaxed_lowerbound4(float gamma, __m128 pq_dist_vec, __m128 recons_error_vec) {
+    // Squared root of PQ distances
+    __m128 vec_a = _mm_sqrt_ps(pq_dist_vec);
+    // Reconstruction errors (actully squared roots of reconstruction errors)
+    __m128 vec_b = recons_error_vec;
+    // lowerbounds = (a[i] - b[i])^2 + 2 * gamma * a[i] * b[i]
+    __m128 vec_diff = _mm_sub_ps(vec_a, vec_b);
+    __m128 vec_diff_squared = _mm_mul_ps(vec_diff, vec_diff);
+    __m128 vec_2gamma = _mm_set1_ps(2 * gamma);
+    __m128 vec_ab = _mm_mul_ps(vec_a, vec_b);
+    __m128 vec_2gamma_ab = _mm_mul_ps(vec_2gamma, vec_ab);
+    __m128 lowerbounds = _mm_add_ps(vec_diff_squared, vec_2gamma_ab);
+    return lowerbounds;
   }
 #else
   bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
@@ -206,22 +235,22 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
 
     if (lowerbounds[0] < max_dist) {
       dist4[0] = compute(i0);
-      flag4.set_bool0(dist4[0] < max_dist);
+      flag4.set0(dist4[0] < max_dist);
     }
 
     if (lowerbounds[1] < max_dist) {
       dist4[1] = compute(i1);
-      flag4.set_bool1(dist4[1] < max_dist);
+      flag4.set1(dist4[1] < max_dist);
     }
 
     if (lowerbounds[2] < max_dist) {
       dist4[2] = compute(i2);
-      flag4.set_bool2(dist4[2] < max_dist);
+      flag4.set2(dist4[2] < max_dist);
     }
 
     if (lowerbounds[3] < max_dist) {
       dist4[3] = compute(i3);
-      flag4.set_bool3(dist4[3] < max_dist);
+      flag4.set3(dist4[3] < max_dist);
     }
 
     return flag4.has_true();

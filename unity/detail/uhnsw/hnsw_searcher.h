@@ -387,22 +387,22 @@ struct HNSWSearcher : Searcher {
                   _dco.distance4_less_than(max_dist, batched_nodes[0], batched_nodes[1],
                                            batched_nodes[2], batched_nodes[3], distances, flags);
               if (found_closer_node) {
-                if (flags.get_bool0()) {
+                if (flags.get0()) {
                   candidates.emplace(-distances[0], batched_nodes[0]);
                   results.emplace(distances[0], batched_nodes[0]);
                 }
 
-                if (flags.get_bool1()) {
+                if (flags.get1()) {
                   candidates.emplace(-distances[1], batched_nodes[1]);
                   results.emplace(distances[1], batched_nodes[1]);
                 }
 
-                if (flags.get_bool2()) {
+                if (flags.get2()) {
                   candidates.emplace(-distances[2], batched_nodes[2]);
                   results.emplace(distances[2], batched_nodes[2]);
                 }
 
-                if (flags.get_bool3()) {
+                if (flags.get3()) {
                   candidates.emplace(-distances[3], batched_nodes[3]);
                   results.emplace(distances[3], batched_nodes[3]);
                 }
