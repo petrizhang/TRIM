@@ -1,7 +1,22 @@
+import time
 from typing import List
 
 import h5py
 import numpy as np
+
+
+class Timer:
+    def __enter__(self):
+        """Record the start time when entering the context."""
+        self.start_time = time.time()  # Record the start time
+        self.end_time = self.start_time
+        self.elapsed_time = 0
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Record the end time and calculate the elapsed time when exiting the context."""
+        self.end_time = time.time()  # Record the end time
+        self.elapsed_time = self.end_time - self.start_time  # Calculate the elapsed time
 
 
 def format_dict(d: dict) -> str:
@@ -38,3 +53,8 @@ def write_hdf5_dataset(output_path, data_dict: dict):
     with h5py.File(output_path, "w") as f:
         for k, v in data_dict.items():
             f.create_dataset(k, data=v, compression="lzf")
+
+
+def write_build_time(index_path: str, seconds: int):
+    with open(f"{index_path}.build.seconds.txt", "w") as f:
+        f.write(f"{seconds}")

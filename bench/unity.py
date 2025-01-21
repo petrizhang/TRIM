@@ -4,7 +4,9 @@ import faiss
 import hnswlib
 import numpy as np
 import unitylib
+import utils
 from alg import BaseANN
+from utils import Timer
 
 
 class Algorithm(BaseANN):
@@ -35,18 +37,24 @@ class Algorithm(BaseANN):
 
         if not os.path.exists(self.hnswlib_index_path):
             print("Building hnswlib index...")
-            # Only l2 is supported currently
-            self.hnsw = hnswlib.Index(space=self.metric, dim=len(X[0]))
-            self.hnsw.init_index(
-                max_elements=len(X), ef_construction=self.method_param["efConstruction"], M=self.method_param["M"]
-            )
-            data_labels = np.arange(len(X))
-            self.hnsw.add_items(np.asarray(X), data_labels)
-            self.hnsw.set_num_threads(1)
+            with Timer() as timer:
+                # Only l2 is supported currently
+                self.hnsw = hnswlib.Index(space=self.metric, dim=len(X[0]))
+                self.hnsw.init_index(
+                    max_elements=len(X), ef_construction=self.method_param["efConstruction"], M=self.method_param["M"]
+                )
+                data_labels = np.arange(len(X))
+                self.hnsw.add_items(np.asarray(X), data_labels)
+                self.hnsw.set_num_threads(1)
+            utils.write_build_time(
+                self.hnswlib_index_path, timer.elapsed_time)
+
         if self.use_pq and not os.path.exists(self.pq_index_path):
             print("Building faiss PQ index...")
-            self.index_pq.train(X)
-            self.index_pq.add(X)
+            with Timer() as timer:
+                self.index_pq.train(X)
+                self.index_pq.add(X)
+            utils.write_build_time(self.pq_index_path, timer.elapsed_time)
 
     def set_query_arguments(self, ef, enable_batch_dco=False, gamma=0.8):
         assert self.searcher is not None

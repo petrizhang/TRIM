@@ -9,6 +9,7 @@ from typing import List
 import pandas as pd
 import utils
 from alg import BaseANN
+from utils import Timer
 
 
 class DataSet:
@@ -83,14 +84,14 @@ def bench(alg_class, dataset: DataSet, k: int, nq: int, build_args: dict,
         alg: BaseANN = alg_class(dim, build_args)
         print(f"Index not found at {
               save_index_path}. Creating and fitting a new index...")
-        start = time.time()
-        alg.fit(dataset.base)
-        duration = time.time() - start
+        with Timer() as timer:
+            alg.fit(dataset.base)
+        duration = timer.elapsed_time
         print(f"Index built in {duration}s")
+        if "empty" not in save_index_path:
+            utils.write_build_time(save_index_path, duration)
         alg.save_index(save_index_path)
-        with open(f"{save_index_path}.build.seconds.txt", "w") as f:
-            f.write(f"{duration}")
-    
+
     print(f"Loading index from {save_index_path}...")
     alg = alg_class(dim, build_args)
     alg.load_index(save_index_path)

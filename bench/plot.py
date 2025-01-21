@@ -85,4 +85,4 @@ gist_path_list = [
 
 plot_group(sift_path_list, "tmp_sift", ylim=(500, 10000))
 plot_group(nytimes_path_list, "tmp_nytimes", ylim=(0, 2500))
-plot_group(gist_path_list, "tmp_gist", ylim=(0, 2000))
+plot_group(gist_path_list, "tmp_gist", ylim=(0, 1200))
