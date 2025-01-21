@@ -12,6 +12,7 @@ def transform(source_path: str, target_path: str):
         train = utils.cos_normalize(train, None, None)
         test = utils.cos_normalize(test, None, None)
 
+        print(f"Writing dataset to {target_path}")
         utils.write_hdf5_dataset(target_path,
                                  {"train": train, "test": test, "neighbors": neighbors})
 

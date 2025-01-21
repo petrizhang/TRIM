@@ -34,7 +34,7 @@ def read_hdf5_dataset(filepath, keys: List[str]):
     return ret
 
 
-def write_hdf5_dataset(data_dict: dict, output_path):
+def write_hdf5_dataset(output_path, data_dict: dict):
     with h5py.File(output_path, "w") as f:
         for k, v in data_dict.items():
             f.create_dataset(k, data=v, compression="lzf")

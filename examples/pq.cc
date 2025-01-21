@@ -94,6 +94,7 @@ int main() {
   const int k = 10;
   std::vector<int> knn(k);
   searcher->set("ef", 100);
+  searcher->set("gamma", 0.9);
   searcher->ann_search(searcher->get_data(0), k, knn.data());
   for (auto i : knn) {
     std::cout << i << ",";

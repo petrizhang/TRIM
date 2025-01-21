@@ -34,6 +34,7 @@ class Algorithm(BaseANN):
         assert len(X[0]) == self.dim
 
         if not os.path.exists(self.hnswlib_index_path):
+            print("Building hnswlib index...")
             # Only l2 is supported currently
             self.hnsw = hnswlib.Index(space=self.metric, dim=len(X[0]))
             self.hnsw.init_index(
@@ -43,13 +44,14 @@ class Algorithm(BaseANN):
             self.hnsw.add_items(np.asarray(X), data_labels)
             self.hnsw.set_num_threads(1)
         if self.use_pq and not os.path.exists(self.pq_index_path):
-            print("Building PQ index...")
+            print("Building faiss PQ index...")
             self.index_pq.train(X)
             self.index_pq.add(X)
 
-    def set_query_arguments(self, ef, enable_batch_dco):
+    def set_query_arguments(self, ef, enable_batch_dco=False, gamma=0.8):
         assert self.searcher is not None
         self.searcher.set("enable_batch_dco", enable_batch_dco)
+        self.searcher.set("gamma", gamma)
         self.searcher.set("ef", ef)
 
     def query(self, v, n):

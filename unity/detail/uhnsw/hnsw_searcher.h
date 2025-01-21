@@ -127,6 +127,10 @@ struct HNSWSearcher : Searcher {
       U_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
                          "parameter  `enable_batch_dco` must be a boolean value");
       enable_batch_dco = value.get_bool();
+    } else if (key == "gamma") {
+      U_THROW_IF_NOT_MSG(value.type == ObjectType::DOUBLE_TYPE,
+                         "parameter  `gamma` must be a double value");
+      _dco.set("gamma", value.get_double());
     } else {
       U_THROW_FMT("unknown parameter %s", key.c_str());
     }
