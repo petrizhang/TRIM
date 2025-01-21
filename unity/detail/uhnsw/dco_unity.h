@@ -19,13 +19,9 @@
 
 #pragma once
 
-#ifdef __SSE__
-#include <xmmintrin.h>
-#endif
-
 #include "unity/common/atomic.h"
-#include "unity/common/common.h"
 #include "unity/common/dco.h"
+#include "unity/common/prefetch.h"
 #include "unity/detail/faiss/impl/ProductQuantizer.h"
 #include "unity/detail/faiss/impl/code_distance/code_distance.h"
 #include "unity/detail/hnswlib/hnswlib.h"
@@ -99,7 +95,45 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
 
   bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
                            float* __restrict dist4, bool4& flag4) const override final {
-    flag4.mask = 0;
+    return _distance4_less_than(max_dist, i0, i1, i2, i3, dist4, flag4);
+  }
+
+  dist_t compute(idx_t i) const override {
+    assert(_query != nullptr);
+    return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
+  }
+
+  dist_t relaxed_lowerbound(idx_t i) const override {
+    assert(_query != nullptr);
+    dist_t a = std::sqrt(estimate(i));
+    dist_t b = _recons_errors[i];
+    return (a - b) * (a - b) + 2 * gamma * a * b;
+  }
+
+  dist_t estimate(idx_t i) const override {
+    return faiss::distance_single_code<PQDecoderType>(_M, _nbits, _dist_table_data,
+                                                      _codes + i * _code_size);
+  }
+
+  void set(const std::string& key, const Object& value) override {
+    if (key == "gamma") {
+      U_THROW_IF_NOT_MSG(value.type == ObjectType::DOUBLE_TYPE,
+                         "parameter `ef` must be a double value");
+      gamma = static_cast<float>(value.get_double());
+    } else {
+      U_THROW_FMT("unknown parameter %s", key.c_str());
+    }
+  }
+
+  void prefetch(idx_t i) const override {
+    prefetch_L1(_recons_errors + i);
+    prefetch_L1(_codes + _code_size * i);
+  }
+
+#ifdef USE_AVX
+  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                            float* __restrict dist4, bool4& flag4) const {
+    flag4.reset();
 
     float a[4] = {0, 0, 0, 0};
     float b[4] = {0, 0, 0, 0};
@@ -144,39 +178,55 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
 
     return flag4.has_true();
   }
+#else
+  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                            float* __restrict dist4, bool4& flag4) const {
+    flag4.reset();
 
-  dist_t compute(idx_t i) const override {
-    assert(_query != nullptr);
-    return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
-  }
+    float a[4] = {0, 0, 0, 0};
+    float b[4] = {0, 0, 0, 0};
+    float lowerbounds[4] = {0, 0, 0, 0};
 
-  dist_t relaxed_lowerbound(idx_t i) const override {
-    dist_t a = std::sqrt(estimate(i));
-    dist_t b = _recons_errors[i];
-    return (a - b) * (a - b) + 2 * gamma * a * b;
-  }
+    faiss::distance_four_codes<PQDecoderType>(
+        _M, _nbits, _dist_table_data, _codes + i0 * _code_size, _codes + i1 * _code_size,
+        _codes + i2 * _code_size, _codes + i3 * _code_size, a[0], a[1], a[2], a[3]);
 
-  dist_t estimate(idx_t i) const override {
-    return faiss::distance_single_code<PQDecoderType>(_M, _nbits, _dist_table_data,
-                                                      _codes + i * _code_size);
-  }
+    b[0] = _recons_errors[i0];
+    b[1] = _recons_errors[i1];
+    b[2] = _recons_errors[i2];
+    b[3] = _recons_errors[i3];
 
-  void set(const std::string& key, const Object& value) override {
-    if (key == "gamma") {
-      U_THROW_IF_NOT_MSG(value.type == ObjectType::DOUBLE_TYPE,
-                         "parameter `ef` must be a double value");
-      gamma = static_cast<float>(value.get_double());
-    } else {
-      U_THROW_FMT("unknown parameter %s", key.c_str());
+    for (int i = 0; i < 4; i++) {
+      a[i] = std::sqrt(a[i]);
     }
-  }
 
-  void prefetch(idx_t i) const override {
-#ifdef __SSE__
-    _mm_prefetch(_recons_errors + i, _MM_HINT_T0);
-    _mm_prefetch((char*)(_codes + _code_size * i), _MM_HINT_T0);
-#endif
+    for (int i = 0; i < 4; i++) {
+      lowerbounds[i] = (a[i] - b[i]) * (a[i] - b[i]) + 2 * gamma * a[i] * b[i];
+    }
+
+    if (lowerbounds[0] < max_dist) {
+      dist4[0] = compute(i0);
+      flag4.set_bool0(dist4[0] < max_dist);
+    }
+
+    if (lowerbounds[1] < max_dist) {
+      dist4[1] = compute(i1);
+      flag4.set_bool1(dist4[1] < max_dist);
+    }
+
+    if (lowerbounds[2] < max_dist) {
+      dist4[2] = compute(i2);
+      flag4.set_bool2(dist4[2] < max_dist);
+    }
+
+    if (lowerbounds[3] < max_dist) {
+      dist4[3] = compute(i3);
+      flag4.set_bool3(dist4[3] < max_dist);
+    }
+
+    return flag4.has_true();
   }
+#endif
 };
 
 template <bool enable_profile = false>

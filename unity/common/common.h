@@ -59,10 +59,4 @@ inline constexpr int64_t do_align(int64_t x, int64_t align) {
 
 #define FAST_END _Pragma("GCC pop_options")
 
-ALWAYS_INLINE inline void u_prefetch(const void* p) {
-#ifdef USE_SSE
-  _mm_prefetch(p, _MM_HINT_T0);
-#endif
-}
-
 }  // namespace unity

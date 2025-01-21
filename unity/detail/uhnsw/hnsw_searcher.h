@@ -27,6 +27,7 @@
 #include <type_traits>
 
 #include "unity/common/common.h"
+#include "unity/common/prefetch.h"
 #include "unity/common/searcher.h"
 #include "unity/detail/uhnsw/dco_exact.h"
 #include "unity/detail/uhnsw/dco_unity.h"
@@ -236,17 +237,17 @@ struct HNSWSearcher : Searcher {
       size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
-      u_prefetch((char*)(visited + *(neighbors + 1)));
-      u_prefetch((char*)(visited + *(neighbors + 1) + 64));
+      prefetch_L1((char*)(visited + *(neighbors + 1)));
+      prefetch_L1((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch data of the first neighbor
       _dco.prefetch(*(neighbors + 1));
       // Prefetch the second neighbor
-      u_prefetch((char*)(neighbors + 2));
+      prefetch_L1((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         int neighbor_id = *(neighbors + j);
         // Prefetch visited array of the next neighbor
-        u_prefetch((char*)(visited + *(neighbors + j + 1)));
+        prefetch_L1((char*)(visited + *(neighbors + j + 1)));
         // Prefetch data of the next neighbor
         _dco.prefetch(*(neighbors + j + 1));
 
@@ -258,8 +259,8 @@ struct HNSWSearcher : Searcher {
             candidates.emplace(-dist, neighbor_id);
 
             // Prefetch neighbor list of the top object in candidate queue
-            u_prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                       _offset_level0);
+            prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                        _offset_level0);
 
             results.emplace(dist, neighbor_id);
 
@@ -308,8 +309,8 @@ struct HNSWSearcher : Searcher {
           candidates.emplace(-distances[i], batched_nodes[i]);
 
           // Prefetch neighbor list of the top object in candidate queue
-          u_prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                     _offset_level0);
+          prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                      _offset_level0);
 
           results.emplace(distances[i], batched_nodes[i]);
 
@@ -359,14 +360,14 @@ struct HNSWSearcher : Searcher {
       size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
-      u_prefetch((char*)(visited + *(neighbors + 1)));
-      u_prefetch((char*)(visited + *(neighbors + 1) + 64));
+      prefetch_L1((char*)(visited + *(neighbors + 1)));
+      prefetch_L1((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch the second neighbor
-      u_prefetch((char*)(neighbors + 2));
+      prefetch_L1((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         // Prefetch visited array of the next neighbor
-        u_prefetch((char*)(visited + *(neighbors + j + 1)));
+        prefetch_L1((char*)(visited + *(neighbors + j + 1)));
         // Prefetch data of the next neighbor
         _dco.prefetch(*(neighbors + j + 1));
 
@@ -407,8 +408,8 @@ struct HNSWSearcher : Searcher {
                 }
 
                 // Prefetch neighbor list of the top object in candidate queue
-                u_prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                           _offset_level0);
+                prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                            _offset_level0);
 
                 while (results.size() > ef) {
                   results.pop();

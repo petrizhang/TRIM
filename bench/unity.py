@@ -65,7 +65,7 @@ class Algorithm(BaseANN):
         with open(index_path, "w") as f:
             pass
         if not os.path.exists(self.hnswlib_index_path):
-            self.hnsw.save(self.hnswlib_index_path)
+            self.hnsw.save_index(self.hnswlib_index_path)
         if self.use_pq and not os.path.exists(self.pq_index_path):
             faiss.write_index(self.index_pq, self.pq_index_path)
 

@@ -29,7 +29,11 @@ namespace unity {
 struct bool4 {
   int mask{0};
 
-  inline void set_bool0(bool value) {
+  void reset() {
+    mask = 0;
+  }
+
+   void set_bool0(bool value) {
     if (value) {
       mask |= 0x1;
     } else {
@@ -37,7 +41,7 @@ struct bool4 {
     }
   }
 
-  inline void set_bool1(bool value) {
+   void set_bool1(bool value) {
     if (value) {
       mask |= 0x2;
     } else {
@@ -45,7 +49,7 @@ struct bool4 {
     }
   }
 
-  inline void set_bool2(bool value) {
+   void set_bool2(bool value) {
     if (value) {
       mask |= 0x4;
     } else {
@@ -53,7 +57,7 @@ struct bool4 {
     }
   }
 
-  inline void set_bool3(bool value) {
+   void set_bool3(bool value) {
     if (value) {
       mask |= 0x8;
     } else {
@@ -61,15 +65,15 @@ struct bool4 {
     }
   }
 
-  inline bool get_bool0() { return (mask & 0x1) != 0; }
+   bool get_bool0() { return (mask & 0x1) != 0; }
 
-  inline bool get_bool1() { return (mask & 0x2) != 0; }
+   bool get_bool1() { return (mask & 0x2) != 0; }
 
-  inline bool get_bool2() { return (mask & 0x4) != 0; }
+   bool get_bool2() { return (mask & 0x4) != 0; }
 
-  inline bool get_bool3() { return (mask & 0x8) != 0; }
+   bool get_bool3() { return (mask & 0x8) != 0; }
 
-  inline bool has_true() { return mask != 0; }
+   bool has_true() { return mask != 0; }
 };
 
 template <typename idx_t, typename dist_t>

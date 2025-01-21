@@ -24,6 +24,7 @@
 
 #include "unity/common/atomic.h"
 #include "unity/common/dco.h"
+#include "unity/common/prefetch.h"
 #include "unity/detail/uhnsw/unity_hnsw.h"
 
 namespace unity {
@@ -115,7 +116,7 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
   }
 #endif
 
-  void prefetch(idx_t i) const override { u_prefetch(_hnsw->getDataByInternalId(i)); }
+  void prefetch(idx_t i) const override { prefetch_L1(_hnsw->getDataByInternalId(i)); }
 
   Dict get_profile() const override {
     Dict dict;
