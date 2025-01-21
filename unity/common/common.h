@@ -21,6 +21,25 @@
 
 #include <string>
 
+#ifdef LIKELY
+#undef LIKELY
+#endif
+
+#ifdef UNLIKELY
+#undef UNLIKELY
+#endif
+
+#define LIKELY(expr) __builtin_expect(!!(expr), 1)
+#define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+
+#define PREFETCH(addr) __builtin_prefetch(addr)
+
+/// Force inlining. The 'inline' keyword is treated by most compilers as a hint,
+/// not a command. This should be used sparingly for cases when either the function
+/// needs to be inlined for a specific reason or the compiler's heuristics make a bad
+/// decision, e.g. not inlining a small function on a hot path.
+#define ALWAYS_INLINE __attribute__((always_inline))
+
 namespace unity {
 
 enum class Metric {
@@ -40,7 +59,7 @@ inline constexpr int64_t do_align(int64_t x, int64_t align) {
 
 #define FAST_END _Pragma("GCC pop_options")
 
-inline void u_prefetch(const void* p) {
+ALWAYS_INLINE inline void u_prefetch(const void* p) {
 #ifdef USE_SSE
   _mm_prefetch(p, _MM_HINT_T0);
 #endif

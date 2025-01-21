@@ -67,17 +67,20 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(4);
     }
-    return _distance4_less_than_simd(max_dist, i0, i1, i2, i3, dist4, flag4);
+    return _distance4_less_than(max_dist, i0, i1, i2, i3, dist4, flag4);
   }
 
   dist_t compute(idx_t i) const override {
     assert(_query != nullptr);
+    if constexpr (enable_profile) {
+      _num_distance_computation.value.fetch_add(1);
+    }
     return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
   }
 
-  bool _distance4_less_than_simd(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                                 float* __restrict dist4, bool4& flag4) const {
 #ifdef USE_SSE
+  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                            float* __restrict dist4, bool4& flag4) const {
     prefetch(i1);
     dist4[0] = _dist_func(_query, _hnsw->getDataByInternalId(i0), _dist_func_param);
 
@@ -94,13 +97,10 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     __m128 less_than_result = _mm_cmplt_ps(dist_vec, max_dist_vec);
     flag4.mask = _mm_movemask_ps(less_than_result);
     return flag4.has_true();
-#else
-    return _distance4_less_than_plain(max_dist, i0, i1, i2, i3, dist4, flag4);
-#endif
   }
-
-  bool _distance4_less_than_plain(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                                  float* __restrict dist4, bool4& flag4) const {
+#else
+  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
+                            float* __restrict dist4, bool4& flag4) const {
     prefetch(i1);
     flag4.set_bool0(distance_less_than(max_dist, i0, dist4));
 
@@ -113,12 +113,9 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     flag4.set_bool3(distance_less_than(max_dist, i3, dist4 + 3));
     return flag4.has_true();
   }
-
-  void prefetch(idx_t i) const override {
-#ifdef USE_SSE
-    _mm_prefetch(_hnsw->getDataByInternalId(i), _MM_HINT_T0);
 #endif
-  }
+
+  void prefetch(idx_t i) const override { u_prefetch(_hnsw->getDataByInternalId(i)); }
 
   Dict get_profile() const override {
     Dict dict;

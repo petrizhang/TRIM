@@ -76,9 +76,10 @@ int main() {
   using unity::detail::IndexType;
 
   // Search hnswlib index with top
-  const char* index_hnsw_path = "/data/home/petrizhang/develop/TOP/test/hnswlib.bin";
-  const char* index_pq_path = "/data/home/petrizhang/develop/TOP/test/index_pq.bin";
-  const int dim = 256;
+  const char* index_hnsw_path =
+      "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_hnswlib16x500.bin";
+  const char* index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_pq8x32.bin";
+  const int dim = 128;
   std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                   .set("hnswlib_index_path", index_hnsw_path)
                                                   .set("pq_index_path", index_pq_path)
@@ -92,7 +93,7 @@ int main() {
 
   const int k = 10;
   std::vector<int> knn(k);
-  searcher->set("ef", 16);
+  searcher->set("ef", 100);
   searcher->ann_search(searcher->get_data(0), k, knn.data());
   for (auto i : knn) {
     std::cout << i << ",";

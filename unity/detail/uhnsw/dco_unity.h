@@ -24,6 +24,7 @@
 #endif
 
 #include "unity/common/atomic.h"
+#include "unity/common/common.h"
 #include "unity/common/dco.h"
 #include "unity/detail/faiss/impl/ProductQuantizer.h"
 #include "unity/detail/faiss/impl/code_distance/code_distance.h"
@@ -104,11 +105,6 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     float b[4] = {0, 0, 0, 0};
     float lowerbounds[4] = {0, 0, 0, 0};
 
-    _prefetch(_recons_errors + i0);
-    _prefetch(_recons_errors + i1);
-    _prefetch(_recons_errors + i2);
-    _prefetch(_recons_errors + i3);
-
     faiss::distance_four_codes<PQDecoderType>(
         _M, _nbits, _dist_table_data, _codes + i0 * _code_size, _codes + i1 * _code_size,
         _codes + i2 * _code_size, _codes + i3 * _code_size, a[0], a[1], a[2], a[3]);
@@ -179,12 +175,6 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
 #ifdef __SSE__
     _mm_prefetch(_recons_errors + i, _MM_HINT_T0);
     _mm_prefetch((char*)(_codes + _code_size * i), _MM_HINT_T0);
-#endif
-  }
-
-  void _prefetch(const void* p) const {
-#ifdef __SSE__
-    _mm_prefetch(p, _MM_HINT_T0);
 #endif
   }
 };
