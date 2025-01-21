@@ -159,38 +159,27 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     bool4 lt_flags;
     lt_flags.mask = _mm_movemask_ps(lt_flags_vec);
 
-    if (!lt_flags.has_true()) {
-      return false;
+    if (lt_flags.get0()) {
+      dist4[0] = compute(i0);
+      flag4.set0(dist4[0] < max_dist);
     }
 
-    idx_t indices[4] = {i0, i1, i2, i3};
-    idx_t lt_indices[4];
-    int lt_pos[4];
-    int lt_size = 0;
-    for (int i = 0; i < 4; i++) {
-      if (lt_flags.get(i)) {
-        lt_pos[lt_size] = i;
-        lt_indices[lt_size] = indices[i];
-        lt_size += 1;
-      }
+    if (lt_flags.get1()) {
+      dist4[1] = compute(i1);
+      flag4.set1(dist4[1] < max_dist);
     }
 
-    int i = 0;
-    for (; i < lt_size - 1; i++) {
-      _prefetch_vector(lt_indices[i + 1]);
-      int pos = lt_pos[i];
-      idx_t idx = lt_indices[i];
-      dist_t dist = compute(idx);
-      dist4[pos] = dist;
-      flag4.set(pos, dist < max_dist);
+    if (lt_flags.get2()) {
+      dist4[2] = compute(i2);
+      flag4.set2(dist4[2] < max_dist);
     }
 
-    int pos = lt_pos[i];
-    idx_t idx = lt_indices[lt_size - 1];
-    dist_t dist = compute(idx);
-    dist4[pos] = dist;
-    flag4.set(pos, dist < max_dist);
-    return true;
+    if (lt_flags.get3()) {
+      dist4[3] = compute(i3);
+      flag4.set3(dist4[3] < max_dist);
+    }
+
+    return flag4.has_true();
   }
 
   static __m128 _relaxed_lowerbound4(float gamma, __m128 pq_dist_vec, __m128 recons_error_vec) {
