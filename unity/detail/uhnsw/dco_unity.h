@@ -152,29 +152,26 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     __m128 vec_recons_error =
         _mm_set_ps(_recons_errors[i3], _recons_errors[i2], _recons_errors[i1], _recons_errors[i0]);
     // Lowerbounds
-    __m128 lowerbounds = _relaxed_lowerbound4(gamma, vec_pq_dist, vec_recons_error);
-    // lt flags
-    __m128 vec_max_dist = _mm_set1_ps(max_dist);
-    __m128 lt_flags_vec = _mm_cmplt_ps(lowerbounds, vec_max_dist);
-    bool4 lt_flags;
-    lt_flags.mask = _mm_movemask_ps(lt_flags_vec);
+    __m128 vec_lowerbounds = _relaxed_lowerbound4(gamma, vec_pq_dist, vec_recons_error);
+    dist_t lowerbounds[4];
+    _mm_storeu_ps(lowerbounds, vec_lowerbounds);
 
-    if (lt_flags.get0()) {
+    if (lowerbounds[0] < max_dist) {
       dist4[0] = compute(i0);
       flag4.set0(dist4[0] < max_dist);
     }
 
-    if (lt_flags.get1()) {
+    if (lowerbounds[1] < max_dist) {
       dist4[1] = compute(i1);
       flag4.set1(dist4[1] < max_dist);
     }
 
-    if (lt_flags.get2()) {
+    if (lowerbounds[2] < max_dist) {
       dist4[2] = compute(i2);
       flag4.set2(dist4[2] < max_dist);
     }
 
-    if (lt_flags.get3()) {
+    if (lowerbounds[3] < max_dist) {
       dist4[3] = compute(i3);
       flag4.set3(dist4[3] < max_dist);
     }
