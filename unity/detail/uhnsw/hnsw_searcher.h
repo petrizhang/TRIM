@@ -26,6 +26,7 @@
 #include <queue>
 #include <type_traits>
 
+#include "unity/common/common.h"
 #include "unity/common/searcher.h"
 #include "unity/detail/uhnsw/dco_exact.h"
 #include "unity/detail/uhnsw/dco_unity.h"
@@ -235,17 +236,17 @@ struct HNSWSearcher : Searcher {
       size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
-      _prefetch((char*)(visited + *(neighbors + 1)));
-      _prefetch((char*)(visited + *(neighbors + 1) + 64));
+      u_prefetch((char*)(visited + *(neighbors + 1)));
+      u_prefetch((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch data of the first neighbor
       _dco.prefetch(*(neighbors + 1));
       // Prefetch the second neighbor
-      _prefetch((char*)(neighbors + 2));
+      u_prefetch((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         int cand_id = *(neighbors + j);
         // Prefetch visited array of the next neighbor
-        _prefetch((char*)(visited + *(neighbors + j + 1)));
+        u_prefetch((char*)(visited + *(neighbors + j + 1)));
         // Prefetch data of the next neighbor
         _dco.prefetch(*(neighbors + j + 1));
 
@@ -258,8 +259,8 @@ struct HNSWSearcher : Searcher {
             candidates.emplace(-dist, cand_id);
 
             // Prefetch neighbor list of the top object in candidate queue
-            _prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                      _offset_level0);
+            u_prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                       _offset_level0);
 
             results.emplace(dist, cand_id);
 
@@ -308,8 +309,8 @@ struct HNSWSearcher : Searcher {
           candidates.emplace(-distances[i], batched_nodes[i]);
 
           // Prefetch neighbor list of the top object in candidate queue
-          _prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                    _offset_level0);
+          u_prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                     _offset_level0);
 
           results.emplace(distances[i], batched_nodes[i]);
 
@@ -359,10 +360,10 @@ struct HNSWSearcher : Searcher {
       size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
-      _prefetch((char*)(visited + *(neighbors + 1)));
-      _prefetch((char*)(visited + *(neighbors + 1) + 64));
+      u_prefetch((char*)(visited + *(neighbors + 1)));
+      u_prefetch((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch the second neighbor
-      _prefetch((char*)(neighbors + 2));
+      u_prefetch((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         tableint cand_id = *(neighbors + j);
@@ -393,8 +394,8 @@ struct HNSWSearcher : Searcher {
             }
 
             // Prefetch neighbor list of the top object in candidate queue
-            _prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                      _offset_level0);
+            u_prefetch(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                       _offset_level0);
 
             while (results.size() > ef) {
               results.pop();
@@ -406,11 +407,14 @@ struct HNSWSearcher : Searcher {
         }
 
         // Prefetch visited array of the next neighbor
-        _prefetch((char*)(visited + *(neighbors + j + 1)));
+        u_prefetch((char*)(visited + *(neighbors + j + 1)));
 
         if (!(visited[cand_id] == visited_array_tag)) {
+          // We have batched enough nodes for computation
+          if (n_batched == 3) {
+            _dco.prefetch(batched_nodes[0]);
+          }
           n_batched += 1;
-          _dco.prefetch(batched_nodes[n_batched - 1]);
           visited[cand_id] = visited_array_tag;
           batched_nodes[n_batched - 1] = cand_id;
         }
@@ -419,12 +423,6 @@ struct HNSWSearcher : Searcher {
 
     _visited_list_pool->releaseVisitedList(vl);
     return results;
-  }
-
-  void _prefetch(const void* p) const {
-#ifdef USE_SSE
-    _mm_prefetch(p, _MM_HINT_T0);
-#endif
   }
 
   linklistsizeint* get_linklist0(tableint internal_id) const {

@@ -78,9 +78,15 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
   bool _distance4_less_than_simd(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
                                  float* __restrict dist4, bool4& flag4) const {
 #ifdef USE_SSE
+    prefetch(i1);
     dist4[0] = _dist_func(_query, _hnsw->getDataByInternalId(i0), _dist_func_param);
+
+    prefetch(i2);
     dist4[1] = _dist_func(_query, _hnsw->getDataByInternalId(i1), _dist_func_param);
+
+    prefetch(i3);
     dist4[2] = _dist_func(_query, _hnsw->getDataByInternalId(i2), _dist_func_param);
+
     dist4[3] = _dist_func(_query, _hnsw->getDataByInternalId(i3), _dist_func_param);
 
     __m128 dist_vec = _mm_loadu_ps(dist4);
@@ -95,9 +101,15 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
 
   bool _distance4_less_than_plain(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
                                   float* __restrict dist4, bool4& flag4) const {
+    prefetch(i1);
     flag4.set_bool0(distance_less_than(max_dist, i0, dist4));
+
+    prefetch(i2);
     flag4.set_bool1(distance_less_than(max_dist, i1, dist4 + 1));
+
+    prefetch(i3);
     flag4.set_bool2(distance_less_than(max_dist, i2, dist4 + 2));
+
     flag4.set_bool3(distance_less_than(max_dist, i3, dist4 + 3));
     return flag4.has_true();
   }

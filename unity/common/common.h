@@ -22,7 +22,7 @@
 #include <string>
 
 namespace unity {
-  
+
 enum class Metric {
   L2,
   IP,
@@ -39,5 +39,11 @@ inline constexpr int64_t do_align(int64_t x, int64_t align) {
       _Pragma("GCC optimize (\"unroll-loops,associative-math,no-signed-zeros\")")
 
 #define FAST_END _Pragma("GCC pop_options")
+
+inline void u_prefetch(const void* p) {
+#ifdef USE_SSE
+  _mm_prefetch(p, _MM_HINT_T0);
+#endif
+}
 
 }  // namespace unity
