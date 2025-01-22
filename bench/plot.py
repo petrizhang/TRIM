@@ -22,7 +22,7 @@ def list_files(directory, filename_filter: str):
 
     return matched_files
 
-
+plt.style.use('ggplot')
 plt.rcParams['font.size'] = 16
 plt.rcParams['axes.labelsize'] = 18
 plt.rcParams['axes.titlesize'] = 20
@@ -57,7 +57,7 @@ def plot(ax, legend, recall, qps):
     ax.plot(recall, qps, label=legend)
     ax.set_xlabel("Recall")
     ax.set_ylabel("QPS")
-    # ax.set_yscale("log")
+    ax.set_yscale("log")
     ax.grid(which="both", linestyle="--",
             linewidth=0.5, color="gray", alpha=0.7)
 
