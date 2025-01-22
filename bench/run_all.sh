@@ -10,6 +10,9 @@ cleanup() {
 
 trap cleanup SIGINT
 
+# Don't buffer python outputss
+export PYTHONUNBUFFERED=1
+
 # Configurations
 export nq=1000
 export M=16
