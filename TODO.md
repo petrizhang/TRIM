@@ -1,11 +1,13 @@
 ## TODO
 
 ### Paper
-- [ ] Optimized batch UNITY DCO 
-- [ ] Multi-thread search and benchmark
+- [ ] 生成gist的perf
+- [ ] 重构batch搜索接口，传参统一使用std::array
+- [ ] 实现batch8
 - [ ] HNSW range search
-- [ ] IVFPQ ann search
-- [ ] IVFPQ range search
+- [ ] IVF ANN search
+- [ ] IVF range search
+- [ ] 多线程搜索实现与benchmark
 
 ### Project
 - [ ] Unified graph index format
