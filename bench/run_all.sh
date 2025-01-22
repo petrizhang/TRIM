@@ -2,6 +2,8 @@
 
 set -e
 
+version=$(git rev-parse --short HEAD 2>/dev/null || echo "no_version_info")
+
 cleanup() {
     exit 1 
 }
@@ -42,7 +44,7 @@ bench_hnsw() {
         -b \"hnswlib_index_path:\\\"./tmp/index/${dataset_short_name}_hnswlib${M}x${efCons}.bin\\\";M:${M};efConstruction:${efCons};dco:\\\"exact\\\"\" \
         -s \"enable_batch_dco:[false];ef:${ef}\" \
         -si \"./tmp/index/${dataset_short_name}_hnsw${M}x${efCons}.empty\" \
-        -sr \"./tmp/results/${dataset_short_name}_hnsw${M}x${efCons}.csv\""
+        -sr \"../results/${version}_${dataset_short_name}_hnsw${M}x${efCons}.csv\""
 
     # 执行命令
     echo "Running command: ${command}"
@@ -71,7 +73,7 @@ bench_unity() {
         -b \"hnswlib_index_path:\\\"./tmp/index/${dataset_short_name}_hnswlib${M}x${efCons}.bin\\\";M:${M};efConstruction:${efCons};pq_index_path:\\\"./tmp/index/${dataset_short_name}_pq8x${pq_m}.bin\\\";pq_m:${pq_m};pq_nbits:8;dco:\\\"$dco\\\"\" \
         -s \"enable_batch_dco:[true];gamma:${gamma};ef:${ef}\" \
         -si \"./tmp/index/${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.empty\" \
-        -sr \"./tmp/results/${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pa_m}.csv\""
+        -sr \"../results/${version}_${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.csv\""
 
     # 执行命令
     echo "Running command: ${command}"
