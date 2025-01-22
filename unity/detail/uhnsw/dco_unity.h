@@ -114,6 +114,11 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     return (a - b) * (a - b) + 2 * gamma * a * b;
   }
 
+  void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const override {
+    assert(_query != nullptr);
+    _relaxed_lowerbound8(ids, dists);
+  }
+
   dist_t estimate(idx_t i) const override {
     return faiss::distance_single_code<PQDecoderType>(_M, _nbits, _dist_table_data,
                                                       _codes + i * _code_size);
@@ -134,6 +139,50 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   void _prefetch_vector(idx_t i) const { prefetch_L1(_hnsw->getDataByInternalId(i)); }
 
 #ifdef USE_AVX
+  void _relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
+    // PQ distances
+    float pq_dist[8] = {
+        0,
+    };
+
+    prefetch_L1(_codes + ids[4] * _code_size);
+    prefetch_L1(_codes + ids[5] * _code_size);
+    prefetch_L1(_codes + ids[6] * _code_size);
+    prefetch_L1(_codes + ids[7] * _code_size);
+
+    faiss::distance_four_codes<PQDecoderType>(
+        _M, _nbits, _dist_table_data,                                //
+        _codes + ids[0] * _code_size, _codes + ids[1] * _code_size,  //
+        _codes + ids[2] * _code_size, _codes + ids[3] * _code_size,  //
+        pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
+
+    // Prefetch reconstruciton errors
+    prefetch_L1(_recons_errors + ids[0]);
+    prefetch_L1(_recons_errors + ids[1]);
+    prefetch_L1(_recons_errors + ids[2]);
+    prefetch_L1(_recons_errors + ids[3]);
+    prefetch_L1(_recons_errors + ids[4]);
+    prefetch_L1(_recons_errors + ids[5]);
+    prefetch_L1(_recons_errors + ids[6]);
+    prefetch_L1(_recons_errors + ids[7]);
+
+    faiss::distance_four_codes<PQDecoderType>(
+        _M, _nbits, _dist_table_data,                                //
+        _codes + ids[4] * _code_size, _codes + ids[5] * _code_size,  //
+        _codes + ids[6] * _code_size, _codes + ids[7] * _code_size,  //
+        pq_dist[4], pq_dist[5], pq_dist[6], pq_dist[7]);
+
+    // PQ distances
+    __m256 vec_pq_dist = _mm256_loadu_ps(pq_dist);
+    __m256 vec_recons_error = _mm256_set_ps(_recons_errors[ids[7]], _recons_errors[ids[6]],  //
+                                            _recons_errors[ids[5]], _recons_errors[ids[4]],  //
+                                            _recons_errors[ids[3]], _recons_errors[ids[2]],  //
+                                            _recons_errors[ids[1]], _recons_errors[ids[0]]);
+    // Lowerbounds
+    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(gamma, vec_pq_dist, vec_recons_error);
+    _mm256_storeu_ps(dists.data(), vec_lowerbounds);
+  }
+
   void _dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists, Bool8& lt_flags) const {
     // PQ distances
     float pq_dist[8] = {
@@ -174,7 +223,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
                                             _recons_errors[ids[3]], _recons_errors[ids[2]],  //
                                             _recons_errors[ids[1]], _recons_errors[ids[0]]);
     // Lowerbounds
-    __m256 vec_lowerbounds = _relaxed_lowerbound8(gamma, vec_pq_dist, vec_recons_error);
+    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(gamma, vec_pq_dist, vec_recons_error);
     __m256 cmp_vec = _mm256_cmp_ps(vec_lowerbounds, _mm256_set1_ps(max_dist), _CMP_LT_OS);
     lt_flags.mask = _mm256_movemask_ps(cmp_vec);
 
@@ -204,7 +253,8 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     dists[qual_pos[i]] = dist;
   }
 
-  static __m256 _relaxed_lowerbound8(float gamma, __m256 pq_dist_vec, __m256 recons_error_vec) {
+  static __m256 _relaxed_lowerbound8_avx2(float gamma, __m256 pq_dist_vec,
+                                          __m256 recons_error_vec) {
     // Squared root of PQ distances
     __m256 vec_a = _mm256_sqrt_ps(pq_dist_vec);
     // Reconstruction errors (actully squared roots of reconstruction errors)
@@ -219,12 +269,12 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     return lowerbounds;
   }
 #else
-  bool _dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const {
-    return Parent::dist_comp4(max_dist, ids, dists);
+  void _relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
+    Parent::relaxed_lowerbound8(ids, dists);
   }
 
-  bool _dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const {
-    return Parent::dist_comp8(max_dist, ids, dists);
+  void _dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const {
+    Parent::dist_comp8(max_dist, ids, dists);
   }
 #endif
 };

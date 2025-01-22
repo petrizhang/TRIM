@@ -146,7 +146,7 @@ struct IDistanceComparisonOperator {
    */
   virtual dist_t compute(idx_t i) const = 0;
 
-  virtual dist_t compute8(constId8& ids, Dist8& dists) const {
+  virtual void compute8(const Id8& ids, Dist8& dists) const {
     for (int i = 0; i < 8; i++) {
       dists[i] = compute(i);
     }
@@ -159,7 +159,7 @@ struct IDistanceComparisonOperator {
    */
   virtual dist_t relaxed_lowerbound(idx_t i) const { return compute(i); };
 
-  virtual dist_t relaxed_lowerbound8(constId8& ids, Dist8& dists) const {
+  virtual void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
     for (int i = 0; i < 8; i++) {
       dists[i] = relaxed_lowerbound(i);
     }
@@ -172,7 +172,7 @@ struct IDistanceComparisonOperator {
    */
   virtual dist_t estimate(idx_t i) const { return compute(i); };
 
-  virtual dist_t estimate8(idx_t i) const {
+  virtual void estimate8(const Id8& ids, Dist8& dists) const {
     for (int i = 0; i < 8; i++) {
       dists[i] = relaxed_lowerbound(i);
     }

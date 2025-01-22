@@ -375,12 +375,17 @@ struct HNSWSearcher : Searcher {
       for (size_t j = 1; j <= size; j++) {
         // Prefetch visited array of the next neighbor
         prefetch_L1((char*)(visited + *(neighbors + j + 1)));
-        // Prefetch data of the next neighbor
-        _dco.prefetch(*(neighbors + j + 1));
+        // // Prefetch data of the next neighbor
+        // _dco.prefetch(*(neighbors + j + 1));
 
         tableint neighbor_id = *(neighbors + j);
 
         if (!(visited[neighbor_id] == visited_array_tag)) {
+          // Prefetch data for the first four batched neighbors
+          if (n_batched > 0 && n_batched <= 5) {
+            _dco.prefetch(batched_nodes[n_batched - 1]);
+          }
+
           visited[neighbor_id] = visited_array_tag;
 
           if (UNLIKELY(results.size() < ef)) {
@@ -411,6 +416,7 @@ struct HNSWSearcher : Searcher {
               }
               n_batched = 0;
             }
+
             n_batched += 1;
             batched_nodes[n_batched - 1] = neighbor_id;
           }

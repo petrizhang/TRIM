@@ -4,9 +4,10 @@
 - [x] 生成gist的perf
 - [x] 重构batch搜索接口，传参统一使用std::array
 - [x] 实现batch8
+- [ ] 去除不必要的Prefetch（当前访问邻居时即使它已经访问过也会Prefetch）
+- [ ] 实现HNSW++算法
 - [ ] OPQ
 - [ ] Perf with VTune
-- [ ] 实现HNSW++算法
 - [ ] HNSW range search
 - [ ] IVF ANN search
 - [ ] IVF range search

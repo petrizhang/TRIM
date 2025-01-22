@@ -2,6 +2,14 @@
 
 set -e
 
+dry_run=false
+for arg in "$@"; do
+    if [ "$arg" == "--dry_run" ]; then
+        dry_run=true
+        break
+    fi
+done
+
 version=$(git rev-parse --short HEAD 2>/dev/null || echo "no_version_info")
 
 cleanup() {
@@ -48,12 +56,16 @@ bench_hnsw() {
         -si \"./tmp/index/${dataset_short_name}_hnsw${M}x${efCons}.empty\" \
         -sr \"$result_file\""
 
-    # 执行命令
-    if [ -e "$result_file" ]; then
-        echo "Results file $result_file, skip benchmark"
+    if [ "$dry_run" = true ]; then
+        echo "=============================="
+        echo ${command}
     else
-        echo "Running command: ${command}"
-        eval ${command}
+        if [ -e "$result_file" ]; then
+            echo "Results file $result_file, skip benchmark"
+        else
+            echo "Running command: ${command}"
+            eval ${command}
+        fi
     fi
 }
 
@@ -82,12 +94,17 @@ bench_unity() {
         -si \"./tmp/index/${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.empty\" \
         -sr \"$result_file\""
 
-    # 执行命令
-    if [ -e "$result_file" ]; then
-        echo "Results file $result_file exists, skip benchmark"
+
+    if [ "$dry_run" = true ]; then
+        echo "=============================="
+        echo ${command}
     else
-        echo "Running command: ${command}"
-        eval ${command}
+        if [ -e "$result_file" ]; then
+            echo "Results file $result_file, skip benchmark"
+        else
+            echo "Running command: ${command}"
+            eval ${command}
+        fi
     fi
 }
 
