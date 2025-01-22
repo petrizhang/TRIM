@@ -176,6 +176,7 @@ struct HNSWSearcher : Searcher {
 
   /// ANN search implementation
   void _ann_search(const void* query_data, size_t k, int* dst) const {
+    U_ASSERT(k > 0);
     const HnswlibIndex& index = *_hnsw;
     if (index.cur_element_count.load() == 0) return;
 
@@ -189,6 +190,7 @@ struct HNSWSearcher : Searcher {
 
     if (enable_batch_dco) {
       top_candidates = _ann_search_level0_batch8(seed, seed_dist, std::max(ef, k));
+      // top_candidates = _fast_ann_search_level0_batch8(seed, seed_dist, k, std::max(ef, k));
     } else {
       top_candidates = _ann_search_level0(seed, seed_dist, std::max(ef, k));
     }
@@ -198,12 +200,15 @@ struct HNSWSearcher : Searcher {
     }
 
     int n = top_candidates.size();
+    std::vector<dist_t> distances(n);
     while (n > 0) {
       std::pair<dist_t, tableint> rez = top_candidates.top();
       dst[n - 1] = index.getExternalLabel(rez.second);
+      distances[n] = rez.first;
       top_candidates.pop();
       n--;
     }
+    return;
   }
 
   /// Peform ANN search over the bottom layer
@@ -214,25 +219,25 @@ struct HNSWSearcher : Searcher {
 
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         CompareByFirst>
-        results;
+        result_queue;
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         CompareByFirst>
-        candidates;
+        search_queue;
 
     // Init search
     dist_t max_dist = seed_dist;
-    results.emplace(max_dist, seed);
-    candidates.emplace(-max_dist, seed);
+    result_queue.emplace(max_dist, seed);
+    search_queue.emplace(-max_dist, seed);
     visited[seed] = visited_array_tag;
 
     // Unbounded beam search
-    while (!candidates.empty()) {
-      std::pair<dist_t, tableint> current_node_pair = candidates.top();
-      dist_t candidate_dist = -current_node_pair.first;
-      if (candidate_dist > max_dist) {
+    while (!search_queue.empty()) {
+      std::pair<dist_t, tableint> current_node_pair = search_queue.top();
+      dist_t current_dist = -current_node_pair.first;
+      if (current_dist > max_dist) {
         break;
       }
-      candidates.pop();
+      search_queue.pop();
 
       tableint current_node_id = current_node_pair.second;
       int* neighbors = (int*)get_linklist0(current_node_id);
@@ -255,27 +260,27 @@ struct HNSWSearcher : Searcher {
 
         if (!(visited[neighbor_id] == visited_array_tag)) {
           visited[neighbor_id] = visited_array_tag;
-          if (UNLIKELY(results.size() < ef)) {
+          if (UNLIKELY(result_queue.size() < ef)) {
             dist_t dist = _dco.compute(neighbor_id);
-            candidates.emplace(-dist, neighbor_id);
-            results.emplace(dist, neighbor_id);
-            max_dist = results.top().first;
+            search_queue.emplace(-dist, neighbor_id);
+            result_queue.emplace(dist, neighbor_id);
+            max_dist = result_queue.top().first;
           } else {
             dist_t dist;
-            if (_dco.dist_comp(max_dist, neighbor_id, dist) || results.size() < ef) {
-              candidates.emplace(-dist, neighbor_id);
+            if (_dco.dist_comp(max_dist, neighbor_id, dist) || result_queue.size() < ef) {
+              search_queue.emplace(-dist, neighbor_id);
 
               // Prefetch neighbor list of the top object in candidate queue
-              prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+              prefetch_L1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
                           _offset_level0);
 
-              results.emplace(dist, neighbor_id);
+              result_queue.emplace(dist, neighbor_id);
 
-              while (results.size() > ef) {
-                results.pop();
+              while (result_queue.size() > ef) {
+                result_queue.pop();
               }
 
-              if (!results.empty()) max_dist = results.top().first;
+              if (!result_queue.empty()) max_dist = result_queue.top().first;
             }
           }
         }
@@ -283,7 +288,7 @@ struct HNSWSearcher : Searcher {
     }
 
     _visited_list_pool->releaseVisitedList(vl);
-    return results;
+    return result_queue;
   }
 
   /// Peform ANN search over the bottom layer using batch dco
@@ -294,15 +299,15 @@ struct HNSWSearcher : Searcher {
 
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         CompareByFirst>
-        results;
+        result_queue;
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         CompareByFirst>
-        candidates;
+        search_queue;
 
     // Init search
     dist_t max_dist = seed_dist;
-    results.emplace(max_dist, seed);
-    candidates.emplace(-max_dist, seed);
+    result_queue.emplace(max_dist, seed);
+    search_queue.emplace(-max_dist, seed);
     visited[seed] = visited_array_tag;
 
     Id8 batched_nodes;
@@ -312,27 +317,27 @@ struct HNSWSearcher : Searcher {
 
     auto process_remaining_batched_nodes = [&]() {
       for (int i = 0; i < n_batched; i++) {
-        if (_dco.dist_comp(max_dist, batched_nodes[i], distances[i]) || results.size() < ef) {
-          candidates.emplace(-distances[i], batched_nodes[i]);
+        if (_dco.dist_comp(max_dist, batched_nodes[i], distances[i]) || result_queue.size() < ef) {
+          search_queue.emplace(-distances[i], batched_nodes[i]);
 
           // Prefetch neighbor list of the top object in candidate queue
-          prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+          prefetch_L1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
                       _offset_level0);
 
-          results.emplace(distances[i], batched_nodes[i]);
+          result_queue.emplace(distances[i], batched_nodes[i]);
 
-          while (results.size() > ef) {
-            results.pop();
+          while (result_queue.size() > ef) {
+            result_queue.pop();
           }
 
-          if (!results.empty()) max_dist = results.top().first;
+          if (!result_queue.empty()) max_dist = result_queue.top().first;
         }
       }
     };
 
     // Unbounded beam search
     while (true) {
-      if (UNLIKELY(candidates.empty())) {
+      if (UNLIKELY(search_queue.empty())) {
         // No more nodes to visit.
         if (n_batched == 0) {
           // No batched nodes left; exit the loop.
@@ -345,11 +350,11 @@ struct HNSWSearcher : Searcher {
         continue;
       }
 
-      std::pair<dist_t, tableint> current_node_pair = candidates.top();
-      dist_t candidate_dist = -current_node_pair.first;
-      candidates.pop();
+      std::pair<dist_t, tableint> current_node_pair = search_queue.top();
+      dist_t current_dist = -current_node_pair.first;
+      search_queue.pop();
 
-      if (UNLIKELY(candidate_dist > max_dist)) {
+      if (UNLIKELY(current_dist > max_dist)) {
         // No more nodes to visit.
         if (n_batched == 0) {
           // No batched nodes left; exit the loop.
@@ -388,31 +393,31 @@ struct HNSWSearcher : Searcher {
 
           visited[neighbor_id] = visited_array_tag;
 
-          if (UNLIKELY(results.size() < ef)) {
+          if (UNLIKELY(result_queue.size() < ef)) {
             dist_t dist = _dco.compute(neighbor_id);
-            candidates.emplace(-dist, neighbor_id);
-            results.emplace(dist, neighbor_id);
-            max_dist = results.top().first;
+            search_queue.emplace(-dist, neighbor_id);
+            result_queue.emplace(dist, neighbor_id);
+            max_dist = result_queue.top().first;
           } else {
             if (n_batched == 8) {
               _dco.dist_comp8(max_dist, batched_nodes, distances, lt_flags);
               if (LIKELY(lt_flags.has_true())) {
                 for (int i = 0; i < 8; i++) {
                   if (lt_flags.get(i)) {
-                    candidates.emplace(-distances[i], batched_nodes[i]);
-                    results.emplace(distances[i], batched_nodes[i]);
+                    search_queue.emplace(-distances[i], batched_nodes[i]);
+                    result_queue.emplace(distances[i], batched_nodes[i]);
                   }
                 }
 
                 // Prefetch neighbor list of the top object in candidate queue
-                prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                            _offset_level0);
+                prefetch_L1(_data_level0_memory +
+                            search_queue.top().second * _size_data_per_element + _offset_level0);
 
-                while (results.size() > ef) {
-                  results.pop();
+                while (result_queue.size() > ef) {
+                  result_queue.pop();
                 }
 
-                if (!results.empty()) max_dist = results.top().first;
+                if (!result_queue.empty()) max_dist = result_queue.top().first;
               }
               n_batched = 0;
             }
@@ -424,7 +429,155 @@ struct HNSWSearcher : Searcher {
       }
     }
     _visited_list_pool->releaseVisitedList(vl);
-    return results;
+    return result_queue;
+  }
+
+  /// Peform ANN search over the bottom layer using batch dco
+  ResultQueue _fast_ann_search_level0_batch8(tableint seed, dist_t seed_dist, size_t k,
+                                             size_t ef) const {
+    VisitedList* vl = _visited_list_pool->getFreeVisitedList();
+    vl_type* visited = vl->mass;
+    vl_type visited_array_tag = vl->curV;
+
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        CompareByFirst>
+        result_queue;
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        CompareByFirst>
+        cand_queue;
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        CompareByFirst>
+        search_queue;
+
+    // Init search
+    dist_t max_result_dist = seed_dist;
+    dist_t max_cand_dist = seed_dist;
+    result_queue.emplace(max_result_dist, seed);
+    cand_queue.emplace(max_cand_dist, seed);
+    search_queue.emplace(-max_cand_dist, seed);
+    visited[seed] = visited_array_tag;
+
+    Id8 batched_nodes;
+    Dist8 lowerbounds;
+    int n_batched = 0;
+
+    auto push_cand_queue = [&](dist_t lowerbound, idx_t node_id) {
+      search_queue.emplace(-lowerbound, node_id);
+
+      // Prefetch neighbor list of the top object in search queue
+      prefetch_L1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
+                  _offset_level0);
+
+      if (lowerbound < max_result_dist || UNLIKELY(search_queue.size() < k)) {
+        dist_t distance = _dco.compute(node_id);
+        result_queue.emplace(distance, node_id);
+        cand_queue.emplace(distance, node_id);
+      } else {
+        cand_queue.emplace(lowerbound, node_id);
+      }
+
+      while (result_queue.size() > k) {
+        result_queue.pop();
+      }
+      while (cand_queue.size() > ef) {
+        cand_queue.pop();
+      }
+
+      if (!result_queue.empty()) max_result_dist = result_queue.top().first;
+      if (!cand_queue.empty()) max_cand_dist = cand_queue.top().first;
+    };
+
+    auto process_remaining_batched_nodes = [&]() {
+      for (int i = 0; i < n_batched; i++) {
+        dist_t lowerbound = _dco.relaxed_lowerbound(batched_nodes[i]);
+        if (lowerbound < max_cand_dist || UNLIKELY(cand_queue.size() < ef)) {
+          push_cand_queue(lowerbound, batched_nodes[i]);
+        }
+      }
+    };
+
+    // Unbounded beam search
+    while (true) {
+      if (UNLIKELY(search_queue.empty())) {
+        // No more nodes to visit.
+        if (n_batched == 0) {
+          // No batched nodes left; exit the loop.
+          break;
+        }
+
+        // Process remaining batched nodes.
+        process_remaining_batched_nodes();
+        n_batched = 0;
+        continue;
+      }
+
+      std::pair<dist_t, tableint> current_node_pair = search_queue.top();
+      dist_t current_dist = -current_node_pair.first;
+      search_queue.pop();
+
+      if (UNLIKELY(current_dist > max_cand_dist)) {
+        // No more nodes to visit.
+        if (n_batched == 0) {
+          // No batched nodes left; exit the loop.
+          break;
+        }
+
+        // Process remaining batched nodes.
+        process_remaining_batched_nodes();
+        n_batched = 0;
+        continue;
+      }
+
+      tableint current_node_id = current_node_pair.second;
+      int* neighbors = (int*)get_linklist0(current_node_id);
+      size_t size = get_list_count((linklistsizeint*)neighbors);
+
+      // Prefetch visited array
+      prefetch_L1((char*)(visited + *(neighbors + 1)));
+      prefetch_L1((char*)(visited + *(neighbors + 1) + 64));
+      // Prefetch the second neighbor
+      prefetch_L1((char*)(neighbors + 2));
+
+      for (size_t j = 1; j <= size; j++) {
+        // Prefetch visited array of the next neighbor
+        prefetch_L1((char*)(visited + *(neighbors + j + 1)));
+        // // Prefetch data of the next neighbor
+        // _dco.prefetch(*(neighbors + j + 1));
+
+        tableint neighbor_id = *(neighbors + j);
+
+        if (!(visited[neighbor_id] == visited_array_tag)) {
+          // Prefetch data for the first four batched neighbors
+          if (n_batched > 0 && n_batched <= 5) {
+            _dco.prefetch(batched_nodes[n_batched - 1]);
+          }
+
+          visited[neighbor_id] = visited_array_tag;
+
+          if (UNLIKELY(cand_queue.size() < ef)) {
+            dist_t lowerbound = _dco.relaxed_lowerbound(neighbor_id);
+            push_cand_queue(lowerbound, neighbor_id);
+          } else {
+            if (n_batched == 8) {
+              _dco.relaxed_lowerbound8(batched_nodes, lowerbounds);
+
+              for (int i = 0; i < 8; i++) {
+                if (lowerbounds[i] < max_cand_dist) {
+                  push_cand_queue(lowerbounds[i], batched_nodes[i]);
+                }
+              }
+
+              n_batched = 0;
+            }
+
+            n_batched += 1;
+            batched_nodes[n_batched - 1] = neighbor_id;
+          }
+        }
+      }
+    }
+    _visited_list_pool->releaseVisitedList(vl);
+    return result_queue;
   }
 
   linklistsizeint* get_linklist0(tableint internal_id) const {
