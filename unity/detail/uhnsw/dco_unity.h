@@ -92,7 +92,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     dist_t lowerbound = relaxed_lowerbound(i);
     if (lowerbound < max_dist) {
       dist = compute(i);
-      return true;
+      return dist < max_dist;
     }
     return false;
   }

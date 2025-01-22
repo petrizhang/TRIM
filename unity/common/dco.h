@@ -146,6 +146,12 @@ struct IDistanceComparisonOperator {
    */
   virtual dist_t compute(idx_t i) const = 0;
 
+  virtual dist_t compute8(constId8& ids, Dist8& dists) const {
+    for (int i = 0; i < 8; i++) {
+      dists[i] = compute(i);
+    }
+  }
+
   /**
    * Compute the lower bound of the distance from the query point to the data point at index i.
    * @param i The index of the data point.
@@ -153,12 +159,24 @@ struct IDistanceComparisonOperator {
    */
   virtual dist_t relaxed_lowerbound(idx_t i) const { return compute(i); };
 
+  virtual dist_t relaxed_lowerbound8(constId8& ids, Dist8& dists) const {
+    for (int i = 0; i < 8; i++) {
+      dists[i] = relaxed_lowerbound(i);
+    }
+  }
+
   /**
    * Estimate the distance from the query point to the data point at index i.
    * @param i The index of the data point.
    * @return The estimated distance value.
    */
   virtual dist_t estimate(idx_t i) const { return compute(i); };
+
+  virtual dist_t estimate8(idx_t i) const {
+    for (int i = 0; i < 8; i++) {
+      dists[i] = relaxed_lowerbound(i);
+    }
+  }
 
   /**
    * Set the DCO parameter with the specified key and value.

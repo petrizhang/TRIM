@@ -1,12 +1,24 @@
 import itertools
 import os
+import subprocess
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# 定义一个 marker 迭代器
+
+def get_git_version():
+    try:
+        # 执行 git rev-parse --short HEAD 命令
+        version = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL
+        ).decode("utf-8").strip()
+    except subprocess.CalledProcessError:
+        # 如果命令失败，捕获异常并设置为 "no_version_info"
+        version = "no_version_info"
+    return version
 
 
 def style_iterator():
@@ -106,11 +118,12 @@ def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
 result_dir = "../results"
 
 plot_group(list_files(result_dir, ["nytimes"]),
-           "tmp_nytimes", ylim=(0, 3000))
+           "tmp_nytimes", ylim=(10, 3000))
 plot_group(list_files(result_dir, "gist"),
-           "tmp_gist", ylim=(0, 1500))
+           "tmp_gist", ylim=(40, 1500))
 
-plot_group(list_files(result_dir, ["nytimes", "77d1108"]),
-           "tmp_nytimes_77d1108", ylim=(0, 3000))
-plot_group(list_files(result_dir, ["gist", "77d1108"]),
-           "tmp_gist_77d1108", ylim=(0, 1500))
+version = get_git_version()
+plot_group(list_files(
+    result_dir, ["nytimes", version]), f"tmp_nytimes_main", ylim=(10, 3000))
+plot_group(list_files(
+    result_dir, ["gist", version]), f"tmp_gist_main", ylim=(40, 1500))
