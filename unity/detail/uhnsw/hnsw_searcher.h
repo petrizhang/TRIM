@@ -190,7 +190,7 @@ struct HNSWSearcher : Searcher {
         top_candidates;
 
     if (enable_batch_dco) {
-      top_candidates = _ann_search_level0_batch4(seed, seed_dist, std::max(ef, k));
+      top_candidates = _ann_search_level0_batch8(seed, seed_dist, std::max(ef, k));
     } else {
       top_candidates = _ann_search_level0(seed, seed_dist, std::max(ef, k));
     }
@@ -394,6 +394,140 @@ struct HNSWSearcher : Searcher {
             if (n_batched == 4) {
               if (LIKELY(_dco.dist_comp4(max_dist, batched_nodes, distances))) {
                 for (int i = 0; i < 4; i++) {
+                  if (distances[i] >= 0) {
+                    candidates.emplace(-distances[i], batched_nodes[i]);
+                    results.emplace(distances[i], batched_nodes[i]);
+                  }
+                }
+
+                // Prefetch neighbor list of the top object in candidate queue
+                prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                            _offset_level0);
+
+                while (results.size() > ef) {
+                  results.pop();
+                }
+
+                if (!results.empty()) max_dist = results.top().first;
+              }
+              n_batched = 0;
+            }
+            n_batched += 1;
+            batched_nodes[n_batched - 1] = neighbor_id;
+          }
+        }
+      }
+    }
+    _visited_list_pool->releaseVisitedList(vl);
+    return results;
+  }
+
+  /// Peform ANN search over the bottom layer using batch dco
+  ResultQueue _ann_search_level0_batch8(tableint seed, dist_t seed_dist, size_t ef) const {
+    VisitedList* vl = _visited_list_pool->getFreeVisitedList();
+    vl_type* visited = vl->mass;
+    vl_type visited_array_tag = vl->curV;
+
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        CompareByFirst>
+        results;
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
+                        CompareByFirst>
+        candidates;
+
+    // Init search
+    dist_t max_dist = seed_dist;
+    results.emplace(max_dist, seed);
+    candidates.emplace(-max_dist, seed);
+    visited[seed] = visited_array_tag;
+
+    Id8 batched_nodes;
+    Dist8 distances;
+    int n_batched = 0;
+
+    auto process_remaining_batched_nodes = [&]() {
+      for (int i = 0; i < n_batched; i++) {
+        float d = _dco.dist_comp(max_dist, batched_nodes[i]);
+        if (d >= 0 || results.size() < ef) {
+          candidates.emplace(-d, batched_nodes[i]);
+
+          // Prefetch neighbor list of the top object in candidate queue
+          prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                      _offset_level0);
+
+          results.emplace(d, batched_nodes[i]);
+
+          while (results.size() > ef) {
+            results.pop();
+          }
+
+          if (!results.empty()) max_dist = results.top().first;
+        }
+      }
+    };
+
+    // Unbounded beam search
+    while (true) {
+      if (UNLIKELY(candidates.empty())) {
+        // No more nodes to visit.
+        if (n_batched == 0) {
+          // No batched nodes left; exit the loop.
+          break;
+        }
+
+        // Process remaining batched nodes.
+        process_remaining_batched_nodes();
+        n_batched = 0;
+        continue;
+      }
+
+      std::pair<dist_t, tableint> current_node_pair = candidates.top();
+      dist_t candidate_dist = -current_node_pair.first;
+      candidates.pop();
+
+      if (UNLIKELY(candidate_dist > max_dist)) {
+        // No more nodes to visit.
+        if (n_batched == 0) {
+          // No batched nodes left; exit the loop.
+          break;
+        }
+
+        // Process remaining batched nodes.
+        process_remaining_batched_nodes();
+        n_batched = 0;
+        continue;
+      }
+
+      tableint current_node_id = current_node_pair.second;
+      int* neighbors = (int*)get_linklist0(current_node_id);
+      size_t size = get_list_count((linklistsizeint*)neighbors);
+
+      // Prefetch visited array
+      prefetch_L1((char*)(visited + *(neighbors + 1)));
+      prefetch_L1((char*)(visited + *(neighbors + 1) + 64));
+      // Prefetch the second neighbor
+      prefetch_L1((char*)(neighbors + 2));
+
+      for (size_t j = 1; j <= size; j++) {
+        // Prefetch visited array of the next neighbor
+        prefetch_L1((char*)(visited + *(neighbors + j + 1)));
+        // Prefetch data of the next neighbor
+        _dco.prefetch(*(neighbors + j + 1));
+
+        tableint neighbor_id = *(neighbors + j);
+
+        if (!(visited[neighbor_id] == visited_array_tag)) {
+          visited[neighbor_id] = visited_array_tag;
+
+          if (UNLIKELY(results.size() < ef)) {
+            dist_t dist = _dco.compute(neighbor_id);
+            candidates.emplace(-dist, neighbor_id);
+            results.emplace(dist, neighbor_id);
+            max_dist = results.top().first;
+          } else {
+            if (n_batched == 8) {
+              if (LIKELY(_dco.dist_comp8(max_dist, batched_nodes, distances))) {
+                for (int i = 0; i < 8; i++) {
                   if (distances[i] >= 0) {
                     candidates.emplace(-distances[i], batched_nodes[i]);
                     results.emplace(distances[i], batched_nodes[i]);

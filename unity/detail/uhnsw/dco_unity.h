@@ -36,6 +36,7 @@ namespace detail {
 
 template <typename PQDecoderType, bool enable_profile = false>
 struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
+  using Parent = IDistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
 
@@ -101,6 +102,10 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     return _dist_comp4(max_dist, ids, dists);
   }
 
+  bool dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const override final {
+    return _dist_comp8(max_dist, ids, dists);
+  }
+
   dist_t compute(idx_t i) const override {
     assert(_query != nullptr);
     return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
@@ -129,7 +134,6 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   }
 
   void prefetch(idx_t i) const override {
-    prefetch_L1(_recons_errors + i);
     prefetch_L1(_codes + _code_size * i);
   }
 
@@ -138,6 +142,12 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
 #ifdef USE_AVX
   bool _dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const {
     float pq_dist[4] = {0, 0, 0, 0};  // PQ distances
+
+    prefetch_L1(_recons_errors + ids[0]);
+    prefetch_L1(_recons_errors + ids[1]);
+    prefetch_L1(_recons_errors + ids[2]);
+    prefetch_L1(_recons_errors + ids[3]);
+
     faiss::distance_four_codes<PQDecoderType>(
         _M, _nbits, _dist_table_data, _codes + ids[0] * _code_size, _codes + ids[1] * _code_size,
         _codes + ids[2] * _code_size, _codes + ids[3] * _code_size, pq_dist[0], pq_dist[1],
@@ -178,6 +188,76 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     return qual_size > 0;
   }
 
+  bool _dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const {
+    // PQ distances
+    float pq_dist[8] = {
+        0,
+    };
+
+    prefetch_L1(_codes + ids[4] * _code_size);
+    prefetch_L1(_codes + ids[5] * _code_size);
+    prefetch_L1(_codes + ids[6] * _code_size);
+    prefetch_L1(_codes + ids[7] * _code_size);
+
+    faiss::distance_four_codes<PQDecoderType>(
+        _M, _nbits, _dist_table_data,                                //
+        _codes + ids[0] * _code_size, _codes + ids[1] * _code_size,  //
+        _codes + ids[2] * _code_size, _codes + ids[3] * _code_size,  //
+        pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
+
+    // Prefetch reconstruciton errors
+    prefetch_L1(_recons_errors + ids[0]);
+    prefetch_L1(_recons_errors + ids[1]);
+    prefetch_L1(_recons_errors + ids[2]);
+    prefetch_L1(_recons_errors + ids[3]);
+    prefetch_L1(_recons_errors + ids[4]);
+    prefetch_L1(_recons_errors + ids[5]);
+    prefetch_L1(_recons_errors + ids[6]);
+    prefetch_L1(_recons_errors + ids[7]);
+
+    faiss::distance_four_codes<PQDecoderType>(
+        _M, _nbits, _dist_table_data,                                //
+        _codes + ids[4] * _code_size, _codes + ids[5] * _code_size,  //
+        _codes + ids[6] * _code_size, _codes + ids[7] * _code_size,  //
+        pq_dist[4], pq_dist[5], pq_dist[6], pq_dist[7]);
+
+    // PQ distances
+    __m256 vec_pq_dist = _mm256_loadu_ps(pq_dist);
+    __m256 vec_recons_error = _mm256_set_ps(_recons_errors[ids[7]], _recons_errors[ids[6]],  //
+                                            _recons_errors[ids[5]], _recons_errors[ids[4]],  //
+                                            _recons_errors[ids[3]], _recons_errors[ids[2]],  //
+                                            _recons_errors[ids[1]], _recons_errors[ids[0]]);
+    // Lowerbounds
+    __m256 vec_lowerbounds = _relaxed_lowerbound8(gamma, vec_pq_dist, vec_recons_error);
+    dist_t lowerbounds[8];
+    _mm256_storeu_ps(lowerbounds, vec_lowerbounds);
+
+    unsigned qual_size = 0;
+    unsigned qual_ids[8];
+    unsigned qual_pos[8];
+
+    for (int i = 0; i < 8; i++) {
+      float lowerbound = lowerbounds[i];
+      if (lowerbound > max_dist) {
+        dists[i] = -1.0f;
+      } else {
+        qual_ids[qual_size] = ids[i];
+        qual_pos[qual_size] = i;
+        ++qual_size;
+      }
+    }
+
+    for (int i = 0; i < qual_size; i++) {
+      if (i + 1 < qual_size) {
+        _prefetch_vector(qual_ids[i + 1]);
+      }
+      dist_t dist = compute(qual_ids[i]);
+      dists[qual_pos[i]] = dist;
+    }
+
+    return qual_size > 0;
+  }
+
   static __m128 _relaxed_lowerbound4(float gamma, __m128 pq_dist_vec, __m128 recons_error_vec) {
     // Squared root of PQ distances
     __m128 vec_a = _mm_sqrt_ps(pq_dist_vec);
@@ -192,37 +272,28 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     __m128 lowerbounds = _mm_add_ps(vec_diff_squared, vec_2gamma_ab);
     return lowerbounds;
   }
+
+  static __m256 _relaxed_lowerbound8(float gamma, __m256 pq_dist_vec, __m256 recons_error_vec) {
+    // Squared root of PQ distances
+    __m256 vec_a = _mm256_sqrt_ps(pq_dist_vec);
+    // Reconstruction errors (actully squared roots of reconstruction errors)
+    __m256 vec_b = recons_error_vec;
+    // lowerbounds = (a[i] - b[i])^2 + 2 * gamma * a[i] * b[i]
+    __m256 vec_diff = _mm256_sub_ps(vec_a, vec_b);
+    __m256 vec_diff_squared = _mm256_mul_ps(vec_diff, vec_diff);
+    __m256 vec_2gamma = _mm256_set1_ps(2 * gamma);
+    __m256 vec_ab = _mm256_mul_ps(vec_a, vec_b);
+    __m256 vec_2gamma_ab = _mm256_mul_ps(vec_2gamma, vec_ab);
+    __m256 lowerbounds = _mm256_add_ps(vec_diff_squared, vec_2gamma_ab);
+    return lowerbounds;
+  }
 #else
   bool _dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const {
-    float a[4] = {0, 0, 0, 0};
-    float b[4] = {0, 0, 0, 0};
+    return Parent::dist_comp4(max_dist, ids, dists);
+  }
 
-    faiss::distance_four_codes<PQDecoderType>(
-        _M, _nbits, _dist_table_data, _codes + i0 * _code_size, _codes + i1 * _code_size,
-        _codes + i2 * _code_size, _codes + i3 * _code_size, a[0], a[1], a[2], a[3]);
-
-    b[0] = _recons_errors[i0];
-    b[1] = _recons_errors[i1];
-    b[2] = _recons_errors[i2];
-    b[3] = _recons_errors[i3];
-
-    for (int i = 0; i < 4; i++) {
-      a[i] = std::sqrt(a[i]);
-    }
-
-    bool lt_flag = false;
-    for (int i = 0; i < 4; i++) {
-      dist[i] = -1;
-      float lowerbound = (a[i] - b[i]) * (a[i] - b[i]) + 2 * gamma * a[i] * b[i];
-      if (lowerbound < maxdist) {
-        dist_t dist = compute(i);
-        if (dist < max_dist) {
-          dists[i] = dist;
-          lt_flag = true;
-        }
-      }
-    }
-    return lt_flag;
+  bool _dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const {
+    return Parent::dist_comp8(max_dist, ids, dists);
   }
 #endif
 };

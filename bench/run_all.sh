@@ -92,14 +92,14 @@ bench_unity() {
 # GIST
 #################################################
 
-# # HNSW (UNITY Implementation)
-# bench_hnsw gist-960-euclidean gist $M $efCons $gist_ef
+# HNSW (UNITY Implementation)
+bench_hnsw gist-960-euclidean gist $M $efCons $gist_ef
 
-# # UNITY
-# for pq_m in "${gist_pq_m[@]}"; do
-#     bench_unity gist-960-euclidean gist $M $efCons $gist_ef \
-#                unity $pq_m $gist_gamma
-# done
+# UNITY
+for pq_m in "${gist_pq_m[@]}"; do
+    bench_unity gist-960-euclidean gist $M $efCons $gist_ef \
+               unity $pq_m $gist_gamma
+done
 
 #################################################
 # NYTimes
