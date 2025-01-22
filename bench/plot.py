@@ -12,28 +12,13 @@ def get_file_name(file_path):
     return file_name_without_extension
 
 
-def list_files_with_prefix(directory, prefix):
-    """
-    列出指定目录中以prefix开头的全部文件。
-
-    参数:
-        directory (str): 指定的目录路径
-        prefix (str): 文件名前缀
-
-    返回:
-        list: 匹配的文件列表
-    """
-    # 检查目录是否存在
+def list_files(directory, filename_filter: str):
     if not os.path.isdir(directory):
-        print(f"错误：目录 '{directory}' 不存在。")
+        print(f"error: directory '{directory}' not exists")
         return []
-
-    # 获取目录中的所有文件和文件夹
     all_files = os.listdir(directory)
-
-    # 筛选出以prefix开头的文件
-    matched_files = [f"{directory}/{file}" for file in all_files if file.startswith(
-        prefix) and os.path.isfile(os.path.join(directory, file))]
+    matched_files = [
+        f"{directory}/{file}" for file in all_files if filename_filter in file and os.path.isfile(os.path.join(directory, file))]
 
     return matched_files
 
@@ -95,9 +80,9 @@ def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
     plt.savefig(f"{title}.png", bbox_inches="tight", dpi=400)
 
 
-result_dir = "./tmp/results"
+result_dir = "../results"
 
-plot_group(list_files_with_prefix(result_dir, "nytimes"),
+plot_group(list_files(result_dir, "nytimes"),
            "tmp_nytimes", ylim=(0, 2500))
-plot_group(list_files_with_prefix(result_dir, "gist"),
+plot_group(list_files(result_dir, "gist"),
            "tmp_gist", ylim=(0, 1200))
