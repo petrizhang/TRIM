@@ -106,7 +106,7 @@ done
 #################################################
 
 # HNSW (UNITY Implementation)
-bench_hnsw nytimes-256-angular nytimes $M $efCons $nytimes_ef
+# bench_hnsw nytimes-256-angular nytimes $M $efCons $nytimes_ef
 
 ## UNITY 
 for pq_m in "${nytimes_pq_m[@]}"; do

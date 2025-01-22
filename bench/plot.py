@@ -26,14 +26,21 @@ def get_file_name(file_path):
     return file_name_without_extension
 
 
-def list_files(directory, filename_filter: str):
+def list_files(directory, name_filters):
     if not os.path.isdir(directory):
         print(f"error: directory '{directory}' not exists")
         return []
     all_files = os.listdir(directory)
-    matched_files = [
-        f"{directory}/{file}" for file in all_files if filename_filter in file and os.path.isfile(os.path.join(directory, file))]
-
+    matched_files = []
+    for file in all_files:
+        if os.path.isfile(os.path.join(directory, file)):
+            qualified = True
+            for name in name_filters:
+                if name not in file:
+                    qualified = False
+                    break
+            if qualified:
+                matched_files.append(f"{directory}/{file}")
     return matched_files
 
 
@@ -98,7 +105,12 @@ def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
 
 result_dir = "../results"
 
-plot_group(list_files(result_dir, "nytimes"),
+plot_group(list_files(result_dir, ["nytimes"]),
            "tmp_nytimes", ylim=(0, 3000))
 plot_group(list_files(result_dir, "gist"),
            "tmp_gist", ylim=(0, 1500))
+
+plot_group(list_files(result_dir, ["nytimes", "77d1108"]),
+           "tmp_nytimes_77d1108", ylim=(0, 3000))
+plot_group(list_files(result_dir, ["gist", "77d1108"]),
+           "tmp_gist_77d1108", ylim=(0, 1500))

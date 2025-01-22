@@ -4,6 +4,8 @@
 - [x] 生成gist的perf
 - [x] 重构batch搜索接口，传参统一使用std::array
 - [x] 实现batch8
+- [ ] OPQ
+- [ ] Perf with VTune
 - [ ] 实现HNSW++算法
 - [ ] HNSW range search
 - [ ] IVF ANN search

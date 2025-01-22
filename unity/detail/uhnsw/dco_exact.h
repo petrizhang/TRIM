@@ -53,29 +53,21 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
 
   void set_query(const dist_t* query_data) override { this->_query = query_data; }
 
-  float dist_comp(dist_t max_dist, idx_t i) const override {
+  bool dist_comp(dist_t max_dist, idx_t i, float& dist) const override {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(1);
     }
-    dist_t cur_dist = _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
-    return cur_dist < max_dist ? cur_dist : -1;
+    dist = _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
+    return dist < max_dist;
   }
 
-  bool dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const override {
-    assert(_query != nullptr);
-    if constexpr (enable_profile) {
-      _num_distance_computation.value.fetch_add(4);
-    }
-    return Parent::dist_comp4(max_dist, ids, dists);
-  }
-
-  bool dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const override {
+  void dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists, Bool8& lt_flags) const override {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(8);
     }
-    return Parent::dist_comp8(max_dist, ids, dists);
+    Parent::dist_comp8(max_dist, ids, dists, lt_flags);
   }
 
   dist_t compute(idx_t i) const override {
