@@ -80,25 +80,61 @@ int main() {
       "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_hnswlib16x500.bin";
   const char* index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_pq8x32.bin";
   const int dim = 128;
-  std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
-                                                  .set("hnswlib_index_path", index_hnsw_path)
-                                                  .set("pq_index_path", index_pq_path)
-                                                  .set("dim", dim)
-                                                  .set("metric", "L2")
-                                                  .set("dco", "unity")
-                                                  .set("num_threads", 12)
-                                                  .set("enable_batch_dco", true)
-                                                  .create();
-  bench(searcher.get(), 0.8, 1000);
+  {
+    std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+                                                    .set("hnswlib_index_path", index_hnsw_path)
+                                                    .set("pq_index_path", index_pq_path)
+                                                    .set("dim", dim)
+                                                    .set("metric", "L2")
+                                                    .set("dco", "unity")
+                                                    .set("num_threads", 12)
+                                                    .set("enable_batch_dco", true)
+                                                    .create();
+    bench(searcher.get(), 0.8, 1000);
 
-  const int k = 10;
-  std::vector<int> knn(k);
-  searcher->set("ef", 100);
-  searcher->set("gamma", 0.9);
-  searcher->ann_search(searcher->get_data(0), k, knn.data());
-  for (auto i : knn) {
-    std::cout << i << ",";
+    const int k = 10;
+    std::vector<int> knn(k);
+    searcher->set("ef", 100);
+    searcher->set("gamma", 0.9);
+    searcher->ann_search(searcher->get_data(0), k, knn.data());
+    for (auto i : knn) {
+      std::cout << i << ",";
+    }
+    std::cout << "\n";
+
+    searcher->set("enable_batch_dco", false);
+    searcher->ann_search(searcher->get_data(0), k, knn.data());
+    for (auto i : knn) {
+      std::cout << i << ",";
+    }
+    std::cout << "\n";
   }
-  std::cout << "\n";
+  {
+    std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+                                                    .set("hnswlib_index_path", index_hnsw_path)
+                                                    .set("dim", dim)
+                                                    .set("metric", "L2")
+                                                    .set("dco", "exact")
+                                                    .set("enable_batch_dco", true)
+                                                    .create();
+    bench(searcher.get(), 0.8, 1000);
+
+    const int k = 10;
+    std::vector<int> knn(k);
+    searcher->set("ef", 100);
+    searcher->set("gamma", 0.9);
+    searcher->ann_search(searcher->get_data(0), k, knn.data());
+    for (auto i : knn) {
+      std::cout << i << ",";
+    }
+    std::cout << "\n";
+
+    searcher->set("enable_batch_dco", false);
+    searcher->ann_search(searcher->get_data(0), k, knn.data());
+    for (auto i : knn) {
+      std::cout << i << ",";
+    }
+    std::cout << "\n";
+  }
   return 0;
 }

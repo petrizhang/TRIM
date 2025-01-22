@@ -87,19 +87,18 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     _dist_table_data = _dist_table.data();
   }
 
-  bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override final {
+  float dist_comp(dist_t max_dist, idx_t i) const override final {
     dist_t lowerbound = relaxed_lowerbound(i);
     if (lowerbound >= max_dist) {
-      return false;
+      return -1;
     }
 
-    *dist = compute(i);
-    return *dist < max_dist;
+    dist_t dist = compute(i);
+    return dist < max_dist ? dist : -dist;
   }
 
-  bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                           float* __restrict dist4, bool4& flag4) const override final {
-    return _distance4_less_than(max_dist, i0, i1, i2, i3, dist4, flag4);
+  bool dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const override final {
+    return _dist_comp4(max_dist, ids, dists);
   }
 
   dist_t compute(idx_t i) const override {
@@ -137,46 +136,46 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   void _prefetch_vector(idx_t i) const { prefetch_L1(_hnsw->getDataByInternalId(i)); }
 
 #ifdef USE_AVX
-  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                            float* __restrict dist4, bool4& flag4) const {
-    flag4.reset();
-
+  bool _dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const {
     float pq_dist[4] = {0, 0, 0, 0};  // PQ distances
-    faiss::distance_four_codes<PQDecoderType>(_M, _nbits, _dist_table_data,
-                                              _codes + i0 * _code_size, _codes + i1 * _code_size,
-                                              _codes + i2 * _code_size, _codes + i3 * _code_size,
-                                              pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
+    faiss::distance_four_codes<PQDecoderType>(
+        _M, _nbits, _dist_table_data, _codes + ids[0] * _code_size, _codes + ids[1] * _code_size,
+        _codes + ids[2] * _code_size, _codes + ids[3] * _code_size, pq_dist[0], pq_dist[1],
+        pq_dist[2], pq_dist[3]);
 
     // PQ distances
     __m128 vec_pq_dist = _mm_loadu_ps(pq_dist);
-    __m128 vec_recons_error =
-        _mm_set_ps(_recons_errors[i3], _recons_errors[i2], _recons_errors[i1], _recons_errors[i0]);
+    __m128 vec_recons_error = _mm_set_ps(_recons_errors[ids[3]], _recons_errors[ids[2]],
+                                         _recons_errors[ids[1]], _recons_errors[ids[0]]);
     // Lowerbounds
     __m128 vec_lowerbounds = _relaxed_lowerbound4(gamma, vec_pq_dist, vec_recons_error);
     dist_t lowerbounds[4];
     _mm_storeu_ps(lowerbounds, vec_lowerbounds);
 
-    if (lowerbounds[0] < max_dist) {
-      dist4[0] = compute(i0);
-      flag4.set0(dist4[0] < max_dist);
+    unsigned qual_size = 0;
+    unsigned qual_ids[4];
+    unsigned qual_pos[4];
+
+    for (int i = 0; i < 4; i++) {
+      float lowerbound = lowerbounds[i];
+      if (lowerbound > max_dist) {
+        dists[i] = -1.0f;
+      } else {
+        qual_ids[qual_size] = ids[i];
+        qual_pos[qual_size] = i;
+        ++qual_size;
+      }
     }
 
-    if (lowerbounds[1] < max_dist) {
-      dist4[1] = compute(i1);
-      flag4.set1(dist4[1] < max_dist);
+    for (int i = 0; i < qual_size; i++) {
+      if (i + 1 < qual_size) {
+        _prefetch_vector(qual_ids[i + 1]);
+      }
+      dist_t dist = compute(qual_ids[i]);
+      dists[qual_pos[i]] = dist;
     }
 
-    if (lowerbounds[2] < max_dist) {
-      dist4[2] = compute(i2);
-      flag4.set2(dist4[2] < max_dist);
-    }
-
-    if (lowerbounds[3] < max_dist) {
-      dist4[3] = compute(i3);
-      flag4.set3(dist4[3] < max_dist);
-    }
-
-    return flag4.has_true();
+    return qual_size > 0;
   }
 
   static __m128 _relaxed_lowerbound4(float gamma, __m128 pq_dist_vec, __m128 recons_error_vec) {
@@ -194,13 +193,9 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     return lowerbounds;
   }
 #else
-  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                            float* __restrict dist4, bool4& flag4) const {
-    flag4.reset();
-
+  bool _dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const {
     float a[4] = {0, 0, 0, 0};
     float b[4] = {0, 0, 0, 0};
-    float lowerbounds[4] = {0, 0, 0, 0};
 
     faiss::distance_four_codes<PQDecoderType>(
         _M, _nbits, _dist_table_data, _codes + i0 * _code_size, _codes + i1 * _code_size,
@@ -215,37 +210,31 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
       a[i] = std::sqrt(a[i]);
     }
 
+    bool lt_flag = false;
     for (int i = 0; i < 4; i++) {
-      lowerbounds[i] = (a[i] - b[i]) * (a[i] - b[i]) + 2 * gamma * a[i] * b[i];
+      dist[i] = -1;
+      float lowerbound = (a[i] - b[i]) * (a[i] - b[i]) + 2 * gamma * a[i] * b[i];
+      if (lowerbound < maxdist) {
+        dist_t dist = compute(i);
+        if (dist < max_dist) {
+          dists[i] = dist;
+          lt_flag = true;
+        }
+      }
     }
-
-    if (lowerbounds[0] < max_dist) {
-      dist4[0] = compute(i0);
-      flag4.set0(dist4[0] < max_dist);
-    }
-
-    if (lowerbounds[1] < max_dist) {
-      dist4[1] = compute(i1);
-      flag4.set1(dist4[1] < max_dist);
-    }
-
-    if (lowerbounds[2] < max_dist) {
-      dist4[2] = compute(i2);
-      flag4.set2(dist4[2] < max_dist);
-    }
-
-    if (lowerbounds[3] < max_dist) {
-      dist4[3] = compute(i3);
-      flag4.set3(dist4[3] < max_dist);
-    }
-
-    return flag4.has_true();
+    return lt_flag;
   }
 #endif
 };
 
 template <bool enable_profile = false>
 using UnityOp8 = UnityOp<faiss::PQDecoder8, enable_profile>;
+
+template <typename T>
+constexpr const bool is_unity_dco_v = false;
+
+template <typename T, bool v>
+constexpr const bool is_unity_dco_v<UnityOp<T, v>> = true;
 
 }  // namespace detail
 }  // namespace unity

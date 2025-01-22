@@ -1,9 +1,10 @@
 ## TODO
 
 ### Paper
-- [ ] 生成gist的perf
-- [ ] 重构batch搜索接口，传参统一使用std::array
+- [x] 生成gist的perf
+- [x] 重构batch搜索接口，传参统一使用std::array
 - [ ] 实现batch8
+- [ ] 实现HNSW++算法
 - [ ] HNSW range search
 - [ ] IVF ANN search
 - [ ] IVF range search

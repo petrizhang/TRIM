@@ -32,6 +32,7 @@ namespace detail {
 
 template <bool enable_profile = false>
 struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
+  using Parent = IDistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
 
@@ -52,23 +53,29 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
 
   void set_query(const dist_t* query_data) override { this->_query = query_data; }
 
-  bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const override {
+  float dist_comp(dist_t max_dist, idx_t i) const override {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(1);
     }
     dist_t cur_dist = _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
-    *dist = cur_dist;
-    return cur_dist < max_dist;
+    return cur_dist < max_dist ? cur_dist : -cur_dist;
   }
 
-  bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                           float* __restrict dist4, bool4& flag4) const override {
+  bool dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const override {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(4);
     }
-    return _distance4_less_than(max_dist, i0, i1, i2, i3, dist4, flag4);
+    return Parent::dist_comp4(max_dist, ids, dists);
+  }
+
+  bool dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const override {
+    assert(_query != nullptr);
+    if constexpr (enable_profile) {
+      _num_distance_computation.value.fetch_add(8);
+    }
+    return Parent::dist_comp8(max_dist, ids, dists);
   }
 
   dist_t compute(idx_t i) const override {
@@ -78,43 +85,6 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
     }
     return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
   }
-
-#ifdef USE_SSE
-  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                            float* __restrict dist4, bool4& flag4) const {
-    prefetch(i1);
-    dist4[0] = _dist_func(_query, _hnsw->getDataByInternalId(i0), _dist_func_param);
-
-    prefetch(i2);
-    dist4[1] = _dist_func(_query, _hnsw->getDataByInternalId(i1), _dist_func_param);
-
-    prefetch(i3);
-    dist4[2] = _dist_func(_query, _hnsw->getDataByInternalId(i2), _dist_func_param);
-
-    dist4[3] = _dist_func(_query, _hnsw->getDataByInternalId(i3), _dist_func_param);
-
-    __m128 dist_vec = _mm_loadu_ps(dist4);
-    __m128 max_dist_vec = _mm_set1_ps(max_dist);
-    __m128 less_than_result = _mm_cmplt_ps(dist_vec, max_dist_vec);
-    flag4.mask = _mm_movemask_ps(less_than_result);
-    return flag4.has_true();
-  }
-#else
-  bool _distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                            float* __restrict dist4, bool4& flag4) const {
-    prefetch(i1);
-    flag4.set0(distance_less_than(max_dist, i0, dist4));
-
-    prefetch(i2);
-    flag4.set1(distance_less_than(max_dist, i1, dist4 + 1));
-
-    prefetch(i3);
-    flag4.set2(distance_less_than(max_dist, i2, dist4 + 2));
-
-    flag4.set3(distance_less_than(max_dist, i3, dist4 + 3));
-    return flag4.has_true();
-  }
-#endif
 
   void prefetch(idx_t i) const override { prefetch_L1(_hnsw->getDataByInternalId(i)); }
 

@@ -26,89 +26,10 @@
 
 namespace unity {
 
-struct bool4 {
-  int32_t mask{0};
-
-  void reset() { mask = 0; }
-
-  bool get0() { return (mask & 0x1) != 0; }
-
-  bool get1() { return (mask & 0x2) != 0; }
-
-  bool get2() { return (mask & 0x4) != 0; }
-
-  bool get3() { return (mask & 0x8) != 0; }
-
-  void set0(bool value) {
-    if (value) {
-      mask |= 0x1;
-    } else {
-      mask &= ~0x1;
-    }
-  }
-
-  void set1(bool value) {
-    if (value) {
-      mask |= 0x2;
-    } else {
-      mask &= ~0x2;
-    }
-  }
-
-  void set2(bool value) {
-    if (value) {
-      mask |= 0x4;
-    } else {
-      mask &= ~0x4;
-    }
-  }
-
-  void set3(bool value) {
-    if (value) {
-      mask |= 0x8;
-    } else {
-      mask &= ~0x8;
-    }
-  }
-
-  bool has_true() { return mask != 0; }
-
-  bool get(int i) {
-    assert(i >= 0 && i < 4);
-    switch (i) {
-      case 0:
-        return get0();
-      case 1:
-        return get1();
-      case 2:
-        return get2();
-      case 3:
-        return get3();
-      default:
-        U_THROW_UNEXPECTED_CODE_PATH;
-    }
-  }
-
-  void set(int i, bool value) {
-    assert(i >= 0 && i < 4);
-    switch (i) {
-      case 0:
-        set0(value);
-        break;
-      case 1:
-        set1(value);
-        break;
-      case 2:
-        set2(value);
-        break;
-      case 3:
-        set3(value);
-        break;
-      default:
-        U_THROW_UNEXPECTED_CODE_PATH;
-    }
-  }
-};
+using Id4 = std::array<unsigned, 4>;
+using Id8 = std::array<unsigned, 8>;
+using Dist4 = std::array<float, 4>;
+using Dist8 = std::array<float, 8>;
 
 template <typename idx_t, typename dist_t>
 struct IDistanceComparisonOperator {
@@ -130,26 +51,28 @@ struct IDistanceComparisonOperator {
    * the value pointed to by this pointer will be updated to the actual distance.
    * @return Returns true if the distance is less than max_dist, otherwise returns false.
    */
-  virtual bool distance_less_than(dist_t max_dist, idx_t i, float* dist) const = 0;
+  virtual float dist_comp(dist_t max_dist, idx_t i) const = 0;
 
-  /**
-   * Test whether the distances between the query point and the data points at indices i0, i1, i2,
-   * i3 are all less than max_dist.
-   * @param max_dist The maximum distance threshold.
-   * @param i0 The index of the first data point.
-   * @param i1 The index of the second data point.
-   * @param i2 The index of the third data point.
-   * @param i3 The index of the fourth data point.
-   * @param result A pointer to store the comparison result.
-   * @return Returns true if all four distances are less than max_dist, otherwise returns false.
-   */
-  virtual bool distance4_less_than(dist_t max_dist, idx_t i0, idx_t i1, idx_t i2, idx_t i3,
-                                   float* __restrict dist4, bool4& flag4) const {
-    flag4.set0(distance_less_than(max_dist, i0, dist4));
-    flag4.set1(distance_less_than(max_dist, i1, dist4 + 1));
-    flag4.set2(distance_less_than(max_dist, i2, dist4 + 2));
-    flag4.set3(distance_less_than(max_dist, i3, dist4 + 3));
-    return flag4.has_true();
+  virtual bool dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const {
+    bool lt_flag = false;
+    for (int i = 0; i < 4; i++) {
+      dists[i] = dist_comp(max_dist, ids[i]);
+      if (dists[i] > 0) {
+        lt_flag = true;
+      }
+    }
+    return lt_flag;
+  }
+
+  virtual bool dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const {
+    bool lt_flag = false;
+    for (int i = 0; i < 8; i++) {
+      dists[i] = dist_comp(max_dist, ids[i]);
+      if (dists[i] > 0) {
+        lt_flag = true;
+      }
+    }
+    return lt_flag;
   }
 
   /**

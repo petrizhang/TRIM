@@ -10,23 +10,23 @@ cleanup() {
 
 trap cleanup SIGINT
 
-# Don't buffer python outputss
+## Don't buffer python outputss
 export PYTHONUNBUFFERED=1
 
-# Configurations
+## Configurations
 export nq=1000
 export M=16
 export efCons=500 
 
 export gist_gamma="[0.8,0.9,1.0,1.1]"
 export gist_ef="[120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,450,500,550,600,650,700,750,800,900,1000,2000,3000,4000]"
-export gist_pq_m=(30 40 60 80 120 160 240)
+export gist_pq_m=(120)
 
 export nytimes_gamma="[0.8,0.9,1.0,1.1]"
 export nytimes_ef="[100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2500,3000,3500,4000]"
 export nytimes_pq_m=(8 16 32 64)
+export nytimes_pq_m=(32)
 
-#!/bin/bash
 
 bench_hnsw() {
     if [ "$#" -ne 5 ]; then

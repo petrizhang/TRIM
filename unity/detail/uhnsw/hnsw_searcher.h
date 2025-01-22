@@ -163,8 +163,8 @@ struct HNSWSearcher : Searcher {
           if (cand < 0 || cand >= index.max_elements_) {
             U_THROW_FMT("search error, got illegal candidcate %u", cand);
           }
-          dist_t d = std::numeric_limits<dist_t>::max();
-          if (_dco.distance_less_than(curdist, cand, &d)) {
+          dist_t d = _dco.dist_comp(curdist, cand);
+          if (d >= 0) {
             curdist = d;
             node = cand;
             changed = true;
@@ -257,22 +257,28 @@ struct HNSWSearcher : Searcher {
 
         if (!(visited[neighbor_id] == visited_array_tag)) {
           visited[neighbor_id] = visited_array_tag;
-
-          dist_t dist = _dco.compute(neighbor_id);
-          if (dist < max_dist || results.size() < ef) {
+          if (UNLIKELY(results.size() < ef)) {
+            dist_t dist = _dco.compute(neighbor_id);
             candidates.emplace(-dist, neighbor_id);
-
-            // Prefetch neighbor list of the top object in candidate queue
-            prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
-                        _offset_level0);
-
             results.emplace(dist, neighbor_id);
+            max_dist = results.top().first;
+          } else {
+            dist_t dist = _dco.dist_comp(max_dist, neighbor_id);
+            if (dist >= 0 || results.size() < ef) {
+              candidates.emplace(-dist, neighbor_id);
 
-            while (results.size() > ef) {
-              results.pop();
+              // Prefetch neighbor list of the top object in candidate queue
+              prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
+                          _offset_level0);
+
+              results.emplace(dist, neighbor_id);
+
+              while (results.size() > ef) {
+                results.pop();
+              }
+
+              if (!results.empty()) max_dist = results.top().first;
             }
-
-            if (!results.empty()) max_dist = results.top().first;
           }
         }
       }
@@ -301,22 +307,21 @@ struct HNSWSearcher : Searcher {
     candidates.emplace(-max_dist, seed);
     visited[seed] = visited_array_tag;
 
-    tableint batched_nodes[4];
-    dist_t distances[4];
-    bool4 flags;
+    Id4 batched_nodes;
+    Dist4 distances;
     int n_batched = 0;
 
     auto process_remaining_batched_nodes = [&]() {
       for (int i = 0; i < n_batched; i++) {
-        bool found_closer_node = _dco.distance_less_than(max_dist, batched_nodes[i], &distances[i]);
-        if (found_closer_node || results.size() < ef) {
-          candidates.emplace(-distances[i], batched_nodes[i]);
+        float d = _dco.dist_comp(max_dist, batched_nodes[i]);
+        if (d >= 0 || results.size() < ef) {
+          candidates.emplace(-d, batched_nodes[i]);
 
           // Prefetch neighbor list of the top object in candidate queue
           prefetch_L1(_data_level0_memory + candidates.top().second * _size_data_per_element +
                       _offset_level0);
 
-          results.emplace(distances[i], batched_nodes[i]);
+          results.emplace(d, batched_nodes[i]);
 
           while (results.size() > ef) {
             results.pop();
@@ -387,28 +392,12 @@ struct HNSWSearcher : Searcher {
             max_dist = results.top().first;
           } else {
             if (n_batched == 4) {
-              bool found_closer_node =
-                  _dco.distance4_less_than(max_dist, batched_nodes[0], batched_nodes[1],
-                                           batched_nodes[2], batched_nodes[3], distances, flags);
-              if (found_closer_node) {
-                if (flags.get0()) {
-                  candidates.emplace(-distances[0], batched_nodes[0]);
-                  results.emplace(distances[0], batched_nodes[0]);
-                }
-
-                if (flags.get1()) {
-                  candidates.emplace(-distances[1], batched_nodes[1]);
-                  results.emplace(distances[1], batched_nodes[1]);
-                }
-
-                if (flags.get2()) {
-                  candidates.emplace(-distances[2], batched_nodes[2]);
-                  results.emplace(distances[2], batched_nodes[2]);
-                }
-
-                if (flags.get3()) {
-                  candidates.emplace(-distances[3], batched_nodes[3]);
-                  results.emplace(distances[3], batched_nodes[3]);
+              if (LIKELY(_dco.dist_comp4(max_dist, batched_nodes, distances))) {
+                for (int i = 0; i < 4; i++) {
+                  if (distances[i] >= 0) {
+                    candidates.emplace(-distances[i], batched_nodes[i]);
+                    results.emplace(distances[i], batched_nodes[i]);
+                  }
                 }
 
                 // Prefetch neighbor list of the top object in candidate queue
@@ -423,7 +412,6 @@ struct HNSWSearcher : Searcher {
               }
               n_batched = 0;
             }
-
             n_batched += 1;
             batched_nodes[n_batched - 1] = neighbor_id;
           }
