@@ -59,7 +59,7 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
       _num_distance_computation.value.fetch_add(1);
     }
     dist_t cur_dist = _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
-    return cur_dist < max_dist ? cur_dist : -cur_dist;
+    return cur_dist < max_dist ? cur_dist : -1;
   }
 
   bool dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const override {

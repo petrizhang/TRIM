@@ -94,7 +94,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     }
 
     dist_t dist = compute(i);
-    return dist < max_dist ? dist : -dist;
+    return dist < max_dist ? dist : -1;
   }
 
   bool dist_comp4(dist_t max_dist, const Id4& ids, Dist4& dists) const override final {

@@ -79,22 +79,27 @@ bench_unity() {
         -sr \"../results/${version}_${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.csv\""
 
     # 执行命令
-    echo "Running command: ${command}"
-    eval ${command}
+    result_file="../results/${version}_${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.csv"
+    if [-e $result_file]; then
+        echo "Results file $result_file, skip benchmark"
+    else
+        echo "Running command: ${command}"
+        eval ${command}
+    fi
 }
 
 #################################################
 # GIST
 #################################################
 
-# HNSW (UNITY Implementation)
-bench_hnsw gist-960-euclidean gist $M $efCons $gist_ef
+# # HNSW (UNITY Implementation)
+# bench_hnsw gist-960-euclidean gist $M $efCons $gist_ef
 
-# UNITY
-for pq_m in "${gist_pq_m[@]}"; do
-    bench_unity gist-960-euclidean gist $M $efCons $gist_ef \
-               unity $pq_m $gist_gamma
-done
+# # UNITY
+# for pq_m in "${gist_pq_m[@]}"; do
+#     bench_unity gist-960-euclidean gist $M $efCons $gist_ef \
+#                unity $pq_m $gist_gamma
+# done
 
 #################################################
 # NYTimes

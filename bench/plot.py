@@ -73,8 +73,8 @@ def plot(ax, legend, recall, qps, **kwargs):
     ax.set_xlabel("Recall")
     ax.set_ylabel("QPS")
     ax.set_yscale("log")
-    ax.grid(which="both", linestyle="--",
-            linewidth=0.5, color="gray", alpha=0.7)
+    # ax.grid(which="both", linestyle="--",
+    #         linewidth=0.5, color="gray", alpha=0.7)
 
 
 def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
