@@ -27,7 +27,7 @@ export M=16
 export efCons=500 
 
 
-export refine_queue_size="[100,200,400,800,1600]"
+export refine_queue_size="[10,20,40,80,100,200,300,400,500,600,700,800,1600]"
 export glove_gamma="[0.8,0.9,1.0,1.1]"
 export glove_ef="[120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,450,500,550,600,650,700,750,800,900,1000,1200,1400,1600,1800,2000,3000,4000]"
 export glove_pq_m=(25)
@@ -38,7 +38,7 @@ export gist_pq_m=(120)
 
 export nytimes_gamma="[0.8,0.9,1.0,1.1]"
 export nytimes_ef="[100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2500,3000,3500,4000,4500,5000,5500,6000]"
-export nytimes_pq_m=(32 64)
+export nytimes_pq_m=(32)
 
 bench_hnsw() {
     if [ "$#" -ne 5 ]; then
@@ -96,7 +96,7 @@ bench_unity() {
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \
         -m unity \
         -b \"hnswlib_index_path:\\\"./tmp/index/${dataset_short_name}_hnswlib${M}x${efCons}.bin\\\";M:${M};efConstruction:${efCons};pq_index_path:\\\"./tmp/index/${dataset_short_name}_pq8x${pq_m}.bin\\\";pq_m:${pq_m};pq_nbits:8;dco:\\\"$dco\\\"\" \
-        -s \"enable_batch_dco:[true];gamma:${gamma};ef:${ef}\" \
+        -s \"enable_batch_dco:[true];gamma:${gamma};refine_queue_size:${refine_queue_size};ef:${ef}\" \
         -si \"./tmp/index/${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.empty\" \
         -sr \"$result_file\""
 
