@@ -128,4 +128,4 @@ version = get_git_version()
 for d, ylim in ylims.items():
     plot_group(result_dir, list_csv(result_dir, [d]), f"tmp_{d}", ylim=ylim)
     plot_group(result_dir, list_csv(result_dir, [d, version]),
-               f"tmp_{d}_main", ylim=ylim)
+               f"tmp_{d}_{version}", ylim=ylim)
