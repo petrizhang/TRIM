@@ -199,7 +199,7 @@ struct HNSWSearcher : Searcher {
       top_candidates.pop();
     }
 
-    std::vector<dist_t> distances(n);
+    int n = top_candidates.size();
     while (n > 0) {
       std::pair<dist_t, tableint> rez = top_candidates.top();
       dst[n - 1] = index.getExternalLabel(rez.second);
