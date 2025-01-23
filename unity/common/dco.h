@@ -23,7 +23,6 @@
 #include <cstdint>
 
 #include "unity/common/object.h"
-#include "unity/common/setter.h"
 
 namespace unity {
 
@@ -122,6 +121,10 @@ struct IDistanceComparisonOperator {
    */
   virtual void set_query(const dist_t* data) = 0;
 
+  virtual void set(const std::string& key, const Object& value) {}
+ 
+  virtual void try_set(const std::string& key, const Object& value) {}
+
   /**
    * Test whether the distance between the query point and the data point at index i is less than
    * max_dist. Checks if the distance from the query point to the data point at index i is less than
@@ -187,9 +190,6 @@ struct IDistanceComparisonOperator {
 };
 
 template <typename idx_t, typename dist_t>
-struct DistanceComparisonOperator : SetterProxy, IDistanceComparisonOperator<idx_t, dist_t> {
-  explicit DistanceComparisonOperator(const std::string& prompt) : SetterProxy(prompt) {}
-  virtual ~DistanceComparisonOperator() = default;
-};
+using DistanceComparisonOperator = IDistanceComparisonOperator<idx_t, dist_t>;
 
 }  // namespace unity

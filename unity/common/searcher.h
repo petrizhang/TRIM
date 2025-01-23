@@ -30,6 +30,8 @@ using DefaultDCOType = DistanceComparisonOperator<unsigned, float>;
 struct ISearcher {
   virtual ~ISearcher() = default;
   virtual void set_data(const float* data, int n, int dim) { U_THROW_NOT_IMPLEMENTED; };
+  virtual void set(const std::string& key, const Object& value) {}
+  virtual void try_set(const std::string& key, const Object& value) {}
   virtual const float* get_data(unsigned i) const { U_THROW_NOT_IMPLEMENTED; }
   virtual size_t num_data_points() const { U_THROW_NOT_IMPLEMENTED; }
   virtual void ann_search(const float* q, int k, int* dst) const = 0;
@@ -39,9 +41,6 @@ struct ISearcher {
   virtual Dict get_profile() const = 0;
 };
 
-struct Searcher : SetterProxy, ISearcher {
-  explicit Searcher(const std::string& prompt) : SetterProxy(prompt) {}
-  virtual ~Searcher() = default;
-};
+using Searcher = ISearcher;
 
 }  // namespace unity

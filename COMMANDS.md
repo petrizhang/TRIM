@@ -4,7 +4,6 @@ python3 preprocessing.py -s /data/home/petrizhang/data/vector/raw/nytimes-256-an
 
 python3 preprocessing.py -s /data/home/petrizhang/data/vector/raw/glove-100-angular.hdf5 -t /data/home/petrizhang/data/vector/normed/glove-100-angular.hdf5 
 
-
 ```
 
 ## HNSWLIB
@@ -24,7 +23,7 @@ perf record -g -F 999 python3 bench.py -k 10         -nq 1000         -d "./tmp/
 perf record -g -F 999 -p $(pgrep python3)
 python3 bench.py -k 10         -nq 1000         -d "./tmp/data/gist-960-euclidean.hdf5"         -m unity         -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"unity\""         -s "enable_batch_dco:[true];gamma:[1.1];ef:[2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000,2000]"         -si "./tmp/index/gist_uhnsw16x500_pq8x120.empty"         -sr "./tmp/results/51a08bf_gist_uhnsw16x500_pq8x120.csv"
 
-python3 bench.py -k 10         -nq 1000         -d "./tmp/data/gist-960-euclidean.hdf5"         -m unity         -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"unity\""         -s "enable_batch_dco:[true];gamma:[0.7, 0.8];ef:[2000]"         -si "./tmp/index/gist_uhnsw16x500_pq8x120.empty"         -sr "./tmp/results/51a08bf_gist_uhnsw16x500_pq8x120.csv"
+python3 bench.py -k 10         -nq 1000         -d "./tmp/data/gist-960-euclidean.hdf5"         -m unity         -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"unity\""         -s "enable_batch_dco:[true];gamma:[0.8,1.0];refine_queue_size:[0,100,200,400,800];ef:[2000]"         -si "./tmp/index/gist_uhnsw16x500_pq8x120.empty"         -sr "./tmp/results/gist_uhnsw16x500_pq8x120.csv"
 ```
 
 ## Testing

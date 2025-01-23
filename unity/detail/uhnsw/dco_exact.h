@@ -44,7 +44,7 @@ struct ExactDCO final : DistanceComparisonOperator<unsigned, float> {
 
   ~ExactDCO() override = default;
 
-  explicit ExactDCO(const UnityHNSW* uhnsw) : DistanceComparisonOperator("ExactDCO") {
+  explicit ExactDCO(const UnityHNSW* uhnsw) {
     U_ASSERT(uhnsw != nullptr);
     _hnsw = uhnsw->owned_index_hnsw.get();
     _dist_func = _hnsw->fstdistfunc_;

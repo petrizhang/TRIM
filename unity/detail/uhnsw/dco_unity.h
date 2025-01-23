@@ -25,7 +25,9 @@
 
 #include "unity/common/atomic.h"
 #include "unity/common/dco.h"
+#include "unity/common/object.h"
 #include "unity/common/prefetch.h"
+#include "unity/common/setter_proxy.h"
 #include "unity/detail/faiss/impl/ProductQuantizer.h"
 #include "unity/detail/faiss/impl/code_distance/code_distance.h"
 #include "unity/detail/hnswlib/hnswlib.h"
@@ -35,7 +37,10 @@ namespace unity {
 namespace detail {
 
 template <typename PQDecoderType, bool enable_profile = false>
-struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
+struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
+                       DistanceComparisonOperator<unsigned, float> {
+  using This = UnityOp<PQDecoderType, enable_profile>;
+  using Proxy = SetterProxy<This>;
   using Parent = DistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
@@ -60,11 +65,11 @@ struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
   Atomic<int64_t> _num_lowerbound_computation;
 
   // Search parameters
-  float gamma{0.8};
+  float _gamma{0.8};
 
   ~UnityOp() override = default;
 
-  explicit UnityOp(const UnityHNSW* uhnsw) : DistanceComparisonOperator("UnityOp") {
+  explicit UnityOp(const UnityHNSW* uhnsw) : SetterProxy<This>("UnityOp") {
     U_ASSERT(uhnsw != nullptr);
     U_ASSERT(uhnsw->owned_index_hnsw != nullptr);
     U_ASSERT(uhnsw->owned_index_pq != nullptr);
@@ -80,7 +85,7 @@ struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
     _dist_func = _hnsw->fstdistfunc_;
     _dist_func_param = _hnsw->dist_func_param_;
 
-    SetterProxy::bind<DOUBLE_TYPE>("gamma", gamma);
+    Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
   }
 
   void set_query(const dist_t* query_data) override {
@@ -89,6 +94,10 @@ struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
     _pq->quantizer.compute_distance_table(_query, _dist_table.data());
     _dist_table_data = _dist_table.data();
   }
+
+  void set(const std::string& key, const Object& value) override { Proxy::proxied_set(key, value); }
+
+  void try_set(const std::string& key, const Object& value) { Proxy::try_proxied_set(key, value); }
 
   bool dist_comp(dist_t max_dist, idx_t i, float& dist) const override final {
     dist_t lowerbound = relaxed_lowerbound(i);
@@ -113,7 +122,7 @@ struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
     assert(_query != nullptr);
     dist_t a = std::sqrt(estimate(i));
     dist_t b = _recons_errors[i];
-    return (a - b) * (a - b) + 2 * gamma * a * b;
+    return (a - b) * (a - b) + 2 * _gamma * a * b;
   }
 
   void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const override {
@@ -127,6 +136,8 @@ struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
   }
 
   void prefetch(idx_t i) const override { prefetch_L1(_codes + _code_size * i); }
+
+  void set_gamma(float gamma) { _gamma = gamma; }
 
   void _prefetch_vector(idx_t i) const { prefetch_L1(_hnsw->getDataByInternalId(i)); }
 
@@ -171,7 +182,7 @@ struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
                                             _recons_errors[ids[3]], _recons_errors[ids[2]],  //
                                             _recons_errors[ids[1]], _recons_errors[ids[0]]);
     // Lowerbounds
-    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(gamma, vec_pq_dist, vec_recons_error);
+    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(_gamma, vec_pq_dist, vec_recons_error);
     _mm256_storeu_ps(dists.data(), vec_lowerbounds);
   }
 
@@ -215,7 +226,7 @@ struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
                                             _recons_errors[ids[3]], _recons_errors[ids[2]],  //
                                             _recons_errors[ids[1]], _recons_errors[ids[0]]);
     // Lowerbounds
-    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(gamma, vec_pq_dist, vec_recons_error);
+    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(_gamma, vec_pq_dist, vec_recons_error);
     __m256 cmp_vec = _mm256_cmp_ps(vec_lowerbounds, _mm256_set1_ps(max_dist), _CMP_LT_OS);
     lt_flags.mask = _mm256_movemask_ps(cmp_vec);
 

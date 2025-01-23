@@ -56,11 +56,12 @@ class Algorithm(BaseANN):
                 self.index_pq.add(X)
             utils.write_build_time(self.pq_index_path, timer.elapsed_time)
 
-    def set_query_arguments(self, ef, enable_batch_dco=False, gamma=0.8):
+    def set_query_arguments(self, ef, enable_batch_dco=False, gamma=0.8, refine_queue_size=0):
         assert self.searcher is not None
         self.searcher.set("enable_batch_dco", enable_batch_dco)
         self.searcher.set("gamma", gamma)
         self.searcher.set("ef", ef)
+        self.searcher.set("refine_queue_size", refine_queue_size)
 
     def query(self, v, n):
         # print(np.expand_dims(v,axis=0).shape)

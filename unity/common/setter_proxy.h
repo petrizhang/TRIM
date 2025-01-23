@@ -23,16 +23,20 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "unity/common/common.h"
 #include "unity/common/object.h"
 
 namespace unity {
 
+template <typename ChildClass>
 struct SetterProxy {
-  using Setter = std::function<void(const Object&)>;
-  using SetterPair = std::pair<ObjectType, Setter>;
+  template <typename T>
+  using Setter = void (ChildClass::*)(T);
+  using ProxyFunc = std::function<void(ChildClass*, const Object&)>;
+  using ProxyPair = std::pair<ObjectType, ProxyFunc>;
 
   std::string _prompt{"error"};
-  std::unordered_map<std::string, SetterPair> _setter_map;
+  std::unordered_map<std::string, ProxyPair> _proxy_map;
 
   SetterProxy() = default;
 
@@ -40,47 +44,41 @@ struct SetterProxy {
 
   virtual ~SetterProxy() = default;
 
-  virtual void set(const std::string& key, const Object& value) {
-    auto it = _setter_map.find(key);
-    if (it != _setter_map.end()) {
+  void proxied_set(const std::string& key, const Object& value) {
+    auto it = _proxy_map.find(key);
+    if (it != _proxy_map.end()) {
       auto& setter = it->second.second;
       auto expect_type = it->second.first;
       if (expect_type != value.type) {
-        U_THROW_FMT("%s error: parameter `%s` must be a %s value, but got %s [%s]", _prompt.c_str(),
-                    key.c_str(), get_type_desc(expect_type), get_type_desc(value.type),
-                    value.to_string().c_str());
+        U_THROW_FMT("%s error: parameter `%s` must be a %s value, but got %s value [%s]",
+                    _prompt.c_str(), key.c_str(), get_type_desc(expect_type),
+                    get_type_desc(value.type), value.to_string().c_str());
       }
-      setter(value);
+      setter((ChildClass*)this, value);
       return;
     }
 
     U_THROW_FMT("%s error: got unknown parameter: `%s`", _prompt.c_str(), key.c_str());
   }
 
-  virtual void try_set(const std::string& key, const Object& value) {
-    auto it = _setter_map.find(key);
-    if (it != _setter_map.end()) {
+  void try_proxied_set(const std::string& key, const Object& value) {
+    auto it = _proxy_map.find(key);
+    if (it != _proxy_map.end()) {
       auto& setter = it->second.second;
       auto expect_type = it->second.first;
       if (expect_type == value.type) {
-        setter(value);
+        setter((ChildClass*)this, value);
       }
     }
   }
 
   template <ObjectType obj_type, typename T>
-  SetterProxy& bind(const std::string& name, T& ref) {
-    static_assert(!std::is_reference_v<T>);
-    Setter setter = [&ref](const Object& value) -> void {
-      ref = static_cast<T>(value.get<obj_type>());
+  SetterProxy& bind(const std::string& name, Setter<T> setter) {
+    ProxyFunc proxy = [setter](ChildClass* that, const Object& value) -> void {
+      auto typed_value = static_cast<T>(value.get<obj_type>());
+      (that->*setter)(typed_value);
     };
-    _setter_map[name] = std::make_pair(obj_type, std::move(setter));
-    return *this;
-  }
-
-  template <ObjectType obj_type>
-  SetterProxy& bind(const std::string& name, const Setter& setter) {
-    _setter_map[name] = std::make_pair(obj_type, setter);
+    _proxy_map[name] = std::make_pair(obj_type, std::move(proxy));
     return *this;
   }
 };

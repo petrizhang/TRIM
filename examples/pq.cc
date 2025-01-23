@@ -21,7 +21,6 @@
 #include <iomanip>
 #include <iostream>
 
-#include "unity/common/setter.h"
 #include "unity/detail/io/read_faiss.h"
 #include "unity/detail/quantization/index_pq.h"
 #include "unity/detail/uhnsw/dco_unity.h"
@@ -78,24 +77,14 @@ int main() {
 
   using unity::Object;
   using unity::ObjectType;
-  using unity::SetterProxy;
-
-  SetterProxy setter("main");
-  bool value;
-  setter.bind<ObjectType::BOOL_TYPE>("test", value);
-
-  setter.set("test", true);
-  std::cout << (value ? "true" : "false") << "\n";
-  setter.set("test", false);
-  std::cout << (value ? "true" : "false") << "\n";
 
   // Search hnswlib index with top
   const char* index_hnsw_path =
       "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_hnswlib16x500.bin";
   const char* index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_pq8x32.bin";
 
-  index_hnsw_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_hnswlib16x500.bin";
-  index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_pq8x120.bin";
+  // index_hnsw_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_hnswlib16x500.bin";
+  // index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_pq8x120.bin";
 
   const int dim = 128;
   {
@@ -108,7 +97,7 @@ int main() {
                                                     .set("num_threads", 12)
                                                     .set("enable_batch_dco", true)
                                                     .create();
-    bench(searcher.get(), 0.0, 1000);
+    bench(searcher.get(), 0.1, 1000);
 
     const int k = 10;
     std::vector<int> knn(k);

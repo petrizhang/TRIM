@@ -27,6 +27,7 @@
 #include "unity/common/common.h"
 #include "unity/common/prefetch.h"
 #include "unity/common/searcher.h"
+#include "unity/common/setter_proxy.h"
 #include "unity/detail/uhnsw/dco_exact.h"
 #include "unity/detail/uhnsw/dco_unity.h"
 #include "unity/detail/uhnsw/unity_hnsw.h"
@@ -35,9 +36,11 @@ namespace unity {
 namespace detail {
 
 template <typename DCO = UnityOp8<false>>
-struct HNSWSearcher : Searcher {
+struct HNSWSearcher : SetterProxy<HNSWSearcher<DCO>>, Searcher {
   static_assert(std::is_base_of_v<DefaultDCOType, DCO>,
                 "Error: DCO must inherit from DefaultDCOType.");
+  using This = HNSWSearcher<DCO>;
+  using Proxy = SetterProxy<This>;
   using CompareByFirst = HnswlibIndex::CompareByFirst;
   using VisitedList = hnswlib::VisitedList;
   using dist_t = float;
@@ -65,10 +68,10 @@ struct HNSWSearcher : Searcher {
   const UnityHNSW* _uhnsw{nullptr};                   // the underlying pointer of [shared_uhnsw]
 
   // Parameters
-  size_t ef{32};
-  size_t refine_queue_size{0};
-  bool enable_profile{false};
-  bool enable_batch_dco{true};
+  size_t _ef{32};
+  size_t _refine_queue_size{0};
+  bool _enable_profile{false};
+  bool _enable_batch_dco{true};
 
   U_FORBID_COPY_AND_ASSIGN(HNSWSearcher);
 
@@ -77,7 +80,7 @@ struct HNSWSearcher : Searcher {
   HNSWSearcher() = delete;
 
   explicit HNSWSearcher(const std::shared_ptr<UnityHNSW>& index, DCO dco)
-      : Searcher("HNSWSearcher"), _dco(std::move(dco)), _shared_uhnsw(index), _uhnsw(index.get()) {
+      : Proxy("HNSWSearcher"), _dco(std::move(dco)), _shared_uhnsw(index), _uhnsw(index.get()) {
     U_ASSERT(_uhnsw != nullptr);
     _hnsw = _uhnsw->owned_index_hnsw.get();
     U_ASSERT(_hnsw != nullptr);
@@ -88,18 +91,22 @@ struct HNSWSearcher : Searcher {
     _offset_data = _hnsw->offsetData_;
     _offset_level0 = _hnsw->offsetLevel0_;
 
-    SetterProxy::bind<INTEGER_TYPE>("ef", ef)
-        .bind<INTEGER_TYPE>("refine_queue_size", refine_queue_size)
-        .bind<BOOL_TYPE>("enable_profile", enable_profile)
-        .bind<BOOL_TYPE>("enable_batch_dco", enable_batch_dco);
-
-    SetterProxy::bind<DOUBLE_TYPE>(
-        "gamma", [this](const Object& value) { this->_dco.try_set("gamma", value); });
+    Proxy::template bind<INTEGER_TYPE>("ef", &This::set_ef);
+    Proxy::template bind<INTEGER_TYPE>("refine_queue_size", &This::set_refine_queue_size);
+    Proxy::template bind<BOOL_TYPE>("enable_profile", &This::set_enable_profile);
+    Proxy::template bind<BOOL_TYPE>("enable_batch_dco", &This::set_enable_batch_dco);
+    Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
   }
 
   ~HNSWSearcher() override = default;
 
   void set_data(const float* data, int n, int dim) override {};
+
+  void set(const std::string& key, const Object& value) override { Proxy::proxied_set(key, value); }
+
+  void try_set(const std::string& key, const Object& value) override {
+    Proxy::try_proxied_set(key, value);
+  }
 
   const float* get_data(unsigned i) const override {
     if (_uhnsw == nullptr) {
@@ -130,6 +137,16 @@ struct HNSWSearcher : Searcher {
   DefaultDCOType* get_dco() const override { return &_dco; }
 
   Dict get_profile() const override { return _dco.get_profile(); }
+
+  void set_ef(size_t ef) { _ef = ef; }
+
+  void set_refine_queue_size(size_t refine_queue_size) { _refine_queue_size = refine_queue_size; }
+
+  void set_enable_profile(bool enable_profile) { _enable_profile = enable_profile; }
+
+  void set_enable_batch_dco(bool enable_batch_dco) { _enable_batch_dco = enable_batch_dco; }
+
+  void set_gamma(float gamma) { _dco.try_set("gamma", gamma); }
 
   tableint _init_search_seed(const void* query_data, dist_t* dist) const {
     const HnswlibIndex& index = *_hnsw;
@@ -179,17 +196,17 @@ struct HNSWSearcher : Searcher {
                         HnswlibIndex::CompareByFirst>
         top_candidates;
 
-    if (enable_batch_dco) {
-      if (refine_queue_size > 0) {
+    if (_enable_batch_dco) {
+      if (_refine_queue_size > 0) {
         // No less than 2*k and no more than ef
-        size_t actual_refine_queue_size = std::min(std::max(2 * k, refine_queue_size), ef);
+        size_t actual_refine_queue_size = std::min(std::max(2 * k, _refine_queue_size), _ef);
         top_candidates = _ann_search_level0_batch8_with_refine_queue(
-            seed, seed_dist, actual_refine_queue_size, std::max(ef, k));
+            seed, seed_dist, actual_refine_queue_size, std::max(_ef, k));
       } else {
-        top_candidates = _ann_search_level0_batch8(seed, seed_dist, std::max(ef, k));
+        top_candidates = _ann_search_level0_batch8(seed, seed_dist, std::max(_ef, k));
       }
     } else {
-      top_candidates = _ann_search_level0(seed, seed_dist, std::max(ef, k));
+      top_candidates = _ann_search_level0(seed, seed_dist, std::max(_ef, k));
     }
 
     while (top_candidates.size() > k) {
