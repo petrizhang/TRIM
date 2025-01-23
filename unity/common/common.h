@@ -40,6 +40,16 @@
 /// decision, e.g. not inlining a small function on a hot path.
 #define ALWAYS_INLINE __attribute__((always_inline))
 
+#define U_FORBID_DEFAULT_CTOR(TypeName) TypeName() = delete;
+
+#define U_FORBID_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&) = delete;      \
+  TypeName& operator=(const TypeName&) = delete;
+
+#define U_FORBID_MOVE(TypeName)  \
+  TypeName(TypeName&&) = delete; \
+  TypeName& operator=(TypeName&&) = delete;
+
 namespace unity {
 
 enum class Metric {

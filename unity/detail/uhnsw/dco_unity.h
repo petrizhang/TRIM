@@ -35,8 +35,8 @@ namespace unity {
 namespace detail {
 
 template <typename PQDecoderType, bool enable_profile = false>
-struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
-  using Parent = IDistanceComparisonOperator<unsigned, float>;
+struct UnityOp final : DistanceComparisonOperator<unsigned, float> {
+  using Parent = DistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
 
@@ -64,7 +64,7 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
 
   ~UnityOp() override = default;
 
-  explicit UnityOp(const UnityHNSW* uhnsw) {
+  explicit UnityOp(const UnityHNSW* uhnsw) : DistanceComparisonOperator("UnityOp") {
     U_ASSERT(uhnsw != nullptr);
     U_ASSERT(uhnsw->owned_index_hnsw != nullptr);
     U_ASSERT(uhnsw->owned_index_pq != nullptr);
@@ -79,6 +79,8 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
     _hnsw = uhnsw->owned_index_hnsw.get();
     _dist_func = _hnsw->fstdistfunc_;
     _dist_func_param = _hnsw->dist_func_param_;
+
+    SetterProxy::bind<DOUBLE_TYPE>("gamma", gamma);
   }
 
   void set_query(const dist_t* query_data) override {
@@ -122,16 +124,6 @@ struct UnityOp final : IDistanceComparisonOperator<unsigned, float> {
   dist_t estimate(idx_t i) const override {
     return faiss::distance_single_code<PQDecoderType>(_M, _nbits, _dist_table_data,
                                                       _codes + i * _code_size);
-  }
-
-  void set(const std::string& key, const Object& value) override {
-    if (key == "gamma") {
-      U_THROW_IF_NOT_MSG(value.type == ObjectType::DOUBLE_TYPE,
-                         "parameter `ef` must be a double value");
-      gamma = static_cast<float>(value.get_double());
-    } else {
-      U_THROW_FMT("unknown parameter %s", key.c_str());
-    }
   }
 
   void prefetch(idx_t i) const override { prefetch_L1(_codes + _code_size * i); }

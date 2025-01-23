@@ -49,7 +49,7 @@ struct HNSWSearcher : Searcher {
       std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                           HnswlibIndex::CompareByFirst>;
 
-  // DCO
+  // Distance comparison operator used during search
   mutable DCO _dco;
 
   // HNSW members
@@ -66,13 +66,18 @@ struct HNSWSearcher : Searcher {
 
   // Parameters
   size_t ef{32};
+  size_t refine_queue_size{0};
   bool enable_profile{false};
   bool enable_batch_dco{true};
+
+  U_FORBID_COPY_AND_ASSIGN(HNSWSearcher);
+
+  U_FORBID_MOVE(HNSWSearcher);
 
   HNSWSearcher() = delete;
 
   explicit HNSWSearcher(const std::shared_ptr<UnityHNSW>& index, DCO dco)
-      : _dco(std::move(dco)), _shared_uhnsw(index), _uhnsw(index.get()) {
+      : Searcher("HNSWSearcher"), _dco(std::move(dco)), _shared_uhnsw(index), _uhnsw(index.get()) {
     U_ASSERT(_uhnsw != nullptr);
     _hnsw = _uhnsw->owned_index_hnsw.get();
     U_ASSERT(_hnsw != nullptr);
@@ -82,6 +87,14 @@ struct HNSWSearcher : Searcher {
     _size_links_per_element = _hnsw->size_links_per_element_;
     _offset_data = _hnsw->offsetData_;
     _offset_level0 = _hnsw->offsetLevel0_;
+
+    SetterProxy::bind<INTEGER_TYPE>("ef", ef)
+        .bind<INTEGER_TYPE>("refine_queue_size", refine_queue_size)
+        .bind<BOOL_TYPE>("enable_profile", enable_profile)
+        .bind<BOOL_TYPE>("enable_batch_dco", enable_batch_dco);
+
+    SetterProxy::bind<DOUBLE_TYPE>(
+        "gamma", [this](const Object& value) { this->_dco.try_set("gamma", value); });
   }
 
   ~HNSWSearcher() override = default;
@@ -110,28 +123,6 @@ struct HNSWSearcher : Searcher {
 
   void range_search(const float* q, float radius, int* dst) const override {
     U_THROW_MSG("not implemented error");
-  }
-
-  void set(const std::string& key, Object value) override {
-    if (key == "ef") {
-      U_THROW_IF_NOT_MSG(value.type == ObjectType::INTEGER_TYPE,
-                         "parameter `ef` must be an integer");
-      ef = static_cast<size_t>(value.get_int64());
-    } else if (key == "enable_profile") {
-      U_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
-                         "parameter  `enable_profile` must be a boolean value");
-      enable_profile = value.get_bool();
-    } else if (key == "enable_batch_dco") {
-      U_THROW_IF_NOT_MSG(value.type == ObjectType::BOOL_TYPE,
-                         "parameter  `enable_batch_dco` must be a boolean value");
-      enable_batch_dco = value.get_bool();
-    } else if (key == "gamma") {
-      U_THROW_IF_NOT_MSG(value.type == ObjectType::DOUBLE_TYPE,
-                         "parameter  `gamma` must be a double value");
-      _dco.set("gamma", value.get_double());
-    } else {
-      U_THROW_FMT("unknown parameter %s", key.c_str());
-    }
   }
 
   void optimize(int num_threads) override { U_THROW_MSG("not implemented error"); }
@@ -189,8 +180,14 @@ struct HNSWSearcher : Searcher {
         top_candidates;
 
     if (enable_batch_dco) {
-      top_candidates = _ann_search_level0_batch8(seed, seed_dist, std::max(ef, k));
-      // top_candidates = _fast_ann_search_level0_batch8(seed, seed_dist, k, std::max(ef, k));
+      if (refine_queue_size > 0) {
+        // No less than 2*k and no more than ef
+        size_t actual_refine_queue_size = std::min(std::max(2 * k, refine_queue_size), ef);
+        top_candidates = _ann_search_level0_batch8_with_refine_queue(
+            seed, seed_dist, actual_refine_queue_size, std::max(ef, k));
+      } else {
+        top_candidates = _ann_search_level0_batch8(seed, seed_dist, std::max(ef, k));
+      }
     } else {
       top_candidates = _ann_search_level0(seed, seed_dist, std::max(ef, k));
     }
@@ -431,15 +428,16 @@ struct HNSWSearcher : Searcher {
   }
 
   /// Peform ANN search over the bottom layer using batch dco
-  ResultQueue _fast_ann_search_level0_batch8(tableint seed, dist_t seed_dist, size_t k,
-                                             size_t ef) const {
+  ResultQueue _ann_search_level0_batch8_with_refine_queue(tableint seed, dist_t seed_dist,
+                                                          size_t refine_queue_size,
+                                                          size_t ef) const {
     VisitedList* vl = _visited_list_pool->getFreeVisitedList();
     vl_type* visited = vl->mass;
     vl_type visited_array_tag = vl->curV;
 
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         CompareByFirst>
-        result_queue;
+        refine_queue;
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>,
                         CompareByFirst>
         cand_queue;
@@ -450,7 +448,7 @@ struct HNSWSearcher : Searcher {
     // Init search
     dist_t max_result_dist = seed_dist;
     dist_t max_cand_dist = seed_dist;
-    result_queue.emplace(max_result_dist, seed);
+    refine_queue.emplace(max_result_dist, seed);
     cand_queue.emplace(max_cand_dist, seed);
     search_queue.emplace(-max_cand_dist, seed);
     visited[seed] = visited_array_tag;
@@ -466,22 +464,22 @@ struct HNSWSearcher : Searcher {
       prefetch_L1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
                   _offset_level0);
 
-      if (lowerbound < max_result_dist || UNLIKELY(search_queue.size() < k)) {
+      if (lowerbound < max_result_dist || UNLIKELY(refine_queue.size() < refine_queue_size)) {
         dist_t distance = _dco.compute(node_id);
-        result_queue.emplace(distance, node_id);
+        refine_queue.emplace(distance, node_id);
         cand_queue.emplace(distance, node_id);
       } else {
         cand_queue.emplace(lowerbound, node_id);
       }
 
-      while (result_queue.size() > k) {
-        result_queue.pop();
+      while (refine_queue.size() > refine_queue_size) {
+        refine_queue.pop();
       }
       while (cand_queue.size() > ef) {
         cand_queue.pop();
       }
 
-      if (!result_queue.empty()) max_result_dist = result_queue.top().first;
+      if (!refine_queue.empty()) max_result_dist = refine_queue.top().first;
       if (!cand_queue.empty()) max_cand_dist = cand_queue.top().first;
     };
 
@@ -539,8 +537,6 @@ struct HNSWSearcher : Searcher {
       for (size_t j = 1; j <= size; j++) {
         // Prefetch visited array of the next neighbor
         prefetch_L1((char*)(visited + *(neighbors + j + 1)));
-        // // Prefetch data of the next neighbor
-        // _dco.prefetch(*(neighbors + j + 1));
 
         tableint neighbor_id = *(neighbors + j);
 
@@ -568,14 +564,14 @@ struct HNSWSearcher : Searcher {
               n_batched = 0;
             }
 
+            batched_nodes[n_batched] = neighbor_id;
             n_batched += 1;
-            batched_nodes[n_batched - 1] = neighbor_id;
           }
         }
       }
     }
     _visited_list_pool->releaseVisitedList(vl);
-    return result_queue;
+    return refine_queue;
   }
 
   linklistsizeint* get_linklist0(tableint internal_id) const {

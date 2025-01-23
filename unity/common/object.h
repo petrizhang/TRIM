@@ -29,6 +29,23 @@ namespace unity {
 
 enum ObjectType { NULL_TYPE, BOOL_TYPE, INTEGER_TYPE, DOUBLE_TYPE, STRING_TYPE };
 
+constexpr const char* get_type_desc(ObjectType type) {
+  switch (type) {
+    case NULL_TYPE:
+      return "null";
+    case BOOL_TYPE:
+      return "boolean";
+    case INTEGER_TYPE:
+      return "integer";
+    case DOUBLE_TYPE:
+      return "double";
+    case STRING_TYPE:
+      return "string";
+    default:
+      return "unknown";
+  }
+}
+
 struct Object {
   ObjectType type;
   std::any value;
@@ -72,29 +89,47 @@ struct Object {
     this->value = std::string(value);
   }
 
-  [[nodiscard]] bool is_null() const { return type == NULL_TYPE; }
+  template <ObjectType obj_type>
+  auto get() const {
+    if constexpr (obj_type == NULL_TYPE) {
+      return nullptr;
+    } else if constexpr (obj_type == BOOL_TYPE) {
+      return get_bool();
+    } else if constexpr (obj_type == INTEGER_TYPE) {
+      return get_int64();
+    } else if constexpr (obj_type == DOUBLE_TYPE) {
+      return get_double();
+    } else if constexpr (obj_type == STRING_TYPE) {
+      return get_string();
+    } else {
+      U_THROW_UNEXPECTED_CODE_PATH;
+      return nullptr;
+    }
+  }
 
-  [[nodiscard]] bool get_bool() const {
+  bool is_null() const { return type == NULL_TYPE; }
+
+  bool get_bool() const {
     U_ASSERT(type == BOOL_TYPE);
     return std::any_cast<bool>(value);
   }
 
-  [[nodiscard]] int64_t get_int64() const {
+  int64_t get_int64() const {
     U_ASSERT(type == INTEGER_TYPE);
     return std::any_cast<int64_t>(value);
   }
 
-  [[nodiscard]] double get_double() const {
+  double get_double() const {
     U_ASSERT(type == DOUBLE_TYPE);
     return std::any_cast<double>(value);
   }
 
-  [[nodiscard]] std::string get_string() const {
+  std::string get_string() const {
     U_ASSERT(type == STRING_TYPE);
     return std::any_cast<std::string>(value);
   }
 
-  [[nodiscard]] std::string to_string() const {
+  std::string to_string() const {
     switch (this->type) {
       case NULL_TYPE:
         return "null";

@@ -23,6 +23,7 @@
 #include <cstdint>
 
 #include "unity/common/object.h"
+#include "unity/common/setter.h"
 
 namespace unity {
 
@@ -148,7 +149,7 @@ struct IDistanceComparisonOperator {
 
   virtual void compute8(const Id8& ids, Dist8& dists) const {
     for (int i = 0; i < 8; i++) {
-      dists[i] = compute(i);
+      dists[i] = compute(ids[i]);
     }
   }
 
@@ -159,11 +160,7 @@ struct IDistanceComparisonOperator {
    */
   virtual dist_t relaxed_lowerbound(idx_t i) const { return compute(i); };
 
-  virtual void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
-    for (int i = 0; i < 8; i++) {
-      dists[i] = relaxed_lowerbound(i);
-    }
-  }
+  virtual void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const { compute8(ids, dists); }
 
   /**
    * Estimate the distance from the query point to the data point at index i.
@@ -172,18 +169,7 @@ struct IDistanceComparisonOperator {
    */
   virtual dist_t estimate(idx_t i) const { return compute(i); };
 
-  virtual void estimate8(const Id8& ids, Dist8& dists) const {
-    for (int i = 0; i < 8; i++) {
-      dists[i] = relaxed_lowerbound(i);
-    }
-  }
-
-  /**
-   * Set the DCO parameter with the specified key and value.
-   * @param key The unique identifier for the parameter.
-   * @param value The value to be assigned to the parameter.
-   */
-  virtual void set(const std::string& key, const Object& value) {};
+  virtual void estimate8(const Id8& ids, Dist8& dists) const { compute8(ids, dists); }
 
   /**
    * Prefetch data for data point at a specified index. This function can be used to optimize
@@ -198,6 +184,12 @@ struct IDistanceComparisonOperator {
    * @return A dictionary containing profile information.
    */
   virtual Dict get_profile() const { return {}; }
+};
+
+template <typename idx_t, typename dist_t>
+struct DistanceComparisonOperator : SetterProxy, IDistanceComparisonOperator<idx_t, dist_t> {
+  explicit DistanceComparisonOperator(const std::string& prompt) : SetterProxy(prompt) {}
+  virtual ~DistanceComparisonOperator() = default;
 };
 
 }  // namespace unity

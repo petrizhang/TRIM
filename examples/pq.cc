@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <iostream>
 
+#include "unity/common/setter.h"
 #include "unity/detail/io/read_faiss.h"
 #include "unity/detail/quantization/index_pq.h"
 #include "unity/detail/uhnsw/dco_unity.h"
@@ -30,7 +31,7 @@
 void bench(const unity::Searcher* searcher, double gamma, size_t n_test) {
   size_t nb = searcher->num_data_points();
   auto* dco = searcher->get_dco();
-  dco->set("gamma", gamma);
+  dco->try_set("gamma", gamma);
 
   n_test = std::min(nb, n_test);
   size_t n_pair = n_test * n_test;
@@ -75,10 +76,27 @@ int main() {
   using unity::detail::IndexPQ;
   using unity::detail::IndexType;
 
+  using unity::Object;
+  using unity::ObjectType;
+  using unity::SetterProxy;
+
+  SetterProxy setter("main");
+  bool value;
+  setter.bind<ObjectType::BOOL_TYPE>("test", value);
+
+  setter.set("test", true);
+  std::cout << (value ? "true" : "false") << "\n";
+  setter.set("test", false);
+  std::cout << (value ? "true" : "false") << "\n";
+
   // Search hnswlib index with top
   const char* index_hnsw_path =
       "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_hnswlib16x500.bin";
   const char* index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_pq8x32.bin";
+
+  index_hnsw_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_hnswlib16x500.bin";
+  index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_pq8x120.bin";
+
   const int dim = 128;
   {
     std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
@@ -90,12 +108,12 @@ int main() {
                                                     .set("num_threads", 12)
                                                     .set("enable_batch_dco", true)
                                                     .create();
-    bench(searcher.get(), 0.8, 1000);
+    bench(searcher.get(), 0.0, 1000);
 
     const int k = 10;
     std::vector<int> knn(k);
     searcher->set("ef", 100);
-    searcher->set("gamma", 0.9);
+    searcher->set("gamma", 0.8);
     searcher->ann_search(searcher->get_data(0), k, knn.data());
     for (auto i : knn) {
       std::cout << i << ",";
