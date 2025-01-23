@@ -1,6 +1,10 @@
 ## Preprocessing
 ```bash
 python3 preprocessing.py -s /data/home/petrizhang/data/vector/raw/nytimes-256-angular.hdf5 -t /data/home/petrizhang/data/vector/normed/nytimes-256-angular.hdf5 
+
+python3 preprocessing.py -s /data/home/petrizhang/data/vector/raw/glove-100-angular.hdf5 -t /data/home/petrizhang/data/vector/normed/glove-100-angular.hdf5 
+
+
 ```
 
 ## HNSWLIB

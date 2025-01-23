@@ -24,21 +24,24 @@ def format_dict(d: dict) -> str:
 
 
 def cos_normalize(x: np.ndarray, min_value: float, max_value: float) -> np.ndarray:
-    """normalization function for cosine space datasets
-    Args:
-        x (np.ndarray): the vectors
-        min_value (float): this value is fully ignored
-        max_value (float): this value is fully ignored
-    Returns:
-        np.ndarray: [description]
     """
-    norm = np.linalg.norm(x, axis=1)
-    norm.resize((len(norm), 1))
-    ret = x / norm
-    # set elements of all-zero vectors as a large-enough number (here 100)
-    # thus they cannot become KNN of any given queries
-    ret[np.isnan(ret)] = 100
-    return ret
+    Normalization function for cosine space datasets.
+    
+    Args:
+        x (np.ndarray): The vectors to be normalized.
+        min_value (float): This value is fully ignored.
+        max_value (float): This value is fully ignored.
+    
+    Returns:
+        np.ndarray: Normalized vectors with zero vectors set to a large-enough number (100).
+    """
+    norm = np.linalg.norm(x, axis=1, keepdims=True)
+    zero_mask = (norm == 0)
+    norm[zero_mask] = 1
+    normalized_x = x / norm
+    normalized_x[zero_mask.squeeze()] = 100
+    
+    return normalized_x
 
 
 def read_hdf5_dataset(filepath, keys: List[str]):

@@ -26,13 +26,18 @@ export nq=1000
 export M=16
 export efCons=500 
 
+
+export glove_gamma="[0.8,0.9,1.0,1.1]"
+export glove_ef="[120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,450,500,550,600,650,700,750,800,900,1000,1200,1400,1600,1800,2000,3000,4000]"
+export glove_pq_m=(25)
+
 export gist_gamma="[0.8,0.9,1.0,1.1]"
 export gist_ef="[120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,450,500,550,600,650,700,750,800,900,1000,1200,1400,1600,1800,2000,3000,4000]"
 export gist_pq_m=(120)
 
 export nytimes_gamma="[0.8,0.9,1.0,1.1]"
 export nytimes_ef="[100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2500,3000,3500,4000,4500,5000,5500,6000]"
-export nytimes_pq_m=(32)
+export nytimes_pq_m=(32 64)
 
 bench_hnsw() {
     if [ "$#" -ne 5 ]; then
@@ -109,6 +114,18 @@ bench_unity() {
 }
 
 #################################################
+# GLOVE
+#################################################
+# HNSW (UNITY Implementation)
+bench_hnsw glove-100-angular glove $M $efCons $gist_ef
+
+# UNITY
+for pq_m in "${glove_pq_m[@]}"; do
+    bench_unity glove-100-angular glove $M $efCons $gist_ef \
+               unity $pq_m $glove_gamma
+done
+
+#################################################
 # GIST
 #################################################
 
@@ -135,4 +152,7 @@ for pq_m in "${nytimes_pq_m[@]}"; do
 done
 
 ## Plot
-python3 plot.py
+if [ "$dry_run" = false ]; then
+    echo "Plot figures..."
+    python3 plot.py
+fi

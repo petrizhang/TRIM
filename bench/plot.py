@@ -7,6 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+plt.style.use('ggplot')
+plt.rcParams['font.size'] = 16
+plt.rcParams['axes.labelsize'] = 18
+plt.rcParams['axes.titlesize'] = 20
+plt.rcParams['legend.fontsize'] = 16
+plt.rcParams['xtick.labelsize'] = 16
+plt.rcParams['ytick.labelsize'] = 16
+
 
 def get_git_version():
     try:
@@ -38,13 +46,15 @@ def get_file_name(file_path):
     return file_name_without_extension
 
 
-def list_files(directory, name_filters):
+def list_csv(directory, name_filters):
     if not os.path.isdir(directory):
         print(f"error: directory '{directory}' not exists")
         return []
     all_files = os.listdir(directory)
     matched_files = []
     for file in all_files:
+        if not file.endswith("csv"):
+            continue
         if os.path.isfile(os.path.join(directory, file)):
             qualified = True
             for name in name_filters:
@@ -56,16 +66,7 @@ def list_files(directory, name_filters):
     return matched_files
 
 
-plt.style.use('ggplot')
-plt.rcParams['font.size'] = 16
-plt.rcParams['axes.labelsize'] = 18
-plt.rcParams['axes.titlesize'] = 20
-plt.rcParams['legend.fontsize'] = 16
-plt.rcParams['xtick.labelsize'] = 16
-plt.rcParams['ytick.labelsize'] = 16
-
-
-def clean_data(recall, qps, threshold=0.95):
+def clean_data(recall, qps, threshold=0.002):
     recall, qps = np.array(recall), np.array(qps)
     assert len(recall) == len(qps)
     not_dominated_flags = []
@@ -74,7 +75,7 @@ def clean_data(recall, qps, threshold=0.95):
         j = 0
         is_dominated = False
         for r1, q1 in zip(recall, qps):
-            if i != j and r1 >= r and q1 > threshold*q:
+            if i != j and (r1 >= r) and q1 > q:
                 is_dominated = True
             j += 1
         i += 1
@@ -96,7 +97,7 @@ def plot(ax, legend, recall, qps, **kwargs):
     #         linewidth=0.5, color="gray", alpha=0.7)
 
 
-def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
+def plot_group(result_dir, path_list, title, xlim=(0.9, 1), ylim=None):
     fig, ax = plt.subplots(figsize=(10, 4))
     styles = style_iterator()
     for file_path in path_list:
@@ -112,18 +113,19 @@ def plot_group(path_list, title, xlim=(0.9, 1), ylim=None):
     ax.set_title(title)
     ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0)
     plt.tight_layout()
-    plt.savefig(f"{title}.png", bbox_inches="tight", dpi=400)
+    plt.savefig(f"{result_dir}/{title}.png", bbox_inches="tight", dpi=400)
+
+
+ylims = {
+    "glove": (10, 3000),
+    "nytimes": (10, 3000),
+    "gist": (40, 1500)
+}
 
 
 result_dir = "../results"
-
-plot_group(list_files(result_dir, ["nytimes"]),
-           "tmp_nytimes", ylim=(10, 3000))
-plot_group(list_files(result_dir, "gist"),
-           "tmp_gist", ylim=(40, 1500))
-
 version = get_git_version()
-plot_group(list_files(
-    result_dir, ["nytimes", version]), f"tmp_nytimes_main", ylim=(10, 3000))
-plot_group(list_files(
-    result_dir, ["gist", version]), f"tmp_gist_main", ylim=(40, 1500))
+for d, ylim in ylims.items():
+    plot_group(result_dir, list_csv(result_dir, [d]), f"tmp_{d}", ylim=ylim)
+    plot_group(result_dir, list_csv(result_dir, [d, version]),
+               f"tmp_{d}_main", ylim=ylim)
