@@ -82,11 +82,11 @@ int main() {
   const char* index_hnsw_path =
       "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_hnswlib16x500.bin";
   const char* index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_pq8x32.bin";
+  int dim = 128;
 
-  // index_hnsw_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_hnswlib16x500.bin";
-  // index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_pq8x120.bin";
-
-  const int dim = 128;
+  index_hnsw_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_hnswlib16x500.bin";
+  index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_pq8x120.bin";
+  dim = 960;
   {
     std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                     .set("hnswlib_index_path", index_hnsw_path)
@@ -97,7 +97,7 @@ int main() {
                                                     .set("num_threads", 12)
                                                     .set("enable_batch_dco", true)
                                                     .create();
-    bench(searcher.get(), 0.1, 1000);
+    bench(searcher.get(), 0.8, 1000);
 
     const int k = 10;
     std::vector<int> knn(k);
