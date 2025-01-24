@@ -19,3 +19,6 @@ target_link_libraries(pq pthread)
 
 add_executable(proxy examples/proxy.cc)
 target_link_libraries(proxy pthread)
+
+add_executable(sgemm examples/sgemm.cc)
+target_link_libraries(sgemm pthread)

@@ -21,8 +21,8 @@
 
 #include <memory>
 
-#include "unity/detail/hnswlib/hnswlib.h"
-#include "unity/detail/quantization/index_pq.h"
+#include "unity/thirdparty/hnswlib/hnswlib.h"
+#include "unity/detail/quantizer/index_pq.h"
 
 namespace unity {
 namespace detail {

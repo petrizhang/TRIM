@@ -21,7 +21,7 @@
 #include <memory>
 
 #include "unity/common/u_assert.h"
-#include "unity/detail/hnswlib/hnswlib.h"
+#include "unity/thirdparty/hnswlib/hnswlib.h"
 
 namespace unity {
 namespace detail {

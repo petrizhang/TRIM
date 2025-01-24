@@ -30,7 +30,6 @@
 #include "unity/common/setter_proxy.h"
 #include "unity/detail/faiss/impl/ProductQuantizer.h"
 #include "unity/detail/faiss/impl/code_distance/code_distance.h"
-#include "unity/detail/hnswlib/hnswlib.h"
 #include "unity/detail/uhnsw/unity_hnsw.h"
 
 namespace unity {
@@ -95,9 +94,9 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
     _dist_table_data = _dist_table.data();
   }
 
-  void set(const std::string& key, const Object& value) override { Proxy::proxied_set(key, value); }
+  void set(const std::string& key, const Object& value) override { Proxy::proxy_set(key, value); }
 
-  void try_set(const std::string& key, const Object& value) { Proxy::try_proxied_set(key, value); }
+  void try_set(const std::string& key, const Object& value) { Proxy::proxy_try_set(key, value); }
 
   bool dist_comp(dist_t max_dist, idx_t i, float& dist) const override final {
     dist_t lowerbound = relaxed_lowerbound(i);

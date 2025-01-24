@@ -22,7 +22,7 @@
 #include <iostream>
 
 #include "unity/detail/io/read_faiss.h"
-#include "unity/detail/quantization/index_pq.h"
+#include "unity/detail/quantizer/index_pq.h"
 #include "unity/detail/uhnsw/dco_unity.h"
 #include "unity/detail/uhnsw/hnsw_searcher.h"
 #include "unity/unity.h"

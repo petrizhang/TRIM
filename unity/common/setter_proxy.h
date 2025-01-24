@@ -44,7 +44,7 @@ struct SetterProxy {
 
   virtual ~SetterProxy() = default;
 
-  void proxied_set(const std::string& key, const Object& value) {
+  void proxy_set(const std::string& key, const Object& value) {
     auto it = _proxy_map.find(key);
     if (it != _proxy_map.end()) {
       auto& setter = it->second.second;
@@ -61,7 +61,7 @@ struct SetterProxy {
     U_THROW_FMT("%s error: got unknown parameter: `%s`", _prompt.c_str(), key.c_str());
   }
 
-  void try_proxied_set(const std::string& key, const Object& value) {
+  void proxy_try_set(const std::string& key, const Object& value) {
     auto it = _proxy_map.find(key);
     if (it != _proxy_map.end()) {
       auto& setter = it->second.second;

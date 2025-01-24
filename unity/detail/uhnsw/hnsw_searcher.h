@@ -102,10 +102,10 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<DCO>>, Searcher {
 
   void set_data(const float* data, int n, int dim) override {};
 
-  void set(const std::string& key, const Object& value) override { Proxy::proxied_set(key, value); }
+  void set(const std::string& key, const Object& value) override { Proxy::proxy_set(key, value); }
 
   void try_set(const std::string& key, const Object& value) override {
-    Proxy::try_proxied_set(key, value);
+    Proxy::proxy_try_set(key, value);
   }
 
   const float* get_data(unsigned i) const override {

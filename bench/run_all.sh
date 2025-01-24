@@ -106,7 +106,7 @@ bench_hnsw() {
     local efCons=$4
     local ef=$5
 
-    local result_file="../results/${version}_nq${nq}_k${k}_{dataset_short_name}_hnsw${M}x${efCons}.csv"
+    local result_file="../results/${version}_nq${nq}_k${k}_${dataset_short_name}_hnsw${M}x${efCons}.csv"
     local command="python3 bench.py -k $k \
         -nq $nq \
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \

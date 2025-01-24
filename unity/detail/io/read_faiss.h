@@ -23,7 +23,7 @@
 #include "unity/detail/faiss/MetricType.h"
 #include "unity/detail/faiss/impl/io.h"
 #include "unity/detail/faiss/impl/io_macros.h"
-#include "unity/detail/quantization/index_pq.h"
+#include "unity/detail/quantizer/index_pq.h"
 
 namespace unity {
 namespace detail {

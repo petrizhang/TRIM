@@ -40,9 +40,9 @@ struct A : unity::SetterProxy<A> {
 
 int main() {
   A a;
-  a.proxied_set("a", 100);
-  a.try_proxied_set("a", true);
-  a.proxied_set("s", "string");
+  a.proxy_set("a", 100);
+  a.proxy_try_set("a", true);
+  a.proxy_set("s", "string");
 
   std::cout << a._a << "\n";
   std::cout << a._s << "\n";

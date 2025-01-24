@@ -19,7 +19,7 @@
 
 #include <iostream>
 
-#include "unity/detail/hnswlib/hnswalg.h"
+#include "unity/thirdparty/hnswlib/hnswalg.h"
 #include "unity/unity.h"
 
 struct RandomGenerator {

@@ -25,7 +25,6 @@
 
 #include "unity/detail/faiss/impl/ProductQuantizer.h"
 #include "unity/detail/faiss/utils/AlignedTable.h"
-#include "unity/detail/hnswlib/hnswlib.h"
 #include "unity/util/thread_pool.h"
 
 namespace unity {
