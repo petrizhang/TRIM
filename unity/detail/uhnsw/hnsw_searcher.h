@@ -198,8 +198,8 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<DCO>>, Searcher {
 
     if (_enable_batch_dco) {
       if (_refine_queue_size > 0) {
-        // No less than 2*k and no more than ef
-        size_t actual_refine_queue_size = std::min(std::max(2 * k, _refine_queue_size), _ef);
+        // No less than k and no greater than ef
+        size_t actual_refine_queue_size = std::min(std::max(k, _refine_queue_size), _ef);
         top_candidates = _ann_search_level0_batch8_with_refine_queue(
             seed, seed_dist, actual_refine_queue_size, std::max(_ef, k));
       } else {

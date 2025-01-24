@@ -2,13 +2,59 @@
 
 set -e
 
+
+nq=1000
+k=10
 dry_run=false
-for arg in "$@"; do
-    if [ "$arg" == "--dry_run" ]; then
-        dry_run=true
-        break
-    fi
+
+print_help() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -nq <integer>   Set the number of query vectors to test (default: 1000)"
+    echo "  -k <integer>    Set the value of 'k' (default: 10)"
+    echo "  -dry_run        Only print benchmark commands but not execute them (default: False)"
+    echo "  -h, --help      Print this help message"
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -nq)
+            if [[ $2 =~ ^[0-9]+$ ]]; then
+                n=$2
+                shift 2
+            else
+                echo "Error: -nq requires an integer value."
+                exit 1
+            fi
+            ;;
+        -k)
+            if [[ $2 =~ ^[0-9]+$ ]]; then
+                k=$2
+                shift 2
+            else
+                echo "Error: -k requires an integer value."
+                exit 1
+            fi
+            ;;
+        -dry_run)
+            dry_run=true
+            shift
+            ;;
+        -h|--help)
+            print_help
+            exit 0
+            ;;
+        *)
+            echo "Error: Unknown option $1"
+            print_help
+            exit 1
+            ;;
+    esac
 done
+
+echo "n: $nq"
+echo "k: $k"
+echo "dry_run: $dry_run"
 
 version=$(git rev-parse --short HEAD 2>/dev/null || echo "no_version_info")
 
@@ -18,14 +64,12 @@ cleanup() {
 
 trap cleanup SIGINT
 
-## Don't buffer python outputss
+## Don't buffer python outputs
 export PYTHONUNBUFFERED=1
 
 ## Configurations
-export nq=1000
 export M=16
 export efCons=500 
-
 
 export refine_queue_size="[10,20,40,80,100,200,300,400,500,600,700,800,1600]"
 export glove_gamma="[0.8,0.9,1.0,1.1]"
@@ -52,7 +96,7 @@ bench_hnsw() {
     local efCons=$4
     local ef=$5
 
-    local result_file="../results/${version}_${dataset_short_name}_hnsw${M}x${efCons}.csv"
+    local result_file="../results/${version}_nq${nq}_k{$k}_{dataset_short_name}_hnsw${M}x${efCons}.csv"
     local command="python3 bench.py -k 10 \
         -nq $nq \
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \
@@ -90,7 +134,7 @@ bench_unity() {
     local pq_m=$7
     local gamma=$8
 
-    local result_file="../results/${version}_${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.csv"
+    local result_file="../results/${version}_nq${nq}_k{$k}_${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.csv"
     local command="python3 bench.py -k 10 \
         -nq $nq \
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \
@@ -151,9 +195,3 @@ for pq_m in "${nytimes_pq_m[@]}"; do
     bench_unity nytimes-256-angular nytimes $M $efCons $nytimes_ef \
                 unity $pq_m $nytimes_gamma
 done
-
-## Plot
-if [ "$dry_run" = false ]; then
-    echo "Plot figures..."
-    python3 plot.py
-fi
