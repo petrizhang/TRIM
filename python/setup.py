@@ -19,10 +19,10 @@ include_dirs = [
 bindings_dir = 'python'
 if bindings_dir in os.path.basename(os.getcwd()):
     source_files = ['./bindings.cc']
-    include_dirs.extend(['../'])
+    include_dirs.extend(['../src'])
 else:
     source_files = ['./python/bindings.cc']
-    include_dirs.extend(['./'])
+    include_dirs.extend(['./src'])
 
 libraries = []
 extra_objects = []

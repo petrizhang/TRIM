@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "unity/detail/blas/blas.h"
+#include "unity/adapter/blas_single.h"
 
 // Define Fortran-style integer type
 typedef int FINTEGER;
