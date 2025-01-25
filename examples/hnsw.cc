@@ -20,7 +20,7 @@
 #include <iostream>
 
 #include "hnswlib/hnswalg.h"
-#include "unity/unity.h"
+#include "unity/unity-forwards.h"
 
 struct RandomGenerator {
   std::mt19937 mt;

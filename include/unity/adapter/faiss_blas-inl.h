@@ -20,7 +20,7 @@
 #pragma once
 
 #include "./eblas-inl.h"
-#include "./faiss_blas.h"
+#include "./faiss_blas-forwards.h"
 
 #define U_THROW_NOT_IMPLEMENTED throw std::runtime_error("not implemented error")
 

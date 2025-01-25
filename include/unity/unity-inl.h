@@ -20,5 +20,5 @@
 #pragma once
 
 #include "./unity-forwards.h"
-#include "unity/adapter/faiss-blas-inl.h"
 #include "unity/adapter/faiss-inl.h"
+#include "unity/adapter/faiss_blas-inl.h"

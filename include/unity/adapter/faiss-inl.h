@@ -19,10 +19,7 @@
 
 #pragma once
 
-#ifdef FINTEGER
-#undef FINTEGER
-#endif
-#define FINTEGER int
+#include "./faiss-forwards.h"
 
 #define Run_get_distance_computer Run_get_distance_computer_extra
 #include "faiss/utils/extra_distances.cpp"
