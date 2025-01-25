@@ -21,8 +21,8 @@
 
 #include <memory>
 
-#include "./index_pq.h"
 #include "hnswlib/hnswlib.h"
+#include "unity/detail/index/index_pq.h"
 
 namespace unity {
 namespace detail {
@@ -31,15 +31,16 @@ using Space = hnswlib::SpaceInterface<float>;
 using HnswlibIndex = hnswlib::HierarchicalNSW<float>;
 
 struct UnityHnsw {
+  std::unique_ptr<Space> owned_space{nullptr};
   std::unique_ptr<HnswlibIndex> owned_index_hnsw{nullptr};
-  UnityIndexPQ unity_index_pq{nullptr};
-  bool _reorderd{false};
+  UnityIndexPq unity_index_pq{nullptr};
+  bool reorderd{false};
 
   UnityHnsw() = default;
   ~UnityHnsw() = default;
 
   /// @brief Reorders the PQ codes based on the internal ID order of the HNSW index.
-  void _reorder_pq_codes() {
+  void reorder_pq_codes() {
     U_ASSERT(owned_index_hnsw != nullptr && unity_index_pq.owned_index_pq != nullptr);
 
     faiss::IndexPQ* faiss_index_pq = unity_index_pq.owned_index_pq.get();
@@ -57,7 +58,7 @@ struct UnityHnsw {
                   faiss_index_pq->codes.data() + code_size * i, code_size);
     }
     faiss_index_pq->codes = std::move(reordered_codes);
-    _reorderd = true;
+    reorderd = true;
   }
 };
 

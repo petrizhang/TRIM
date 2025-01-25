@@ -35,8 +35,8 @@
 
 #include "unity/common/common.h"
 #include "unity/common/constants.h"
-#include "unity/detail/io/read_faiss.h"
 #include "unity/detail/io/read_hnswlib.h"
+#include "unity/detail/io/read_pq.h"
 #include "unity/detail/searcher/hnsw/hnsw_searcher.h"
 #include "unity/util/thread_pool.h"
 
@@ -66,14 +66,15 @@ std::unique_ptr<UnityHnsw> read_uhnsw(const Dict& options) {
     std::optional<int> opt_num_threads = options.optional<int>(constants::U_NUM_THREADS);
     ctpl::thread_pool pool(opt_num_threads.value_or(16));
 
-    std::unique_ptr<IndexPQ> index_pq = read_index_pq(pq_index_path.c_str());
-    U_THROW_IF_NOT_MSG(index_pq->quantizer.nbits == 8, "only support 8bit PQ");
+    std::unique_ptr<faiss::IndexPQ> faiss_index_pq = read_index_pq(pq_index_path.c_str());
+    U_THROW_IF_NOT_MSG(faiss_index_pq->pq.nbits == 8, "only support 8bit PQ");
 
-    uhnsw->owned_index_pq = std::move(index_pq);
+    uhnsw->unity_index_pq = UnityIndexPq(std::move(faiss_index_pq));
     // Rorder PQ codes
-    uhnsw->_reorder_pq_codes();
+    uhnsw->reorder_pq_codes();
     // Compute PQ reconstruction errors
-    uhnsw->_compute_pq_reconstruction_errors(pool);
+    ExactDco<> dco(uhnsw->owned_index_hnsw.get());
+    uhnsw->unity_index_pq.compute_pq_reconstruction_errors(&dco, pool);
   }
 
   return uhnsw;
@@ -87,14 +88,14 @@ std::unique_ptr<Searcher> create_hnsw_searcher(const Dict& options) {
       options.optional<std::string>(constants::U_DCO).value_or(constants::U_DCO_UNITY);
   if (dco_type == constants::U_DCO_EXACT) {
     if (enable_profile) {
-      ExactDCO<true> dco(index.get());
+      ExactDco<true> dco(index.get());
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     } else {
-      ExactDCO<false> dco(index.get());
+      ExactDco<false> dco(index.get());
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     }
   } else if (dco_type == constants::U_DCO_UNITY) {
-    U_THROW_IF_NOT_MSG(index->owned_index_pq != nullptr,
+    U_THROW_IF_NOT_MSG(index->unity_index_pq.owned_index_pq != nullptr,
                        "using UNITY for distance comparision but missing PQ index");
     if (enable_profile) {
       UnityOp8<true> dco(index.get());

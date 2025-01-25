@@ -36,10 +36,10 @@ namespace detail {
 
 template <typename PQDecoderType, bool enable_profile = false>
 struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
-                       DistanceComparisonOperator<unsigned, float> {
+                       IDistanceComparisonOperator<unsigned, float> {
   using This = UnityOp<PQDecoderType, enable_profile>;
   using Proxy = SetterProxy<This>;
-  using Parent = DistanceComparisonOperator<unsigned, float>;
+  using Parent = IDistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
 
@@ -52,8 +52,8 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
   size_t _code_size{0};
   hnswlib::DISTFUNC<dist_t> _dist_func{nullptr};
   void* _dist_func_param{nullptr};
-  AlignedTable<dist_t> _dist_table;
-  const IndexPQ* _pq{nullptr};
+  faiss::AlignedTable<dist_t> _dist_table;
+  const faiss::IndexPQ* _faiss_index_pq{nullptr};
   const hnswlib::HierarchicalNSW<float>* _hnsw{nullptr};
   const dist_t* _query{nullptr};
 
@@ -67,17 +67,16 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
 
   ~UnityOp() override = default;
 
-  explicit UnityOp(const UnityHNSW* uhnsw) : SetterProxy<This>("UnityOp") {
+  explicit UnityOp(const UnityHnsw* uhnsw) : SetterProxy<This>("UnityOp") {
     U_ASSERT(uhnsw != nullptr);
     U_ASSERT(uhnsw->owned_index_hnsw != nullptr);
-    U_ASSERT(uhnsw->owned_index_pq != nullptr);
-    U_ASSERT(uhnsw->owned_space != nullptr);
-    _pq = uhnsw->owned_index_pq.get();
-    _M = _pq->quantizer.M;
-    _nbits = _pq->quantizer.nbits;
-    _code_size = _pq->code_size;
-    _codes = _pq->codes.data();
-    _recons_errors = _pq->recons_errors.data();
+    U_ASSERT(uhnsw->unity_index_pq.owned_index_pq != nullptr);
+    _faiss_index_pq = uhnsw->unity_index_pq.owned_index_pq.get();
+    _M = _faiss_index_pq->pq.M;
+    _nbits = _faiss_index_pq->pq.nbits;
+    _code_size = _faiss_index_pq->code_size;
+    _codes = _faiss_index_pq->codes.data();
+    _recons_errors = uhnsw->unity_index_pq.recons_errors.data();
 
     _hnsw = uhnsw->owned_index_hnsw.get();
     _dist_func = _hnsw->fstdistfunc_;
@@ -88,8 +87,8 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
 
   void set_query(const dist_t* query_data) override {
     _query = query_data;
-    _dist_table.resize(_pq->quantizer.M * _pq->quantizer.ksub);
-    _pq->quantizer.compute_distance_table(_query, _dist_table.data());
+    _dist_table.resize(_faiss_index_pq->pq.M * _faiss_index_pq->pq.ksub);
+    _faiss_index_pq->pq.compute_distance_table(_query, _dist_table.data());
     _dist_table_data = _dist_table.data();
   }
 

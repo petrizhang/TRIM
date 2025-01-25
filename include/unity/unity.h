@@ -19,5 +19,5 @@
 
 #pragma once
 
-#include "./unity-forwards.h"
-#include "./unity-inl.h"
+#include "unity/unity-forwards.h"
+#include "unity/unity-inl.h"

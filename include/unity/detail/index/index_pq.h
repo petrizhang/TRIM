@@ -30,17 +30,17 @@
 namespace unity {
 namespace detail {
 
-struct UnityIndexPQ {
+struct UnityIndexPq {
   std::unique_ptr<faiss::IndexPQ> owned_index_pq{nullptr};
   /// Distances between data points and their PQ centroids.
   faiss::AlignedTable<float> recons_errors;
   bool has_recons_errors{false};
 
-  explicit UnityIndexPQ(std::unique_ptr<faiss::IndexPQ> owned_index)
+  explicit UnityIndexPq(std::unique_ptr<faiss::IndexPQ> owned_index)
       : owned_index_pq(std::move(owned_index)) {}
 
   /// @brief Compute the distances between data points and their PQ centroids.
-  void _compute_pq_reconstruction_errors(IDco* dco, ctpl::thread_pool& pool) {
+  void compute_pq_reconstruction_errors(IDco* dco, ctpl::thread_pool& pool) {
     U_THROW_IF_NOT_MSG(owned_index_pq != nullptr, "index is nullptr");
 
     auto dim = owned_index_pq->d;

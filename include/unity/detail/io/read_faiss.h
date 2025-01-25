@@ -17,42 +17,25 @@
  * under the License.
  */
 
+#pragma once
+
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include <cstdio>
 #include <cstdlib>
 
-#include "faiss/Index2Layer.h"
-#include "faiss/IndexAdditiveQuantizer.h"
-#include "faiss/IndexAdditiveQuantizerFastScan.h"
-#include "faiss/IndexBinaryFlat.h"
-#include "faiss/IndexBinaryFromFloat.h"
-#include "faiss/IndexBinaryHNSW.h"
-#include "faiss/IndexBinaryHash.h"
-#include "faiss/IndexBinaryIVF.h"
 #include "faiss/IndexFlat.h"
 #include "faiss/IndexHNSW.h"
+#include "faiss/IndexIDMap.h"
 #include "faiss/IndexIVF.h"
-#include "faiss/IndexIVFAdditiveQuantizer.h"
-#include "faiss/IndexIVFAdditiveQuantizerFastScan.h"
 #include "faiss/IndexIVFFlat.h"
-#include "faiss/IndexIVFIndependentQuantizer.h"
 #include "faiss/IndexIVFPQ.h"
-#include "faiss/IndexIVFPQFastScan.h"
 #include "faiss/IndexIVFPQR.h"
-#include "faiss/IndexIVFSpectralHash.h"
-#include "faiss/IndexLSH.h"
-#include "faiss/IndexLattice.h"
-#include "faiss/IndexNNDescent.h"
-#include "faiss/IndexNSG.h"
 #include "faiss/IndexPQ.h"
-#include "faiss/IndexPQFastScan.h"
 #include "faiss/IndexPreTransform.h"
 #include "faiss/IndexRefine.h"
-#include "faiss/IndexRowwiseMinMax.h"
 #include "faiss/IndexScalarQuantizer.h"
-#include "faiss/MetaIndexes.h"
 #include "faiss/VectorTransform.h"
 #include "faiss/impl/FaissAssert.h"
 #include "faiss/impl/index_read_utils.h"
@@ -62,56 +45,30 @@
 #include "faiss/invlists/InvertedListsIOHook.h"
 #include "faiss/utils/hamming.h"
 
-namespace unity {
-namespace detail {
-using namespace faiss;
+namespace faiss {
 
-/// skip the storage for graph-based indexes
-const int IO_FLAG_SKIP_STORAGE = 1;
-// The read_index flags are implemented only for a subset of index types.
-const int IO_FLAG_READ_ONLY = 2;
-// strip directory component from ondisk filename, and assume it's in
-// the same directory as the index file
-const int IO_FLAG_ONDISK_SAME_DIR = 4;
-// don't load IVF data to RAM, only list sizes
-const int IO_FLAG_SKIP_IVF_DATA = 8;
-// don't initialize precomputed table after loading
-const int IO_FLAG_SKIP_PRECOMPUTE_TABLE = 16;
-// don't compute the sdc table for PQ-based indices
-// this will prevent distances from being computed
-// between elements in the index. For indices like HNSWPQ,
-// this will prevent graph building because sdc
-// computations are required to construct the graph
-const int IO_FLAG_PQ_SKIP_SDC_TABLE = 32;
-// try to memmap data (useful to load an ArrayInvertedLists as an
-// OnDiskInvertedLists)
-const int IO_FLAG_MMAP = IO_FLAG_SKIP_IVF_DATA | 0x646f0000;
-
-Index* uread_index(const char* fname, int io_flags = 0);
-Index* uread_index(FILE* f, int io_flags = 0);
-Index* uread_index(IOReader* reader, int io_flags = 0);
-
-VectorTransform* uread_VectorTransform(const char* fname);
-VectorTransform* uread_VectorTransform(IOReader* f);
-
-ProductQuantizer* uread_ProductQuantizer(const char* fname);
-ProductQuantizer* uread_ProductQuantizer(IOReader* reader);
-
-InvertedLists* uread_InvertedLists(IOReader* reader, int io_flags = 0);
-
-void uread_index_header(Index* idx, IOReader* f);
-void uread_direct_map(DirectMap* dm, IOReader* f);
-void uread_ivf_header(IndexIVF* ivf, IOReader* f, std::vector<std::vector<idx_t>>* ids = nullptr);
-void uread_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags);
+Index* unity_read_index(const char* fname, int io_flags = 0);
+Index* unity_read_index(FILE* f, int io_flags = 0);
+Index* unity_read_index(IOReader* reader, int io_flags = 0);
+VectorTransform* unity_read_VectorTransform(const char* fname);
+VectorTransform* unity_read_VectorTransform(IOReader* f);
+ProductQuantizer* unity_read_ProductQuantizer(const char* fname);
+ProductQuantizer* unity_read_ProductQuantizer(IOReader* reader);
+InvertedLists* unity_read_InvertedLists(IOReader* reader, int io_flags = 0);
+void unity_read_index_header(Index* idx, IOReader* f);
+void unity_read_direct_map(DirectMap* dm, IOReader* f);
+void unity_read_ivf_header(IndexIVF* ivf, IOReader* f,
+                           std::vector<std::vector<idx_t>>* ids = nullptr);
+void unity_read_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags);
 ArrayInvertedLists* set_array_invlist(IndexIVF* ivf, std::vector<std::vector<idx_t>>& ids);
-void uread_ProductQuantizer(ProductQuantizer* pq, IOReader* f);
-void uread_ScalarQuantizer(ScalarQuantizer* ivsc, IOReader* f);
+void unity_read_ProductQuantizer(ProductQuantizer* pq, IOReader* f);
+void unity_read_ScalarQuantizer(ScalarQuantizer* ivsc, IOReader* f);
 
 /*************************************************************
  * Read
  **************************************************************/
 
-void uread_index_header(Index* idx, IOReader* f) {
+void unity_read_index_header(Index* idx, IOReader* f) {
   READ1(idx->d);
   READ1(idx->ntotal);
   idx_t dummy;
@@ -125,7 +82,7 @@ void uread_index_header(Index* idx, IOReader* f) {
   idx->verbose = false;
 }
 
-VectorTransform* uread_VectorTransform(IOReader* f) {
+VectorTransform* unity_read_VectorTransform(IOReader* f) {
   uint32_t h;
   READ1(h);
   VectorTransform* vt = nullptr;
@@ -174,7 +131,7 @@ VectorTransform* uread_VectorTransform(IOReader* f) {
   return vt;
 }
 
-static void uread_ArrayInvertedLists_sizes(IOReader* f, std::vector<size_t>& sizes) {
+static void unity_read_ArrayInvertedLists_sizes(IOReader* f, std::vector<size_t>& sizes) {
   uint32_t list_type;
   READ1(list_type);
   if (list_type == fourcc("full")) {
@@ -194,12 +151,12 @@ static void uread_ArrayInvertedLists_sizes(IOReader* f, std::vector<size_t>& siz
   }
 }
 
-InvertedLists* uread_InvertedLists(IOReader* f, int io_flags) {
+InvertedLists* unity_read_InvertedLists(IOReader* f, int io_flags) {
   uint32_t h;
   READ1(h);
   if (h == fourcc("il00")) {
     fprintf(stderr,
-            "uread_InvertedLists:"
+            "unity_read_InvertedLists:"
             " WARN! inverted lists not stored with IVF object\n");
     return nullptr;
   } else if (h == fourcc("ilar") && !(io_flags & IO_FLAG_SKIP_IVF_DATA)) {
@@ -209,7 +166,7 @@ InvertedLists* uread_InvertedLists(IOReader* f, int io_flags) {
     ails->ids.resize(ails->nlist);
     ails->codes.resize(ails->nlist);
     std::vector<size_t> sizes(ails->nlist);
-    uread_ArrayInvertedLists_sizes(f, sizes);
+    unity_read_ArrayInvertedLists_sizes(f, sizes);
     for (size_t i = 0; i < ails->nlist; i++) {
       ails->ids[i].resize(sizes[i]);
       ails->codes[i].resize(sizes[i] * ails->code_size);
@@ -232,7 +189,7 @@ InvertedLists* uread_InvertedLists(IOReader* f, int io_flags) {
     READ1(nlist);
     READ1(code_size);
     std::vector<size_t> sizes(nlist);
-    uread_ArrayInvertedLists_sizes(f, sizes);
+    unity_read_ArrayInvertedLists_sizes(f, sizes);
     return InvertedListsIOHook::lookup(h2)->read_ArrayInvertedLists(f, io_flags, nlist, code_size,
                                                                     sizes);
   } else {
@@ -240,8 +197,8 @@ InvertedLists* uread_InvertedLists(IOReader* f, int io_flags) {
   }
 }
 
-void uread_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags) {
-  InvertedLists* ils = uread_InvertedLists(f, io_flags);
+void unity_read_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags) {
+  InvertedLists* ils = unity_read_InvertedLists(f, io_flags);
   if (ils) {
     FAISS_THROW_IF_NOT(ils->nlist == ivf->nlist);
     FAISS_THROW_IF_NOT(ils->code_size == InvertedLists::INVALID_CODE_SIZE ||
@@ -251,7 +208,7 @@ void uread_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags) {
   ivf->own_invlists = true;
 }
 
-void uread_ScalarQuantizer(ScalarQuantizer* ivsc, IOReader* f) {
+void unity_read_ScalarQuantizer(ScalarQuantizer* ivsc, IOReader* f) {
   READ1(ivsc->qtype);
   READ1(ivsc->rangestat);
   READ1(ivsc->rangestat_arg);
@@ -261,7 +218,7 @@ void uread_ScalarQuantizer(ScalarQuantizer* ivsc, IOReader* f) {
   ivsc->set_derived_sizes();
 }
 
-void uread_ProductQuantizer(ProductQuantizer* pq, IOReader* f) {
+void unity_read_ProductQuantizer(ProductQuantizer* pq, IOReader* f) {
   READ1(pq->d);
   READ1(pq->M);
   READ1(pq->nbits);
@@ -269,21 +226,21 @@ void uread_ProductQuantizer(ProductQuantizer* pq, IOReader* f) {
   READVECTOR(pq->centroids);
 }
 
-ProductQuantizer* uread_ProductQuantizer(IOReader* reader) {
+ProductQuantizer* unity_read_ProductQuantizer(IOReader* reader) {
   ProductQuantizer* pq = new ProductQuantizer();
   std::unique_ptr<ProductQuantizer> del(pq);
 
-  uread_ProductQuantizer(pq, reader);
+  unity_read_ProductQuantizer(pq, reader);
   del.release();
   return pq;
 }
 
-ProductQuantizer* uread_ProductQuantizer(const char* fname) {
+ProductQuantizer* unity_read_ProductQuantizer(const char* fname) {
   FileIOReader reader(fname);
-  return uread_ProductQuantizer(&reader);
+  return unity_read_ProductQuantizer(&reader);
 }
 
-void uread_direct_map(DirectMap* dm, IOReader* f) {
+void unity_read_direct_map(DirectMap* dm, IOReader* f) {
   char maintain_direct_map;
   READ1(maintain_direct_map);
   dm->type = (DirectMap::Type)maintain_direct_map;
@@ -299,21 +256,21 @@ void uread_direct_map(DirectMap* dm, IOReader* f) {
   }
 }
 
-void uread_ivf_header(IndexIVF* ivf, IOReader* f, std::vector<std::vector<idx_t>>* ids) {
-  uread_index_header(ivf, f);
+void unity_read_ivf_header(IndexIVF* ivf, IOReader* f, std::vector<std::vector<idx_t>>* ids) {
+  unity_read_index_header(ivf, f);
   READ1(ivf->nlist);
   READ1(ivf->nprobe);
-  ivf->quantizer = uread_index(f);
+  ivf->quantizer = unity_read_index(f);
   ivf->own_fields = true;
   if (ids) {  // used in legacy "Iv" formats
     ids->resize(ivf->nlist);
     for (size_t i = 0; i < ivf->nlist; i++) READVECTOR((*ids)[i]);
   }
-  uread_direct_map(&ivf->direct_map, f);
+  unity_read_direct_map(&ivf->direct_map, f);
 }
 
 // used for legacy formats
-ArrayInvertedLists* uset_array_invlist(IndexIVF* ivf, std::vector<std::vector<idx_t>>& ids) {
+ArrayInvertedLists* unity_set_array_invlist(IndexIVF* ivf, std::vector<std::vector<idx_t>>& ids) {
   ArrayInvertedLists* ail = new ArrayInvertedLists(ivf->nlist, ivf->code_size);
   std::swap(ail->ids, ids);
   ivf->invlists = ail;
@@ -321,23 +278,23 @@ ArrayInvertedLists* uset_array_invlist(IndexIVF* ivf, std::vector<std::vector<id
   return ail;
 }
 
-static IndexIVFPQ* uread_ivfpq(IOReader* f, uint32_t h, int io_flags) {
+static IndexIVFPQ* unity_read_ivfpq(IOReader* f, uint32_t h, int io_flags) {
   bool legacy = h == fourcc("IvQR") || h == fourcc("IvPQ");
 
   IndexIVFPQR* ivfpqr = h == fourcc("IvQR") || h == fourcc("IwQR") ? new IndexIVFPQR() : nullptr;
   IndexIVFPQ* ivpq = ivfpqr ? ivfpqr : new IndexIVFPQ();
 
   std::vector<std::vector<idx_t>> ids;
-  uread_ivf_header(ivpq, f, legacy ? &ids : nullptr);
+  unity_read_ivf_header(ivpq, f, legacy ? &ids : nullptr);
   READ1(ivpq->by_residual);
   READ1(ivpq->code_size);
-  uread_ProductQuantizer(&ivpq->pq, f);
+  unity_read_ProductQuantizer(&ivpq->pq, f);
 
   if (legacy) {
-    ArrayInvertedLists* ail = uset_array_invlist(ivpq, ids);
+    ArrayInvertedLists* ail = unity_set_array_invlist(ivpq, ids);
     for (size_t i = 0; i < ail->nlist; i++) READVECTOR(ail->codes[i]);
   } else {
-    uread_InvertedLists(ivpq, f, io_flags);
+    unity_read_InvertedLists(ivpq, f, io_flags);
   }
 
   if (ivpq->is_trained) {
@@ -350,7 +307,7 @@ static IndexIVFPQ* uread_ivfpq(IOReader* f, uint32_t h, int io_flags) {
       }
     }
     if (ivfpqr) {
-      uread_ProductQuantizer(&ivfpqr->refine_pq, f);
+      unity_read_ProductQuantizer(&ivfpqr->refine_pq, f);
       READVECTOR(ivfpqr->refine_codes);
       READ1(ivfpqr->k_factor);
     }
@@ -358,9 +315,9 @@ static IndexIVFPQ* uread_ivfpq(IOReader* f, uint32_t h, int io_flags) {
   return ivpq;
 }
 
-int uread_old_fmt_hack = 0;
+int unity_read_old_fmt_hack = 0;
 
-Index* uread_index(IOReader* f, int io_flags) {
+Index* unity_read_index(IOReader* f, int io_flags) {
   Index* idx = nullptr;
   uint32_t h;
   READ1(h);
@@ -376,7 +333,7 @@ Index* uread_index(IOReader* f, int io_flags) {
     } else {
       idxf = new IndexFlat();
     }
-    uread_index_header(idxf, f);
+    unity_read_index_header(idxf, f);
     idxf->code_size = idxf->d * sizeof(float);
     READXBVECTOR(idxf->codes);
     FAISS_THROW_IF_NOT(idxf->codes.size() == idxf->ntotal * idxf->code_size);
@@ -385,8 +342,8 @@ Index* uread_index(IOReader* f, int io_flags) {
   } else if (h == fourcc("IxPQ") || h == fourcc("IxPo") || h == fourcc("IxPq")) {
     // IxPQ and IxPo were merged into the same IndexPQ object
     IndexPQ* idxp = new IndexPQ();
-    uread_index_header(idxp, f);
-    uread_ProductQuantizer(&idxp->pq, f);
+    unity_read_index_header(idxp, f);
+    unity_read_ProductQuantizer(&idxp->pq, f);
     idxp->code_size = idxp->pq.code_size;
     READVECTOR(idxp->codes);
     if (h == fourcc("IxPo") || h == fourcc("IxPq")) {
@@ -404,9 +361,9 @@ Index* uread_index(IOReader* f, int io_flags) {
   } else if (h == fourcc("IvFl") || h == fourcc("IvFL")) {  // legacy
     IndexIVFFlat* ivfl = new IndexIVFFlat();
     std::vector<std::vector<idx_t>> ids;
-    uread_ivf_header(ivfl, f, &ids);
+    unity_read_ivf_header(ivfl, f, &ids);
     ivfl->code_size = ivfl->d * sizeof(float);
-    ArrayInvertedLists* ail = uset_array_invlist(ivfl, ids);
+    ArrayInvertedLists* ail = unity_set_array_invlist(ivfl, ids);
 
     if (h == fourcc("IvFL")) {
       for (size_t i = 0; i < ivfl->nlist; i++) {
@@ -423,33 +380,33 @@ Index* uread_index(IOReader* f, int io_flags) {
     idx = ivfl;
   } else if (h == fourcc("IwFl")) {
     IndexIVFFlat* ivfl = new IndexIVFFlat();
-    uread_ivf_header(ivfl, f);
+    unity_read_ivf_header(ivfl, f);
     ivfl->code_size = ivfl->d * sizeof(float);
-    uread_InvertedLists(ivfl, f, io_flags);
+    unity_read_InvertedLists(ivfl, f, io_flags);
     idx = ivfl;
   } else if (h == fourcc("IvPQ") || h == fourcc("IvQR") || h == fourcc("IwPQ") ||
              h == fourcc("IwQR")) {
-    idx = uread_ivfpq(f, h, io_flags);
+    idx = unity_read_ivfpq(f, h, io_flags);
   } else if (h == fourcc("IxPT")) {
     IndexPreTransform* ixpt = new IndexPreTransform();
     ixpt->own_fields = true;
-    uread_index_header(ixpt, f);
+    unity_read_index_header(ixpt, f);
     int nt;
-    if (uread_old_fmt_hack == 2) {
+    if (unity_read_old_fmt_hack == 2) {
       nt = 1;
     } else {
       READ1(nt);
     }
     for (int i = 0; i < nt; i++) {
-      ixpt->chain.push_back(uread_VectorTransform(f));
+      ixpt->chain.push_back(unity_read_VectorTransform(f));
     }
-    ixpt->index = uread_index(f, io_flags);
+    ixpt->index = unity_read_index(f, io_flags);
     idx = ixpt;
   } else if (h == fourcc("IxRF")) {
     IndexRefine* idxrf = new IndexRefine();
-    uread_index_header(idxrf, f);
-    idxrf->base_index = uread_index(f, io_flags);
-    idxrf->refine_index = uread_index(f, io_flags);
+    unity_read_index_header(idxrf, f);
+    idxrf->base_index = unity_read_index(f, io_flags);
+    idxrf->refine_index = unity_read_index(f, io_flags);
     READ1(idxrf->k_factor);
     if (dynamic_cast<IndexFlat*>(idxrf->refine_index)) {
       // then make a RefineFlat with it
@@ -464,8 +421,8 @@ Index* uread_index(IOReader* f, int io_flags) {
   } else if (h == fourcc("IxMp") || h == fourcc("IxM2")) {
     bool is_map2 = h == fourcc("IxM2");
     IndexIDMap* idxmap = is_map2 ? new IndexIDMap2() : new IndexIDMap();
-    uread_index_header(idxmap, f);
-    idxmap->index = uread_index(f, io_flags);
+    unity_read_index_header(idxmap, f);
+    idxmap->index = unity_read_index(f, io_flags);
     idxmap->own_fields = true;
     READVECTOR(idxmap->id_map);
     if (is_map2) {
@@ -480,22 +437,21 @@ Index* uread_index(IOReader* f, int io_flags) {
   return idx;
 }
 
-Index* uread_index(FILE* f, int io_flags) {
+Index* unity_read_index(FILE* f, int io_flags) {
   FileIOReader reader(f);
-  return uread_index(&reader, io_flags);
+  return unity_read_index(&reader, io_flags);
 }
 
-Index* uread_index(const char* fname, int io_flags) {
+Index* unity_read_index(const char* fname, int io_flags) {
   FileIOReader reader(fname);
-  Index* idx = uread_index(&reader, io_flags);
+  Index* idx = unity_read_index(&reader, io_flags);
   return idx;
 }
 
-VectorTransform* uread_VectorTransform(const char* fname) {
+VectorTransform* unity_read_VectorTransform(const char* fname) {
   FileIOReader reader(fname);
-  VectorTransform* vt = uread_VectorTransform(&reader);
+  VectorTransform* vt = unity_read_VectorTransform(&reader);
   return vt;
 }
 
-}  // namespace detail
-}  // namespace unity
+}  // namespace faiss

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "./faiss-forwards.h"
+#include "unity/adapter/faiss-forwards.h"
 
 #define Run_get_distance_computer Run_get_distance_computer_extra
 #include "faiss/utils/extra_distances.cpp"
@@ -44,7 +44,6 @@
 /************************************************************
  * source files
  **************************************************************/
-#include "./fake_omp.h"
 #include "faiss/Clustering.cpp"
 #include "faiss/Index.cpp"
 #include "faiss/IndexBinary.cpp"
@@ -84,6 +83,7 @@
 #include "faiss/utils/random.cpp"
 #include "faiss/utils/sorting.cpp"
 #include "faiss/utils/utils.cpp"
+#include "unity/adapter/fake_omp.h"
 
 #undef sgemv_
 #undef sgemm_

@@ -17,38 +17,44 @@
  * under the License.
  */
 
+#pragma once
+
+#include <memory>
+
 #include "faiss/Index.h"
+#include "unity/common/u_assert.h"
+#include "unity/detail/io/read_faiss.h"
 
 namespace unity {
+namespace detail {
 
-template <IndexType t>
-struct IndexTypeDispatch;
-
-template <>
-struct IndexTypeDispatch<INDEX_PQ> {
-  using type = IndexPQ;
-};
-
-template <faiss::IndexType t>
-inline std::unique_ptr<typename IndexTypeDispatch<t>::type> checked_cast(
-    std::unique_ptr<Index> ptr) {
-  using ChildType = typename IndexTypeDispatch<t>::type;
-  FAISS_THROW_IF_NOT(ptr->index_type == t);
-  return std::unique_ptr<ChildType>(static_cast<ChildType*>(ptr.release()));
+template <typename T>
+inline std::unique_ptr<T> dyn_cast(std::unique_ptr<faiss::Index> ptr) {
+  // TODO: avoid usage of RTTI and dynamic cast
+  if (dynamic_cast<T*>(ptr.get()) == nullptr) {
+    return nullptr;
+  }
+  return std::unique_ptr<T>(static_cast<T*>(ptr.release()));
 }
 
-inline void check_index_pq_compatibility(const IndexPQ* pq) {
-  FAISS_THROW_IF_MSG(pq->do_polysemous_training,
-                     "UNITY error: IndexPQ must not have polysemous training enabled");
-  FAISS_THROW_IF_MSG(pq->metric_type != MetricType::METRIC_L2,
-                     "UNITY error: only METRIC_L2 is supported");
+inline void check_index_pq_compatibility(const faiss::IndexPQ* pq) {
+  U_THROW_IF_MSG(pq->do_polysemous_training,
+                 "UNITY error: IndexPQ must not have polysemous training enabled");
+  U_THROW_IF_MSG(pq->metric_type != faiss::MetricType::METRIC_L2,
+                 "UNITY error: only METRIC_L2 is supported");
 }
 
-inline std::unique_ptr<IndexPQ> read_index_pq(const char* fname) {
-  std::unique_ptr<Index> index = detail::read_index(fname);
-  std::unique_ptr<IndexPQ> index_pq = detail::checked_cast<IndexType::INDEX_PQ>(std::move(index));
-  detail::check_index_pq_compatibility(index_pq.get());
+inline std::unique_ptr<faiss::IndexPQ> read_index_pq(const char* fname) {
+  std::unique_ptr<faiss::Index> index(faiss::unity_read_index(fname));
+  std::unique_ptr<faiss::IndexPQ> index_pq = dyn_cast<faiss::IndexPQ>(std::move(index));
+  if (index_pq == nullptr) {
+    U_THROW_MSG(
+        "failed to cast index to faiss::IndexPQ*: the provided index file may not be a valid "
+        "file of IndexPQ.");
+  }
+  check_index_pq_compatibility(index_pq.get());
   return index_pq;
 }
 
-}
+}  // namespace detail
+}  // namespace unity

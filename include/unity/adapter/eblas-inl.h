@@ -24,7 +24,7 @@
 #endif
 #define EIGEN_BLAS_FUNC_SUFFIX _eigen
 
-#include "./xerbla.h"
+#include "unity/adapter/xerbla.h"
 
 //////////////////////////////////////////////////////
 // Single precision BLAS functions

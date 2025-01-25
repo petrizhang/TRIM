@@ -35,15 +35,15 @@
 namespace unity {
 namespace detail {
 
-template <typename DCO = UnityOp8<false>>
-struct HNSWSearcher : SetterProxy<HNSWSearcher<DCO>>, Searcher {
-  static_assert(std::is_base_of_v<DefaultDCOType, DCO>,
-                "Error: DCO must inherit from DefaultDCOType.");
-  using This = HNSWSearcher<DCO>;
+template <typename TDco = UnityOp8<false>>
+struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
+  static_assert(std::is_base_of_v<IDco, TDco>, "Error: DCO must inherit from IDco.");
+  using dist_t = float;
+  using idx_t = unsigned;
+  using This = HNSWSearcher<TDco>;
   using Proxy = SetterProxy<This>;
   using CompareByFirst = HnswlibIndex::CompareByFirst;
   using VisitedList = hnswlib::VisitedList;
-  using dist_t = float;
   using labeltype = hnswlib::labeltype;
   using tableint = hnswlib::tableint;
   using vl_type = hnswlib::vl_type;
@@ -53,7 +53,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<DCO>>, Searcher {
                           HnswlibIndex::CompareByFirst>;
 
   // Distance comparison operator used during search
-  mutable DCO _dco;
+  mutable TDco _dco;
 
   // HNSW members
   hnswlib::VisitedListPool* _visited_list_pool{nullptr};
@@ -79,7 +79,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<DCO>>, Searcher {
 
   HNSWSearcher() = delete;
 
-  explicit HNSWSearcher(const std::shared_ptr<UnityHnsw>& index, DCO dco)
+  explicit HNSWSearcher(const std::shared_ptr<UnityHnsw>& index, TDco dco)
       : Proxy("HNSWSearcher"), _dco(std::move(dco)), _shared_uhnsw(index), _uhnsw(index.get()) {
     U_ASSERT(_uhnsw != nullptr);
     _hnsw = _uhnsw->owned_index_hnsw.get();
@@ -134,7 +134,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<DCO>>, Searcher {
 
   void optimize(int num_threads) override { U_THROW_MSG("not implemented error"); }
 
-  DefaultDCOType* get_dco() const override { return &_dco; }
+  IDco* get_dco() const override { return &_dco; }
 
   Dict get_profile() const override { return _dco.get_profile(); }
 

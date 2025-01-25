@@ -31,7 +31,7 @@ namespace unity {
 namespace detail {
 
 template <bool enable_profile = false>
-struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
+struct ExactDco final : IDistanceComparisonOperator<unsigned, float> {
   using Parent = IDistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
@@ -42,16 +42,16 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
   const HnswlibIndex* _hnsw{nullptr};
   mutable Atomic<int64_t> _num_distance_computation{0};
 
-  ~ExactDCO() override = default;
+  ~ExactDco() override = default;
 
-  explicit ExactDCO(const UnityHnsw* uhnsw) {
+  explicit ExactDco(const UnityHnsw* uhnsw) {
     U_ASSERT(uhnsw != nullptr);
     _hnsw = uhnsw->owned_index_hnsw.get();
     _dist_func = _hnsw->fstdistfunc_;
     _dist_func_param = _hnsw->dist_func_param_;
   }
 
-  explicit ExactDCO(const HnswlibIndex* hnsw) {
+  explicit ExactDco(const HnswlibIndex* hnsw) {
     U_ASSERT(hnsw != nullptr);
     _hnsw = hnsw;
     _dist_func = _hnsw->fstdistfunc_;

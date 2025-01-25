@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include "./eblas-inl.h"
-#include "./faiss_blas-forwards.h"
+#include "unity/adapter/eblas-inl.h"
+#include "unity/adapter/faiss_blas-forwards.h"
 
 #define RUNTIME_ERROR_NOT_IMPLEMENTED throw std::runtime_error("not implemented error")
 

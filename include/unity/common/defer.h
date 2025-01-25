@@ -17,8 +17,23 @@
  * under the License.
  */
 
-#pragma once
+#include <functional>
 
-#include "unity/adapter/faiss-inl.h"
-#include "unity/adapter/faiss_blas-inl.h"
-#include "unity/unity-forwards.h"
+#include "unity/common/common.h"
+
+namespace unity {
+
+class Defer {
+ public:
+  template <typename F>
+  explicit Defer(F&& defer_func) : defer_func_(std::forward<F>(defer_func)) {}
+  ~Defer() noexcept { defer_func_(); }
+
+  U_FORBID_COPY_AND_ASSIGN(Defer);
+  U_FORBID_MOVE(Defer);
+
+ private:
+  std::function<void()> defer_func_;
+};
+
+}  // namespace unity
