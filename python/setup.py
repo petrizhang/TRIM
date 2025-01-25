@@ -66,7 +66,7 @@ def cpp_flag(compiler):
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'unix': "-O3 -march=native -mfma -mf16c -mpopcnt -Wno-sign-compare -Wno-unknown-pragmas".split()
+        'unix': "-O3 -march=native -Wno-sign-compare -Wno-unknown-pragmas".split()
     }
 
     link_opts = {

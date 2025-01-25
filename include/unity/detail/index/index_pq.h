@@ -32,6 +32,7 @@ namespace detail {
 
 struct UnityIndexPq {
   std::unique_ptr<faiss::IndexPQ> owned_index_pq{nullptr};
+  faiss::AlignedTable<uint8_t> codes;
   /// Distances between data points and their PQ centroids.
   faiss::AlignedTable<float> recons_errors;
   bool has_recons_errors{false};

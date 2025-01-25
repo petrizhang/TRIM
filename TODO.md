@@ -8,11 +8,11 @@
 - [x] GloVE
 - [x] 实现HNSW++算法
 - [x] 解决NYTimes和Glove数据集高recall性能劣化严重的问题
-- [ ] Save Cleaned results Data
+- [x] Save Cleaned results Data
 - [ ] OPQ
 - [ ] HNSW range search
-- [ ] IVF ANN search
-- [ ] IVF range search
+- [ ] IVFPQ ANN search
+- [ ] IVFPQ range search
 - [ ] 多线程搜索实现与benchmark
 - [ ] Perf with VTune
 

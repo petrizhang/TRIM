@@ -44,52 +44,54 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
   using dist_t = float;
 
   // Data structures for query
-  const dist_t* _dist_table_data{nullptr};
-  const uint8_t* _codes;
-  const float* _recons_errors;
-  size_t _M{0};
-  size_t _nbits{0};
-  size_t _code_size{0};
-  hnswlib::DISTFUNC<dist_t> _dist_func{nullptr};
-  void* _dist_func_param{nullptr};
-  faiss::AlignedTable<dist_t> _dist_table;
-  const faiss::IndexPQ* _faiss_index_pq{nullptr};
-  const hnswlib::HierarchicalNSW<float>* _hnsw{nullptr};
-  const dist_t* _query{nullptr};
+  const dist_t* dist_table_data{nullptr};
+  const uint8_t* codes;
+  const float* recons_errors;
+  size_t M{0};
+  size_t nbits{0};
+  size_t code_size{0};
+  hnswlib::DISTFUNC<dist_t> dist_func{nullptr};
+  void* dist_func_param{nullptr};
+
+  // Indexes
+  const faiss::IndexPQ* faiss_index_pq{nullptr};
+  const hnswlib::HierarchicalNSW<float>* hnsw{nullptr};
+  const dist_t* query{nullptr};
+  faiss::AlignedTable<dist_t> dist_table;
 
   // Profile metrics
-  Atomic<int64_t> _num_distance_computation;
-  Atomic<int64_t> _num_pq_distance_computation;
-  Atomic<int64_t> _num_lowerbound_computation;
+  Atomic<int64_t> num_distance_computation;
+  Atomic<int64_t> num_pq_distance_computation;
+  Atomic<int64_t> num_lowerbound_computation;
 
   // Search parameters
   float _gamma{0.8};
 
   ~UnityOp() override = default;
 
-  explicit UnityOp(const UnityHnsw* uhnsw) : SetterProxy<This>("UnityOp") {
-    U_ASSERT(uhnsw != nullptr);
-    U_ASSERT(uhnsw->owned_index_hnsw != nullptr);
-    U_ASSERT(uhnsw->unity_index_pq.owned_index_pq != nullptr);
-    _faiss_index_pq = uhnsw->unity_index_pq.owned_index_pq.get();
-    _M = _faiss_index_pq->pq.M;
-    _nbits = _faiss_index_pq->pq.nbits;
-    _code_size = _faiss_index_pq->code_size;
-    _codes = _faiss_index_pq->codes.data();
-    _recons_errors = uhnsw->unity_index_pq.recons_errors.data();
+  explicit UnityOp(const UnityHnsw* p_uhnsw) : SetterProxy<This>("UnityOp") {
+    U_ASSERT(p_uhnsw != nullptr);
+    U_ASSERT(p_uhnsw->owned_index_hnsw != nullptr);
+    U_ASSERT(p_uhnsw->unity_index_pq.owned_index_pq != nullptr);
+    faiss_index_pq = p_uhnsw->unity_index_pq.owned_index_pq.get();
+    M = faiss_index_pq->pq.M;
+    nbits = faiss_index_pq->pq.nbits;
+    code_size = faiss_index_pq->code_size;
+    codes = p_uhnsw->unity_index_pq.codes.data();
+    recons_errors = p_uhnsw->unity_index_pq.recons_errors.data();
 
-    _hnsw = uhnsw->owned_index_hnsw.get();
-    _dist_func = _hnsw->fstdistfunc_;
-    _dist_func_param = _hnsw->dist_func_param_;
+    hnsw = p_uhnsw->owned_index_hnsw.get();
+    dist_func = hnsw->fstdistfunc_;
+    dist_func_param = hnsw->dist_func_param_;
 
     Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
   }
 
   void set_query(const dist_t* query_data) override {
-    _query = query_data;
-    _dist_table.resize(_faiss_index_pq->pq.M * _faiss_index_pq->pq.ksub);
-    _faiss_index_pq->pq.compute_distance_table(_query, _dist_table.data());
-    _dist_table_data = _dist_table.data();
+    query = query_data;
+    dist_table.resize(faiss_index_pq->pq.M * faiss_index_pq->pq.ksub);
+    faiss_index_pq->pq.compute_distance_table(query, dist_table.data());
+    dist_table_data = dist_table.data();
   }
 
   void set(const std::string& key, const Object& value) override { Proxy::proxy_set(key, value); }
@@ -111,32 +113,32 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
   }
 
   dist_t compute(idx_t i) const override {
-    assert(_query != nullptr);
-    return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
+    assert(query != nullptr);
+    return dist_func(query, hnsw->getDataByInternalId(i), dist_func_param);
   }
 
   dist_t relaxed_lowerbound(idx_t i) const override {
-    assert(_query != nullptr);
+    assert(query != nullptr);
     dist_t a = std::sqrt(estimate(i));
-    dist_t b = _recons_errors[i];
+    dist_t b = recons_errors[i];
     return (a - b) * (a - b) + 2 * _gamma * a * b;
   }
 
   void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const override {
-    assert(_query != nullptr);
+    assert(query != nullptr);
     _relaxed_lowerbound8(ids, dists);
   }
 
   dist_t estimate(idx_t i) const override {
-    return faiss::distance_single_code<PQDecoderType>(_M, _nbits, _dist_table_data,
-                                                      _codes + i * _code_size);
+    return faiss::distance_single_code<PQDecoderType>(M, nbits, dist_table_data,
+                                                      codes + i * code_size);
   }
 
-  void prefetch(idx_t i) const override { prefetch_l1(_codes + _code_size * i); }
+  void prefetch(idx_t i) const override { prefetch_l1(codes + code_size * i); }
 
   void set_gamma(float gamma) { _gamma = gamma; }
 
-  void _prefetch_vector(idx_t i) const { prefetch_l1(_hnsw->getDataByInternalId(i)); }
+  void _prefetch_vector(idx_t i) const { prefetch_l1(hnsw->getDataByInternalId(i)); }
 
 #ifdef USE_AVX
   void _relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
@@ -145,39 +147,39 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
         0,
     };
 
-    prefetch_l1(_codes + ids[4] * _code_size);
-    prefetch_l1(_codes + ids[5] * _code_size);
-    prefetch_l1(_codes + ids[6] * _code_size);
-    prefetch_l1(_codes + ids[7] * _code_size);
+    prefetch_l1(codes + ids[4] * code_size);
+    prefetch_l1(codes + ids[5] * code_size);
+    prefetch_l1(codes + ids[6] * code_size);
+    prefetch_l1(codes + ids[7] * code_size);
 
     faiss::distance_four_codes<PQDecoderType>(
-        _M, _nbits, _dist_table_data,                                //
-        _codes + ids[0] * _code_size, _codes + ids[1] * _code_size,  //
-        _codes + ids[2] * _code_size, _codes + ids[3] * _code_size,  //
+        M, nbits, dist_table_data,                                //
+        codes + ids[0] * code_size, codes + ids[1] * code_size,  //
+        codes + ids[2] * code_size, codes + ids[3] * code_size,  //
         pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
 
     // Prefetch reconstruciton errors
-    prefetch_l1(_recons_errors + ids[0]);
-    prefetch_l1(_recons_errors + ids[1]);
-    prefetch_l1(_recons_errors + ids[2]);
-    prefetch_l1(_recons_errors + ids[3]);
-    prefetch_l1(_recons_errors + ids[4]);
-    prefetch_l1(_recons_errors + ids[5]);
-    prefetch_l1(_recons_errors + ids[6]);
-    prefetch_l1(_recons_errors + ids[7]);
+    prefetch_l1(recons_errors + ids[0]);
+    prefetch_l1(recons_errors + ids[1]);
+    prefetch_l1(recons_errors + ids[2]);
+    prefetch_l1(recons_errors + ids[3]);
+    prefetch_l1(recons_errors + ids[4]);
+    prefetch_l1(recons_errors + ids[5]);
+    prefetch_l1(recons_errors + ids[6]);
+    prefetch_l1(recons_errors + ids[7]);
 
     faiss::distance_four_codes<PQDecoderType>(
-        _M, _nbits, _dist_table_data,                                //
-        _codes + ids[4] * _code_size, _codes + ids[5] * _code_size,  //
-        _codes + ids[6] * _code_size, _codes + ids[7] * _code_size,  //
+        M, nbits, dist_table_data,                                //
+        codes + ids[4] * code_size, codes + ids[5] * code_size,  //
+        codes + ids[6] * code_size, codes + ids[7] * code_size,  //
         pq_dist[4], pq_dist[5], pq_dist[6], pq_dist[7]);
 
     // PQ distances
     __m256 vec_pq_dist = _mm256_loadu_ps(pq_dist);
-    __m256 vec_recons_error = _mm256_set_ps(_recons_errors[ids[7]], _recons_errors[ids[6]],  //
-                                            _recons_errors[ids[5]], _recons_errors[ids[4]],  //
-                                            _recons_errors[ids[3]], _recons_errors[ids[2]],  //
-                                            _recons_errors[ids[1]], _recons_errors[ids[0]]);
+    __m256 vec_recons_error = _mm256_set_ps(recons_errors[ids[7]], recons_errors[ids[6]],  //
+                                            recons_errors[ids[5]], recons_errors[ids[4]],  //
+                                            recons_errors[ids[3]], recons_errors[ids[2]],  //
+                                            recons_errors[ids[1]], recons_errors[ids[0]]);
     // Lowerbounds
     __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(_gamma, vec_pq_dist, vec_recons_error);
     _mm256_storeu_ps(dists.data(), vec_lowerbounds);
@@ -189,39 +191,39 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
         0,
     };
 
-    prefetch_l1(_codes + ids[4] * _code_size);
-    prefetch_l1(_codes + ids[5] * _code_size);
-    prefetch_l1(_codes + ids[6] * _code_size);
-    prefetch_l1(_codes + ids[7] * _code_size);
+    prefetch_l1(codes + ids[4] * code_size);
+    prefetch_l1(codes + ids[5] * code_size);
+    prefetch_l1(codes + ids[6] * code_size);
+    prefetch_l1(codes + ids[7] * code_size);
 
     faiss::distance_four_codes<PQDecoderType>(
-        _M, _nbits, _dist_table_data,                                //
-        _codes + ids[0] * _code_size, _codes + ids[1] * _code_size,  //
-        _codes + ids[2] * _code_size, _codes + ids[3] * _code_size,  //
+        M, nbits, dist_table_data,                                //
+        codes + ids[0] * code_size, codes + ids[1] * code_size,  //
+        codes + ids[2] * code_size, codes + ids[3] * code_size,  //
         pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
 
     // Prefetch reconstruciton errors
-    prefetch_l1(_recons_errors + ids[0]);
-    prefetch_l1(_recons_errors + ids[1]);
-    prefetch_l1(_recons_errors + ids[2]);
-    prefetch_l1(_recons_errors + ids[3]);
-    prefetch_l1(_recons_errors + ids[4]);
-    prefetch_l1(_recons_errors + ids[5]);
-    prefetch_l1(_recons_errors + ids[6]);
-    prefetch_l1(_recons_errors + ids[7]);
+    prefetch_l1(recons_errors + ids[0]);
+    prefetch_l1(recons_errors + ids[1]);
+    prefetch_l1(recons_errors + ids[2]);
+    prefetch_l1(recons_errors + ids[3]);
+    prefetch_l1(recons_errors + ids[4]);
+    prefetch_l1(recons_errors + ids[5]);
+    prefetch_l1(recons_errors + ids[6]);
+    prefetch_l1(recons_errors + ids[7]);
 
     faiss::distance_four_codes<PQDecoderType>(
-        _M, _nbits, _dist_table_data,                                //
-        _codes + ids[4] * _code_size, _codes + ids[5] * _code_size,  //
-        _codes + ids[6] * _code_size, _codes + ids[7] * _code_size,  //
+        M, nbits, dist_table_data,                                //
+        codes + ids[4] * code_size, codes + ids[5] * code_size,  //
+        codes + ids[6] * code_size, codes + ids[7] * code_size,  //
         pq_dist[4], pq_dist[5], pq_dist[6], pq_dist[7]);
 
     // PQ distances
     __m256 vec_pq_dist = _mm256_loadu_ps(pq_dist);
-    __m256 vec_recons_error = _mm256_set_ps(_recons_errors[ids[7]], _recons_errors[ids[6]],  //
-                                            _recons_errors[ids[5]], _recons_errors[ids[4]],  //
-                                            _recons_errors[ids[3]], _recons_errors[ids[2]],  //
-                                            _recons_errors[ids[1]], _recons_errors[ids[0]]);
+    __m256 vec_recons_error = _mm256_set_ps(recons_errors[ids[7]], recons_errors[ids[6]],  //
+                                            recons_errors[ids[5]], recons_errors[ids[4]],  //
+                                            recons_errors[ids[3]], recons_errors[ids[2]],  //
+                                            recons_errors[ids[1]], recons_errors[ids[0]]);
     // Lowerbounds
     __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(_gamma, vec_pq_dist, vec_recons_error);
     __m256 cmp_vec = _mm256_cmp_ps(vec_lowerbounds, _mm256_set1_ps(max_dist), _CMP_LT_OS);
