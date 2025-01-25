@@ -18,12 +18,10 @@ include_dirs = [
 # compatibility when run in python_bindings
 bindings_dir = 'python'
 if bindings_dir in os.path.basename(os.getcwd()):
-    source_files = ['./bindings.cc',
-                    '../src/faiss.cc', '../src/faiss_blas.cc']
+    source_files = ['./bindings.cc']
     include_dirs.extend(['../include'])
 else:
-    source_files = ['./python/bindings.cc',
-                    './src/faiss.cc', './src/faiss_blas.cc']
+    source_files = ['./python/bindings.cc']
     include_dirs.extend(['./include'])
 
 libraries = []
