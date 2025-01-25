@@ -21,10 +21,6 @@
 
 #include "unity/adapter/faiss-forwards.h"
 
-#define Run_get_distance_computer Run_get_distance_computer_extra
-#include "faiss/utils/extra_distances.cpp"
-#undef Run_get_distance_computer
-
 #define sgemv_ sgemv_faiss
 #define sgemm_ sgemm_faiss
 #define dgemm_ dgemm_faiss
@@ -67,7 +63,6 @@
 #include "faiss/impl/ProductQuantizer.cpp"
 #include "faiss/impl/ScalarQuantizer.cpp"
 #include "faiss/impl/io.cpp"
-#include "faiss/impl/kmeans1d.cpp"
 #include "faiss/invlists/BlockInvertedLists.cpp"
 #include "faiss/invlists/DirectMap.cpp"
 #include "faiss/invlists/InvertedLists.cpp"
@@ -84,6 +79,15 @@
 #include "faiss/utils/sorting.cpp"
 #include "faiss/utils/utils.cpp"
 #include "unity/adapter/fake_omp.h"
+
+#define Run_get_distance_computer Run_get_distance_computer_extra
+#include "faiss/utils/extra_distances.cpp"
+#undef Run_get_distance_computer
+
+// The name Matrix conflicts with eigen
+#define Matrix FaissMatrix
+#include "faiss/impl/kmeans1d.cpp"
+#undef Matrix
 
 #undef sgemv_
 #undef sgemm_

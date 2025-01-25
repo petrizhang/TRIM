@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #pragma once
 
 // prefetches
@@ -28,15 +27,11 @@
 
 #include <xmmintrin.h>
 
-inline void prefetch_L1(const void* address) {
-    _mm_prefetch((const char*)address, _MM_HINT_T0);
-}
-inline void prefetch_L2(const void* address) {
-    _mm_prefetch((const char*)address, _MM_HINT_T1);
-}
-inline void prefetch_L3(const void* address) {
-    _mm_prefetch((const char*)address, _MM_HINT_T2);
-}
+namespace unity {
+inline void prefetch_l1(const void* address) { _mm_prefetch((const char*)address, _MM_HINT_T0); }
+inline void prefetch_l2(const void* address) { _mm_prefetch((const char*)address, _MM_HINT_T1); }
+inline void prefetch_l3(const void* address) { _mm_prefetch((const char*)address, _MM_HINT_T2); }
+}  // namespace unity
 
 #elif defined(__aarch64__)
 
@@ -45,22 +40,20 @@ inline void prefetch_L3(const void* address) {
 #ifdef _MSC_VER
 
 // todo: arm on MSVC
-inline void prefetch_L1(const void* address) {}
-inline void prefetch_L2(const void* address) {}
-inline void prefetch_L3(const void* address) {}
+namespace unity {
+inline void prefetch_l1(const void* address) {}
+inline void prefetch_l2(const void* address) {}
+inline void prefetch_l3(const void* address) {}
+}  // namespace unity
 
 #else
 // arm on non-MSVC
 
-inline void prefetch_L1(const void* address) {
-    __builtin_prefetch(address, 0, 3);
-}
-inline void prefetch_L2(const void* address) {
-    __builtin_prefetch(address, 0, 2);
-}
-inline void prefetch_L3(const void* address) {
-    __builtin_prefetch(address, 0, 1);
-}
+namespace unity {
+inline void prefetch_l1(const void* address) { __builtin_prefetch(address, 0, 3); }
+inline void prefetch_l2(const void* address) { __builtin_prefetch(address, 0, 2); }
+inline void prefetch_l3(const void* address) { __builtin_prefetch(address, 0, 1); }
+}  // namespace unity
 #endif
 
 #else
@@ -69,21 +62,19 @@ inline void prefetch_L3(const void* address) {
 
 #ifdef _MSC_VER
 
-inline void prefetch_L1(const void* address) {}
-inline void prefetch_L2(const void* address) {}
-inline void prefetch_L3(const void* address) {}
+namespace unity {
+inline void prefetch_l1(const void* address) {}
+inline void prefetch_l2(const void* address) {}
+inline void prefetch_l3(const void* address) {}
+}  // namespace unity
 
 #else
 
-inline void prefetch_L1(const void* address) {
-    __builtin_prefetch(address, 0, 3);
-}
-inline void prefetch_L2(const void* address) {
-    __builtin_prefetch(address, 0, 2);
-}
-inline void prefetch_L3(const void* address) {
-    __builtin_prefetch(address, 0, 1);
-}
+namespace unity {
+inline void prefetch_l1(const void* address) { __builtin_prefetch(address, 0, 3); }
+inline void prefetch_l2(const void* address) { __builtin_prefetch(address, 0, 2); }
+inline void prefetch_l3(const void* address) { __builtin_prefetch(address, 0, 1); }
+}  // namespace unity
 
 #endif
 

@@ -43,7 +43,6 @@ struct UnityIndexPq {
   void compute_pq_reconstruction_errors(IDco* dco, ctpl::thread_pool& pool) {
     U_THROW_IF_NOT_MSG(owned_index_pq != nullptr, "index is nullptr");
 
-    auto dim = owned_index_pq->d;
     auto ntotal = owned_index_pq->ntotal;
     auto* index_pq = owned_index_pq.get();
 

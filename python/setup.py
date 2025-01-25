@@ -18,10 +18,12 @@ include_dirs = [
 # compatibility when run in python_bindings
 bindings_dir = 'python'
 if bindings_dir in os.path.basename(os.getcwd()):
-    source_files = ['./bindings.cc']
+    source_files = ['./bindings.cc',
+                    '../src/faiss.cc', '../src/faiss_blas.cc']
     include_dirs.extend(['../include'])
 else:
-    source_files = ['./python/bindings.cc']
+    source_files = ['./python/bindings.cc',
+                    './src/faiss.cc', './src/faiss_blas.cc']
     include_dirs.extend(['./include'])
 
 libraries = []
@@ -66,7 +68,7 @@ def cpp_flag(compiler):
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'unix': "-O3 -march=native".split()
+        'unix': "-O3 -march=native -mfma -mf16c -mpopcnt -Wno-sign-compare -Wno-unknown-pragmas".split()
     }
 
     link_opts = {
@@ -90,6 +92,7 @@ class BuildExt(build_ext):
             ext.extra_compile_args.extend(opts)
             ext.extra_link_args.extend(self.link_opts.get(ct, []))
         build_ext.build_extensions(self)
+
 
 setup(
     name='unitylib',

@@ -132,11 +132,11 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
                                                       _codes + i * _code_size);
   }
 
-  void prefetch(idx_t i) const override { prefetch_L1(_codes + _code_size * i); }
+  void prefetch(idx_t i) const override { prefetch_l1(_codes + _code_size * i); }
 
   void set_gamma(float gamma) { _gamma = gamma; }
 
-  void _prefetch_vector(idx_t i) const { prefetch_L1(_hnsw->getDataByInternalId(i)); }
+  void _prefetch_vector(idx_t i) const { prefetch_l1(_hnsw->getDataByInternalId(i)); }
 
 #ifdef USE_AVX
   void _relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
@@ -145,10 +145,10 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
         0,
     };
 
-    prefetch_L1(_codes + ids[4] * _code_size);
-    prefetch_L1(_codes + ids[5] * _code_size);
-    prefetch_L1(_codes + ids[6] * _code_size);
-    prefetch_L1(_codes + ids[7] * _code_size);
+    prefetch_l1(_codes + ids[4] * _code_size);
+    prefetch_l1(_codes + ids[5] * _code_size);
+    prefetch_l1(_codes + ids[6] * _code_size);
+    prefetch_l1(_codes + ids[7] * _code_size);
 
     faiss::distance_four_codes<PQDecoderType>(
         _M, _nbits, _dist_table_data,                                //
@@ -157,14 +157,14 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
         pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
 
     // Prefetch reconstruciton errors
-    prefetch_L1(_recons_errors + ids[0]);
-    prefetch_L1(_recons_errors + ids[1]);
-    prefetch_L1(_recons_errors + ids[2]);
-    prefetch_L1(_recons_errors + ids[3]);
-    prefetch_L1(_recons_errors + ids[4]);
-    prefetch_L1(_recons_errors + ids[5]);
-    prefetch_L1(_recons_errors + ids[6]);
-    prefetch_L1(_recons_errors + ids[7]);
+    prefetch_l1(_recons_errors + ids[0]);
+    prefetch_l1(_recons_errors + ids[1]);
+    prefetch_l1(_recons_errors + ids[2]);
+    prefetch_l1(_recons_errors + ids[3]);
+    prefetch_l1(_recons_errors + ids[4]);
+    prefetch_l1(_recons_errors + ids[5]);
+    prefetch_l1(_recons_errors + ids[6]);
+    prefetch_l1(_recons_errors + ids[7]);
 
     faiss::distance_four_codes<PQDecoderType>(
         _M, _nbits, _dist_table_data,                                //
@@ -189,10 +189,10 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
         0,
     };
 
-    prefetch_L1(_codes + ids[4] * _code_size);
-    prefetch_L1(_codes + ids[5] * _code_size);
-    prefetch_L1(_codes + ids[6] * _code_size);
-    prefetch_L1(_codes + ids[7] * _code_size);
+    prefetch_l1(_codes + ids[4] * _code_size);
+    prefetch_l1(_codes + ids[5] * _code_size);
+    prefetch_l1(_codes + ids[6] * _code_size);
+    prefetch_l1(_codes + ids[7] * _code_size);
 
     faiss::distance_four_codes<PQDecoderType>(
         _M, _nbits, _dist_table_data,                                //
@@ -201,14 +201,14 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
         pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
 
     // Prefetch reconstruciton errors
-    prefetch_L1(_recons_errors + ids[0]);
-    prefetch_L1(_recons_errors + ids[1]);
-    prefetch_L1(_recons_errors + ids[2]);
-    prefetch_L1(_recons_errors + ids[3]);
-    prefetch_L1(_recons_errors + ids[4]);
-    prefetch_L1(_recons_errors + ids[5]);
-    prefetch_L1(_recons_errors + ids[6]);
-    prefetch_L1(_recons_errors + ids[7]);
+    prefetch_l1(_recons_errors + ids[0]);
+    prefetch_l1(_recons_errors + ids[1]);
+    prefetch_l1(_recons_errors + ids[2]);
+    prefetch_l1(_recons_errors + ids[3]);
+    prefetch_l1(_recons_errors + ids[4]);
+    prefetch_l1(_recons_errors + ids[5]);
+    prefetch_l1(_recons_errors + ids[6]);
+    prefetch_l1(_recons_errors + ids[7]);
 
     faiss::distance_four_codes<PQDecoderType>(
         _M, _nbits, _dist_table_data,                                //

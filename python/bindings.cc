@@ -5,7 +5,7 @@
 
 #include <thread>
 
-#include "unity/unity.h"
+#include "unity/unity-forwards.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;  // needed to bring in _a literal

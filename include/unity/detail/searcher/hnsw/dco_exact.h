@@ -85,7 +85,7 @@ struct ExactDco final : IDistanceComparisonOperator<unsigned, float> {
     return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
   }
 
-  void prefetch(idx_t i) const override { prefetch_L1(_hnsw->getDataByInternalId(i)); }
+  void prefetch(idx_t i) const override { prefetch_l1(_hnsw->getDataByInternalId(i)); }
 
   Dict get_profile() const override {
     Dict dict;

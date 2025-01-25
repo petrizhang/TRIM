@@ -256,17 +256,17 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
       size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
-      prefetch_L1((char*)(visited + *(neighbors + 1)));
-      prefetch_L1((char*)(visited + *(neighbors + 1) + 64));
+      prefetch_l1((char*)(visited + *(neighbors + 1)));
+      prefetch_l1((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch data of the first neighbor
       _dco.prefetch(*(neighbors + 1));
       // Prefetch the second neighbor
-      prefetch_L1((char*)(neighbors + 2));
+      prefetch_l1((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         int neighbor_id = *(neighbors + j);
         // Prefetch visited array of the next neighbor
-        prefetch_L1((char*)(visited + *(neighbors + j + 1)));
+        prefetch_l1((char*)(visited + *(neighbors + j + 1)));
         // Prefetch data of the next neighbor
         _dco.prefetch(*(neighbors + j + 1));
 
@@ -283,7 +283,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
               search_queue.emplace(-dist, neighbor_id);
 
               // Prefetch neighbor list of the top object in candidate queue
-              prefetch_L1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
+              prefetch_l1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
                           _offset_level0);
 
               result_queue.emplace(dist, neighbor_id);
@@ -333,7 +333,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
           search_queue.emplace(-distances[i], batched_nodes[i]);
 
           // Prefetch neighbor list of the top object in candidate queue
-          prefetch_L1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
+          prefetch_l1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
                       _offset_level0);
 
           result_queue.emplace(distances[i], batched_nodes[i]);
@@ -384,14 +384,14 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
       size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
-      prefetch_L1((char*)(visited + *(neighbors + 1)));
-      prefetch_L1((char*)(visited + *(neighbors + 1) + 64));
+      prefetch_l1((char*)(visited + *(neighbors + 1)));
+      prefetch_l1((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch the second neighbor
-      prefetch_L1((char*)(neighbors + 2));
+      prefetch_l1((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         // Prefetch visited array of the next neighbor
-        prefetch_L1((char*)(visited + *(neighbors + j + 1)));
+        prefetch_l1((char*)(visited + *(neighbors + j + 1)));
         // // Prefetch data of the next neighbor
         // _dco.prefetch(*(neighbors + j + 1));
 
@@ -422,7 +422,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
                 }
 
                 // Prefetch neighbor list of the top object in candidate queue
-                prefetch_L1(_data_level0_memory +
+                prefetch_l1(_data_level0_memory +
                             search_queue.top().second * _size_data_per_element + _offset_level0);
 
                 while (result_queue.size() > ef) {
@@ -478,7 +478,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
       search_queue.emplace(-lowerbound, node_id);
 
       // Prefetch neighbor list of the top object in search queue
-      prefetch_L1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
+      prefetch_l1(_data_level0_memory + search_queue.top().second * _size_data_per_element +
                   _offset_level0);
 
       if (lowerbound < max_result_dist || UNLIKELY(refine_queue.size() < refine_queue_size)) {
@@ -546,14 +546,14 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
       size_t size = get_list_count((linklistsizeint*)neighbors);
 
       // Prefetch visited array
-      prefetch_L1((char*)(visited + *(neighbors + 1)));
-      prefetch_L1((char*)(visited + *(neighbors + 1) + 64));
+      prefetch_l1((char*)(visited + *(neighbors + 1)));
+      prefetch_l1((char*)(visited + *(neighbors + 1) + 64));
       // Prefetch the second neighbor
-      prefetch_L1((char*)(neighbors + 2));
+      prefetch_l1((char*)(neighbors + 2));
 
       for (size_t j = 1; j <= size; j++) {
         // Prefetch visited array of the next neighbor
-        prefetch_L1((char*)(visited + *(neighbors + j + 1)));
+        prefetch_l1((char*)(visited + *(neighbors + j + 1)));
 
         tableint neighbor_id = *(neighbors + j);
 
