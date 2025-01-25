@@ -19,35 +19,6 @@
 
 #pragma once
 
-#include "./xerbla.h"
-
-//////////////////////////////////////////////////////
-// Doudble precision BLAS functions
-//////////////////////////////////////////////////////
-#undef SCALAR
-#undef SCALAR_SUFFIX
-#undef SCALAR_SUFFIX_UP
-#undef ISCOMPLEX
-
-#define SCALAR double
-#define SCALAR_SUFFIX d
-#define SCALAR_SUFFIX_UP "D"
-#define ISCOMPLEX 0
-
-#ifdef EIGEN_BLAS_FUNC
-#undef EIGEN_BLAS_FUNC
-#endif
-#define EIGEN_BLAS_FUNC(X) EIGEN_CAT(SCALAR_SUFFIX, EIGEN_CAT(X, EIGEN_BLAS_FUNC_SUFFIX))
-
-#include "blas/level1_impl.h"
-#include "blas/level1_real_impl.h"
-#include "blas/level2_impl.h"
-#include "blas/level2_real_impl.h"
-#include "blas/level3_impl.h"
-
-#undef SCALAR
-#undef SCALAR_SUFFIX
-#undef SCALAR_SUFFIX_UP
-#undef ISCOMPLEX
-
-#undef EIGEN_BLAS_FUNC
+#include "./unity-forwards.h"
+#include "unity/adapter/faiss-blas-inl.h"
+#include "unity/adapter/faiss-inl.h"

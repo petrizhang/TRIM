@@ -19,9 +19,6 @@
 
 #pragma once
 
-#include "./blas.h"
-#include "unity/common/u_assert.h"
-
 #ifdef FINTEGER
 #undef FINTEGER
 #endif
@@ -42,6 +39,7 @@
 #define sgeqrf_ sgeqrf_faiss
 #define sorgqr_ sorgqr_faiss
 
+#include "./fake_omp.h"
 #include "faiss/Clustering.cpp"
 #include "faiss/Index.cpp"
 #include "faiss/IndexFlat.cpp"
@@ -73,7 +71,6 @@
 #include "faiss/utils/random.cpp"
 #include "faiss/utils/sorting.cpp"
 #include "faiss/utils/utils.cpp"
-#include "unity/adapter/fake_omp.h"
 
 #undef sgemv_
 #undef sgemm_
@@ -85,66 +82,3 @@
 #undef dgesvd_
 #undef sgeqrf_
 #undef sorgqr_
-
-extern "C" {
-int sgemv_faiss(const char* trans, FINTEGER* m, FINTEGER* n, float* alpha, const float* a,
-                FINTEGER* lda, const float* x, FINTEGER* incx, float* beta, float* y,
-                FINTEGER* incy) {
-  return sgemv_eigen(trans, m, n, alpha, a, lda, x, incx, beta, y, incy);
-}
-
-int sgemm_faiss(const char* transa, const char* transb, FINTEGER* m, FINTEGER* n, FINTEGER* k,
-                const float* alpha, const float* a, FINTEGER* lda, const float* b, FINTEGER* ldb,
-                float* beta, float* c, FINTEGER* ldc) {
-  return sgemm_eigen(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-}
-
-int dgemm_faiss(const char* transa, const char* transb, FINTEGER* m, FINTEGER* n, FINTEGER* k,
-                const double* alpha, const double* a, FINTEGER* lda, const double* b, FINTEGER* ldb,
-                double* beta, double* c, FINTEGER* ldc) {
-  return dgemm_eigen(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-}
-
-int ssyrk_faiss(const char* uplo, const char* trans, FINTEGER* n, FINTEGER* k, float* alpha,
-                float* a, FINTEGER* lda, float* beta, float* c, FINTEGER* ldc) {
-  return ssyrk_eigen(uplo, trans, n, k, alpha, a, lda, beta, c, ldc);
-}
-
-int ssyev_faiss(const char* jobz, const char* uplo, FINTEGER* n, float* a, FINTEGER* lda, float* w,
-                float* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
-  return 0;
-}
-
-int dsyev_faiss(const char* jobz, const char* uplo, FINTEGER* n, double* a, FINTEGER* lda,
-                double* w, double* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
-  return 0;
-}
-
-int sgesvd_faiss(const char* jobu, const char* jobvt, FINTEGER* m, FINTEGER* n, float* a,
-                 FINTEGER* lda, float* s, float* u, FINTEGER* ldu, float* vt, FINTEGER* ldvt,
-                 float* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
-  return 0;
-}
-
-int dgesvd_faiss(const char* jobu, const char* jobvt, FINTEGER* m, FINTEGER* n, double* a,
-                 FINTEGER* lda, double* s, double* u, FINTEGER* ldu, double* vt, FINTEGER* ldvt,
-                 double* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
-  return 0;
-}
-
-int sgeqrf_faiss(FINTEGER* m, FINTEGER* n, float* a, FINTEGER* lda, float* tau, float* work,
-                 FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
-  return 0;
-}
-
-int sorgqr_faiss(FINTEGER* m, FINTEGER* n, FINTEGER* k, float* a, FINTEGER* lda, float* tau,
-                 float* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
-  return 0;
-}
-}

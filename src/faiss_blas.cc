@@ -4,7 +4,7 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * "License"){} you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
@@ -17,17 +17,5 @@
  * under the License.
  */
 
-#pragma once
-
-#ifdef EIGEN_BLAS_FUNC_SUFFIX
-#undef EIGEN_BLAS_FUNC_SUFFIX
-#endif
-#define EIGEN_BLAS_FUNC_SUFFIX _eigen
-
-#define general_matrix_vector_product_wrapper general_matrix_vector_product_wrapper_double
-#include "./blas_double.h"
-#undef general_matrix_vector_product_wrapper
-
-#define RealScalar float
-#include "./blas_single.h"
+#include "unity/adapter/faiss_blas-inl.h"
 

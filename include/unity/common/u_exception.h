@@ -46,10 +46,10 @@ class UnityException : public std::exception {
 /// Handle multiple exceptions from worker threads, throwing an appropriate
 /// exception that aggregates the information
 /// The pair int is the thread that generated the exception
-void handleExceptions(std::vector<std::pair<int, std::exception_ptr>>& exceptions);
+void unity_handle_exceptions(std::vector<std::pair<int, std::exception_ptr>>& exceptions);
 
 /// make typeids more readable
-std::string demangle_cpp_symbol(const char* name);
+std::string unity_demangle_cpp_symbol(const char* name);
 
 }  // namespace unity
 
@@ -57,7 +57,8 @@ namespace unity {
 
 UnityException::UnityException(const std::string& m) : msg(m) {}
 
-UnityException::UnityException(const std::string& m, const char* funcName, const char* file, int line) {
+UnityException::UnityException(const std::string& m, const char* funcName, const char* file,
+                               int line) {
   int size = snprintf(nullptr, 0, "Error in %s at %s:%d: %s", funcName, file, line, m.c_str());
   msg.resize(size + 1);
   snprintf(&msg[0], msg.size(), "Error in %s at %s:%d: %s", funcName, file, line, m.c_str());
@@ -65,7 +66,7 @@ UnityException::UnityException(const std::string& m, const char* funcName, const
 
 const char* UnityException::what() const noexcept { return msg.c_str(); }
 
-void handleExceptions(std::vector<std::pair<int, std::exception_ptr>>& exceptions) {
+void unity_handle_exceptions(std::vector<std::pair<int, std::exception_ptr>>& exceptions) {
   if (exceptions.size() == 1) {
     // throw the single received exception directly
     std::rethrow_exception(exceptions.front().second);
@@ -97,7 +98,7 @@ void handleExceptions(std::vector<std::pair<int, std::exception_ptr>>& exception
 // From
 // https://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
 
-std::string demangle_cpp_symbol(const char* name) {
+std::string unity_demangle_cpp_symbol(const char* name) {
 #ifdef __GNUG__
   int status = -1;
   const char* res = abi::__cxa_demangle(name, nullptr, nullptr, &status);

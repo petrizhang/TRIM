@@ -19,6 +19,11 @@
 
 #pragma once
 
+#ifdef EIGEN_BLAS_FUNC_SUFFIX
+#undef EIGEN_BLAS_FUNC_SUFFIX
+#endif
+#define EIGEN_BLAS_FUNC_SUFFIX _eigen
+
 #include "./xerbla.h"
 
 //////////////////////////////////////////////////////
@@ -45,6 +50,9 @@
 #include "blas/level2_impl.h"
 #include "blas/level2_real_impl.h"
 #include "blas/level3_impl.h"
+
+// WARNING: sdsdot_ is not supported now
+// float EIGEN_BLAS_FUNC(dsdot)(int* n, float* alpha, float* x, int* incx, float* y, int* incy) {}
 
 #undef SCALAR
 #undef SCALAR_SUFFIX
