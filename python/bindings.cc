@@ -5,8 +5,6 @@
 
 #include <thread>
 
-#include "unity/common/object.h"
-#include "unity/common/searcher.h"
 #include "unity/unity.h"
 
 namespace py = pybind11;

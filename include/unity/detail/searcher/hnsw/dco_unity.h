@@ -23,14 +23,13 @@
 #include <immintrin.h>
 #endif
 
+#include "faiss/impl/code_distance/code_distance.h"
 #include "unity/common/atomic.h"
 #include "unity/common/dco.h"
 #include "unity/common/object.h"
 #include "unity/common/prefetch.h"
 #include "unity/common/setter_proxy.h"
-#include "unity/detail/faiss/impl/ProductQuantizer.h"
-#include "unity/detail/faiss/impl/code_distance/code_distance.h"
-#include "unity/detail/uhnsw/unity_hnsw.h"
+#include "unity/detail/index/hnsw.h"
 
 namespace unity {
 namespace detail {

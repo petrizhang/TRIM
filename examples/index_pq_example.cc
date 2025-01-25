@@ -25,6 +25,8 @@
 #include <cstdlib>
 #include <random>
 
+#include "unity/detail/io/read_faiss.h"
+
 int main() {
   // dimension of the vectors to index
   int d = 64;

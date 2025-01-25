@@ -37,17 +37,17 @@
 #include "unity/common/constants.h"
 #include "unity/detail/io/read_faiss.h"
 #include "unity/detail/io/read_hnswlib.h"
-#include "unity/detail/uhnsw/hnsw_searcher.h"
+#include "unity/detail/searcher/hnsw/hnsw_searcher.h"
 #include "unity/util/thread_pool.h"
 
 namespace unity {
 namespace detail {
 
-std::unique_ptr<UnityHNSW> read_uhnsw(const Dict& options) {
+std::unique_ptr<UnityHnsw> read_uhnsw(const Dict& options) {
   namespace constants = unity::constants;
   std::string metric = options.require<std::string>(constants::U_METRIC);
   U_THROW_IF_NOT_MSG(metric == constants::U_METRIC_L2, "only L2 metric is supported now");
-  std::unique_ptr<UnityHNSW> uhnsw = std::make_unique<UnityHNSW>();
+  std::unique_ptr<UnityHnsw> uhnsw = std::make_unique<UnityHnsw>();
 
   // Read HNSW index
   int dim = options.require<int>(constants::U_DIM);
@@ -80,7 +80,7 @@ std::unique_ptr<UnityHNSW> read_uhnsw(const Dict& options) {
 }
 
 std::unique_ptr<Searcher> create_hnsw_searcher(const Dict& options) {
-  std::shared_ptr<UnityHNSW> index = read_uhnsw(options);
+  std::shared_ptr<UnityHnsw> index = read_uhnsw(options);
   std::unique_ptr<Searcher> searcher = nullptr;
   bool enable_profile = options.optional<bool>(constants::U_ENABLE_PROFILE).value_or(false);
   std::string dco_type =

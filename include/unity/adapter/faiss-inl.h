@@ -36,14 +36,29 @@
 #define sgeqrf_ sgeqrf_faiss
 #define sorgqr_ sorgqr_faiss
 
+/************************************************************
+ * header files
+ **************************************************************/
+#include "faiss/IndexIDMap.h"
+
+/************************************************************
+ * source files
+ **************************************************************/
 #include "./fake_omp.h"
 #include "faiss/Clustering.cpp"
 #include "faiss/Index.cpp"
+#include "faiss/IndexBinary.cpp"
 #include "faiss/IndexFlat.cpp"
 #include "faiss/IndexFlatCodes.cpp"
+#include "faiss/IndexIDMap.cpp"
 #include "faiss/IndexIVF.cpp"
+#include "faiss/IndexIVFFlat.cpp"
 #include "faiss/IndexIVFPQ.cpp"
+#include "faiss/IndexIVFPQR.cpp"
 #include "faiss/IndexPQ.cpp"
+#include "faiss/IndexPreTransform.cpp"
+#include "faiss/IndexRefine.cpp"
+#include "faiss/IndexScalarQuantizer.cpp"
 #include "faiss/VectorTransform.cpp"
 #include "faiss/impl/AuxIndexStructures.cpp"
 #include "faiss/impl/CodePacker.cpp"
@@ -51,6 +66,7 @@
 #include "faiss/impl/IDSelector.cpp"
 #include "faiss/impl/PolysemousTraining.cpp"
 #include "faiss/impl/ProductQuantizer.cpp"
+#include "faiss/impl/ScalarQuantizer.cpp"
 #include "faiss/impl/io.cpp"
 #include "faiss/impl/kmeans1d.cpp"
 #include "faiss/invlists/BlockInvertedLists.cpp"

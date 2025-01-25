@@ -122,7 +122,7 @@ struct IDistanceComparisonOperator {
   virtual void set_query(const dist_t* data) = 0;
 
   virtual void set(const std::string& key, const Object& value) {}
- 
+
   virtual void try_set(const std::string& key, const Object& value) {}
 
   /**
@@ -189,7 +189,6 @@ struct IDistanceComparisonOperator {
   virtual Dict get_profile() const { return {}; }
 };
 
-template <typename idx_t, typename dist_t>
-using DistanceComparisonOperator = IDistanceComparisonOperator<idx_t, dist_t>;
+using IDco = IDistanceComparisonOperator<unsigned, float>;
 
 }  // namespace unity

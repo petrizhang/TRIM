@@ -25,14 +25,14 @@
 #include "unity/common/atomic.h"
 #include "unity/common/dco.h"
 #include "unity/common/prefetch.h"
-#include "unity/detail/uhnsw/unity_hnsw.h"
+#include "unity/detail/index/hnsw.h"
 
 namespace unity {
 namespace detail {
 
 template <bool enable_profile = false>
-struct ExactDCO final : DistanceComparisonOperator<unsigned, float> {
-  using Parent = DistanceComparisonOperator<unsigned, float>;
+struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
+  using Parent = IDistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
 
@@ -44,9 +44,16 @@ struct ExactDCO final : DistanceComparisonOperator<unsigned, float> {
 
   ~ExactDCO() override = default;
 
-  explicit ExactDCO(const UnityHNSW* uhnsw) {
+  explicit ExactDCO(const UnityHnsw* uhnsw) {
     U_ASSERT(uhnsw != nullptr);
     _hnsw = uhnsw->owned_index_hnsw.get();
+    _dist_func = _hnsw->fstdistfunc_;
+    _dist_func_param = _hnsw->dist_func_param_;
+  }
+
+  explicit ExactDCO(const HnswlibIndex* hnsw) {
+    U_ASSERT(hnsw != nullptr);
+    _hnsw = hnsw;
     _dist_func = _hnsw->fstdistfunc_;
     _dist_func_param = _hnsw->dist_func_param_;
   }

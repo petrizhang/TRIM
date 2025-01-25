@@ -22,7 +22,7 @@
 #include "./eblas-inl.h"
 #include "./faiss_blas-forwards.h"
 
-#define U_THROW_NOT_IMPLEMENTED throw std::runtime_error("not implemented error")
+#define RUNTIME_ERROR_NOT_IMPLEMENTED throw std::runtime_error("not implemented error")
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,7 +43,7 @@ int sgemm_faiss(const char* transa, const char* transb, FINTEGER* m, FINTEGER* n
 int dgemm_faiss(const char* transa, const char* transb, FINTEGER* m, FINTEGER* n, FINTEGER* k,
                 const double* alpha, const double* a, FINTEGER* lda, const double* b, FINTEGER* ldb,
                 double* beta, double* c, FINTEGER* ldc) {
-  U_THROW_NOT_IMPLEMENTED;
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
   return 0;
 }
 
@@ -54,39 +54,39 @@ int ssyrk_faiss(const char* uplo, const char* trans, FINTEGER* n, FINTEGER* k, f
 
 int ssyev_faiss(const char* jobz, const char* uplo, FINTEGER* n, float* a, FINTEGER* lda, float* w,
                 float* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
   return 0;
 }
 
 int dsyev_faiss(const char* jobz, const char* uplo, FINTEGER* n, double* a, FINTEGER* lda,
                 double* w, double* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
   return 0;
 }
 
 int sgesvd_faiss(const char* jobu, const char* jobvt, FINTEGER* m, FINTEGER* n, float* a,
                  FINTEGER* lda, float* s, float* u, FINTEGER* ldu, float* vt, FINTEGER* ldvt,
                  float* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
   return 0;
 }
 
 int dgesvd_faiss(const char* jobu, const char* jobvt, FINTEGER* m, FINTEGER* n, double* a,
                  FINTEGER* lda, double* s, double* u, FINTEGER* ldu, double* vt, FINTEGER* ldvt,
                  double* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
   return 0;
 }
 
 int sgeqrf_faiss(FINTEGER* m, FINTEGER* n, float* a, FINTEGER* lda, float* tau, float* work,
                  FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
   return 0;
 }
 
 int sorgqr_faiss(FINTEGER* m, FINTEGER* n, FINTEGER* k, float* a, FINTEGER* lda, float* tau,
                  float* work, FINTEGER* lwork, FINTEGER* info) {
-  U_THROW_NOT_IMPLEMENTED;
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
   return 0;
 }
 
@@ -94,4 +94,4 @@ int sorgqr_faiss(FINTEGER* m, FINTEGER* n, FINTEGER* k, float* a, FINTEGER* lda,
 }
 #endif
 
-#undef U_THROW_NOT_IMPLEMENTED
+#undef RUNTIME_ERROR_NOT_IMPLEMENTED

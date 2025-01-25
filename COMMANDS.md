@@ -44,3 +44,18 @@ python3 plot.py
 ```bash
 python3 bench.py -k 10 -nq 1000 -d "./tmp/data/gist-960-euclidean.hdf5" -m unity -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"unity\"" -s "enable_batch_dco:[true];gamma:[0.8,0.802,0.804,0.806,0.81];refine_queue_size:[100,200];ef:[800]" -si "./tmp/index/gist_uhnsw16x500_pq8x120.empty" -sr "../results/5e654e6_nq1000_k10_gist_uhnsw16x500_pq8x120.csv"
 ```
+
+
+
+```bash
+# 遍历当前目录下所有以 .cpp 结尾的文件
+for file in *.cpp
+do
+    # 检查文件是否存在
+    if [ -f "$file" ]; then
+        echo "#include \"faiss/$file\""  # 打印所需格式
+    fi
+done
+
+
+```
