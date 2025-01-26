@@ -45,6 +45,9 @@ def parse_index_config(config_string):
 
 
 def bench_epoch(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args: dict) -> List[dict]:
+    if "refine_queue_size" in search_args and "ef" in search_args:
+        if search_args["refine_queue_size"] > search_args["ef"]:
+            return None
     line = dict(**search_args)
     alg.set_query_arguments(**search_args)
     if nq < 0 or nq > dataset.query.shape[0]:
@@ -102,9 +105,13 @@ def bench(alg_class, dataset: DataSet, k: int, nq: int, build_args: dict,
     results = []
     for args in search_args_combinations:
         line = bench_epoch(alg, dataset, k, nq, args)
-        results.append(line)
+        if line is not None:
+            results.append(line)
     results = pd.DataFrame(results)
-    results.to_csv(save_result_path, index=None)
+    if not os.path.exists(save_result_path):
+        results.to_csv(save_result_path, index=False)
+    else:
+        results.to_csv(save_result_path, mode="a", header=False, index=False)
     print(f"Benchmark results for {alg.name} saved to {save_result_path}.")
     print(results)
 

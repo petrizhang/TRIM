@@ -83,8 +83,9 @@ if [[ $k -eq 10 ]]; then
     export glove_ef="[120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,450,500,550,600,650,700,750,800,900,1000,1200,1400,1600,1800,2000]"
     export glove_pq_m=(25)
 
-    export nytimes_gamma="[0.8,0.85,0.9]"
-    export nytimes_ef="[100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000]"
+    export nytimes_gamma="[0.85,0.86]"
+    export nytimes_ef="[10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000]"
+    export nytimes_refine_queue_size="[10,20,30,40,50,60,70,80,100,200,300,400,500,600,700,800]"
     export nytimes_pq_m=(32)
 elif [[ $k -eq 100 ]]; then
     echo "Error: k should be 10" >&2
@@ -106,7 +107,7 @@ bench_hnsw() {
     local efCons=$4
     local ef=$5
 
-    local result_file="../results/${version}_nq${nq}_k${k}_${dataset_short_name}_hnsw${M}x${efCons}.csv"
+    local result_file="../results/raw/${version}_nq${nq}_k${k}_${dataset_short_name}_hnsw${M}x${efCons}.csv"
     local command="python3 bench.py -k $k \
         -nq $nq \
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \
@@ -130,7 +131,7 @@ bench_hnsw() {
 }
 
 bench_unity() {
-    if [ "$#" -ne 8 ]; then
+    if [ "$#" -ne 9 ]; then
         echo "no enough parameters"
         return 1
     fi
@@ -143,14 +144,15 @@ bench_unity() {
     local dco=$6
     local pq_m=$7
     local gamma=$8
+    local refine_size=$9
 
-    local result_file="../results/${version}_nq${nq}_k${k}_${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.csv"
+    local result_file="../results/raw/${version}_nq${nq}_k${k}_${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.csv"
     local command="python3 bench.py -k $k \
         -nq $nq \
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \
         -m unity \
         -b \"hnswlib_index_path:\\\"./tmp/index/${dataset_short_name}_hnswlib${M}x${efCons}.bin\\\";M:${M};efConstruction:${efCons};pq_index_path:\\\"./tmp/index/${dataset_short_name}_pq8x${pq_m}.bin\\\";pq_m:${pq_m};pq_nbits:8;dco:\\\"$dco\\\"\" \
-        -s \"enable_batch_dco:[true];gamma:${gamma};refine_queue_size:${refine_queue_size};ef:${ef}\" \
+        -s \"enable_batch_dco:[true];gamma:${gamma};refine_queue_size:${refine_size};ef:${ef}\" \
         -si \"./tmp/index/${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.empty\" \
         -sr \"$result_file\""
 
@@ -178,7 +180,7 @@ bench_hnsw gist-960-euclidean gist $M $efCons $hnsw_ef
 # UNITY
 for pq_m in "${gist_pq_m[@]}"; do
     bench_unity gist-960-euclidean gist $M $efCons $gist_ef \
-               unity $pq_m $gist_gamma
+               unity $pq_m $gist_gamma $refine_queue_size
 done
 
 #################################################
@@ -190,7 +192,7 @@ bench_hnsw glove-100-angular glove $M $efCons $hnsw_ef
 # UNITY
 for pq_m in "${glove_pq_m[@]}"; do
     bench_unity glove-100-angular glove $M $efCons $gist_ef \
-               unity $pq_m $glove_gamma
+               unity $pq_m $glove_gamma $refine_queue_size
 done
 
 
@@ -204,5 +206,14 @@ bench_hnsw nytimes-256-angular nytimes $M $efCons $hnsw_ef
 # UNITY 
 for pq_m in "${nytimes_pq_m[@]}"; do
     bench_unity nytimes-256-angular nytimes $M $efCons $nytimes_ef \
-                unity $pq_m $nytimes_gamma
+                unity $pq_m $nytimes_gamma $nytimes_refine_queue_size
 done
+
+
+if [ "$dry_run" = false ]; then
+    echo "Clean data..."
+    python3 ../results/clean_data.py
+    echo "Plot figures..."
+    python3 ../results/plot.py
+    echo "Done."
+fi

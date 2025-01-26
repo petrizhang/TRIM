@@ -35,37 +35,36 @@ namespace unity {
 namespace detail {
 
 template <typename PQDecoderType, bool enable_profile = false>
-struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
-                       IDistanceComparisonOperator<unsigned, float> {
+struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDco {
   using This = UnityOp<PQDecoderType, enable_profile>;
   using Proxy = SetterProxy<This>;
-  using Parent = IDistanceComparisonOperator<unsigned, float>;
+  using Parent = IDco;
   using idx_t = unsigned;
   using dist_t = float;
 
-  // Data structures for query
+  /* Data structures for query */
   const dist_t* dist_table_data{nullptr};
   const uint8_t* codes;
   const float* recons_errors;
-  size_t M{0};
+  const dist_t* query{nullptr};
+  size_t m{0};
   size_t nbits{0};
   size_t code_size{0};
   hnswlib::DISTFUNC<dist_t> dist_func{nullptr};
   void* dist_func_param{nullptr};
-
-  // Indexes
-  const faiss::IndexPQ* faiss_index_pq{nullptr};
-  const hnswlib::HierarchicalNSW<float>* hnsw{nullptr};
-  const dist_t* query{nullptr};
   faiss::AlignedTable<dist_t> dist_table;
 
-  // Profile metrics
+  /* Indexes */
+  const faiss::IndexPQ* faiss_index_pq{nullptr};
+  const hnswlib::HierarchicalNSW<float>* hnsw{nullptr};
+
+  /* Profile metrics */
   Atomic<int64_t> num_distance_computation;
   Atomic<int64_t> num_pq_distance_computation;
   Atomic<int64_t> num_lowerbound_computation;
 
-  // Search parameters
-  float _gamma{0.8};
+  /* Search parameters */
+  float gamma{0.8};
 
   ~UnityOp() override = default;
 
@@ -74,7 +73,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
     U_ASSERT(p_uhnsw->owned_index_hnsw != nullptr);
     U_ASSERT(p_uhnsw->unity_index_pq.owned_index_pq != nullptr);
     faiss_index_pq = p_uhnsw->unity_index_pq.owned_index_pq.get();
-    M = faiss_index_pq->pq.M;
+    m = faiss_index_pq->pq.M;
     nbits = faiss_index_pq->pq.nbits;
     code_size = faiss_index_pq->code_size;
     codes = p_uhnsw->unity_index_pq.codes.data();
@@ -121,7 +120,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
     assert(query != nullptr);
     dist_t a = std::sqrt(estimate(i));
     dist_t b = recons_errors[i];
-    return (a - b) * (a - b) + 2 * _gamma * a * b;
+    return (a - b) * (a - b) + 2 * gamma * a * b;
   }
 
   void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const override {
@@ -130,13 +129,13 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
   }
 
   dist_t estimate(idx_t i) const override {
-    return faiss::distance_single_code<PQDecoderType>(M, nbits, dist_table_data,
+    return faiss::distance_single_code<PQDecoderType>(m, nbits, dist_table_data,
                                                       codes + i * code_size);
   }
 
   void prefetch(idx_t i) const override { prefetch_l1(codes + code_size * i); }
 
-  void set_gamma(float gamma) { _gamma = gamma; }
+  void set_gamma(float gamma) { gamma = gamma; }
 
   void _prefetch_vector(idx_t i) const { prefetch_l1(hnsw->getDataByInternalId(i)); }
 
@@ -153,7 +152,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
     prefetch_l1(codes + ids[7] * code_size);
 
     faiss::distance_four_codes<PQDecoderType>(
-        M, nbits, dist_table_data,                                //
+        m, nbits, dist_table_data,                               //
         codes + ids[0] * code_size, codes + ids[1] * code_size,  //
         codes + ids[2] * code_size, codes + ids[3] * code_size,  //
         pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
@@ -169,7 +168,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
     prefetch_l1(recons_errors + ids[7]);
 
     faiss::distance_four_codes<PQDecoderType>(
-        M, nbits, dist_table_data,                                //
+        m, nbits, dist_table_data,                               //
         codes + ids[4] * code_size, codes + ids[5] * code_size,  //
         codes + ids[6] * code_size, codes + ids[7] * code_size,  //
         pq_dist[4], pq_dist[5], pq_dist[6], pq_dist[7]);
@@ -181,7 +180,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
                                             recons_errors[ids[3]], recons_errors[ids[2]],  //
                                             recons_errors[ids[1]], recons_errors[ids[0]]);
     // Lowerbounds
-    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(_gamma, vec_pq_dist, vec_recons_error);
+    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(gamma, vec_pq_dist, vec_recons_error);
     _mm256_storeu_ps(dists.data(), vec_lowerbounds);
   }
 
@@ -197,7 +196,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
     prefetch_l1(codes + ids[7] * code_size);
 
     faiss::distance_four_codes<PQDecoderType>(
-        M, nbits, dist_table_data,                                //
+        m, nbits, dist_table_data,                               //
         codes + ids[0] * code_size, codes + ids[1] * code_size,  //
         codes + ids[2] * code_size, codes + ids[3] * code_size,  //
         pq_dist[0], pq_dist[1], pq_dist[2], pq_dist[3]);
@@ -213,7 +212,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
     prefetch_l1(recons_errors + ids[7]);
 
     faiss::distance_four_codes<PQDecoderType>(
-        M, nbits, dist_table_data,                                //
+        m, nbits, dist_table_data,                               //
         codes + ids[4] * code_size, codes + ids[5] * code_size,  //
         codes + ids[6] * code_size, codes + ids[7] * code_size,  //
         pq_dist[4], pq_dist[5], pq_dist[6], pq_dist[7]);
@@ -225,7 +224,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>,
                                             recons_errors[ids[3]], recons_errors[ids[2]],  //
                                             recons_errors[ids[1]], recons_errors[ids[0]]);
     // Lowerbounds
-    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(_gamma, vec_pq_dist, vec_recons_error);
+    __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(gamma, vec_pq_dist, vec_recons_error);
     __m256 cmp_vec = _mm256_cmp_ps(vec_lowerbounds, _mm256_set1_ps(max_dist), _CMP_LT_OS);
     lt_flags.mask = _mm256_movemask_ps(cmp_vec);
 

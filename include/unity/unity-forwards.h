@@ -117,7 +117,7 @@ struct SearcherCreator {
   Dict options;
   std::string index_type;
 
-  SearcherCreator(const std::string& index_type) : index_type(index_type) {}
+  explicit SearcherCreator(const std::string& index_type) : index_type(index_type) {}
 
   SearcherCreator& set(const std::string& key, const Object& value) {
     options.put(key, value);

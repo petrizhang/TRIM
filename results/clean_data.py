@@ -59,7 +59,7 @@ def clean_data(recall, qps):
 script_path = os.path.abspath(__file__)
 script_dir = os.path.dirname(script_path)
 
-target_dir = f"{script_dir}/tmp"
+target_dir = f"{script_dir}/cleand"
 if not os.path.exists(target_dir):
     os.makedirs(target_dir)
 

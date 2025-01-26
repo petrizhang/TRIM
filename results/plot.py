@@ -117,13 +117,15 @@ def plot_group(result_dir, path_list, title, xlim=(0.9, 1), ylim=None):
 
 
 ylims = {
-    "glove": (10, 3000),
-    "nytimes": (10, 3000),
+    "glove": (40, 3000),
+    "nytimes": (10, 3500),
     "gist": (40, 1500)
 }
 
+script_path = os.path.abspath(__file__)
+script_dir = os.path.dirname(script_path)
+result_dir = f"{script_dir}/cleaned"
 
-result_dir = "../results"
 version = get_git_version()
 for d, ylim in ylims.items():
     plot_group(result_dir, list_csv(result_dir, [d]), f"tmp_{d}", ylim=ylim)

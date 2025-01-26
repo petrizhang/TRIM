@@ -40,7 +40,7 @@ struct UnityHnsw {
   UnityHnsw() = default;
   ~UnityHnsw() = default;
 
-  /// @brief Reorders the PQ codes based on the internal ID order of the HNSW index.
+  /// Reorders PQ codes based on HNSW internal data order.
   void reorder_pq_codes() {
     U_ASSERT(owned_index_hnsw != nullptr && unity_index_pq.owned_index_pq != nullptr);
 

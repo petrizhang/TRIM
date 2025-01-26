@@ -40,7 +40,7 @@ struct UnityIndexPq {
   explicit UnityIndexPq(std::unique_ptr<faiss::IndexPQ> owned_index)
       : owned_index_pq(std::move(owned_index)) {}
 
-  /// @brief Compute the distances between data points and their PQ centroids.
+  /// Compute distances between data points and their PQ centroids.
   void compute_pq_reconstruction_errors(IDco* dco, ctpl::thread_pool& pool) {
     U_THROW_IF_NOT_MSG(owned_index_pq != nullptr, "index is nullptr");
 
