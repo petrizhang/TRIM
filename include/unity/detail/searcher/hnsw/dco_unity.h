@@ -35,10 +35,10 @@ namespace unity {
 namespace detail {
 
 template <typename PQDecoderType, bool enable_profile = false>
-struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDco {
+struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDCO {
   using This = UnityOp<PQDecoderType, enable_profile>;
   using Proxy = SetterProxy<This>;
-  using Parent = IDco;
+  using Parent = IDCO;
   using idx_t = unsigned;
   using dist_t = float;
 
@@ -76,7 +76,7 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDco
     m = faiss_index_pq->pq.M;
     nbits = faiss_index_pq->pq.nbits;
     code_size = faiss_index_pq->code_size;
-    codes = p_uhnsw->unity_index_pq.codes.data();
+    codes = p_uhnsw->unity_index_pq.owned_index_pq->codes.data();
     recons_errors = p_uhnsw->unity_index_pq.recons_errors.data();
 
     hnsw = p_uhnsw->owned_index_hnsw.get();

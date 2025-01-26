@@ -1,6 +1,6 @@
-import numpy as np
 import faiss
 import hnswlib
+import numpy as np
 
 # Set the random seed for reproducible results
 np.random.seed(42)
@@ -16,8 +16,12 @@ d = vectors.shape[1]  # Dimensionality of the vectors
 m = 16  # Code length per subquantizer
 nbits = 8  # Number of subquantizers
 
+opq = False
 # Create a PQ index using FAISS's index factory
-index = faiss.IndexPQ(d, m, nbits)  # 8 is the length of the codes
+if opq:
+    index = faiss.index_factory(d, f"OPQ{m},PQ{m}x{nbits}")
+else:
+    index = faiss.IndexPQ(d, m, nbits)  # 8 is the length of the codes
 
 # Train the index (if necessary)
 index.train(vectors)
@@ -26,10 +30,11 @@ index.train(vectors)
 index.add(vectors)
 
 # Save the index to a file
-faiss.write_index(index, "index_pq.bin")
+index_file = "index_opq.bin" if opq else "index_pq.bin"
+faiss.write_index(index, index_file)
 
 # Print information about the saved index
-print("Index saved to 'index_pq.bin'")
+print(f"Index saved to '{index_file}'")
 
 
 # 加载索引

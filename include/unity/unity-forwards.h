@@ -69,7 +69,7 @@ std::unique_ptr<UnityHnsw> read_uhnsw(const Dict& options) {
     std::unique_ptr<faiss::IndexPQ> faiss_index_pq = read_index_pq(pq_index_path.c_str());
     U_THROW_IF_NOT_MSG(faiss_index_pq->pq.nbits == 8, "only support 8bit PQ");
 
-    uhnsw->unity_index_pq = UnityIndexPq(std::move(faiss_index_pq));
+    uhnsw->unity_index_pq = UnityIndexPQ(std::move(faiss_index_pq));
     // Rorder PQ codes
     uhnsw->reorder_pq_codes();
     // Compute PQ reconstruction errors
@@ -80,9 +80,9 @@ std::unique_ptr<UnityHnsw> read_uhnsw(const Dict& options) {
   return uhnsw;
 }
 
-std::unique_ptr<Searcher> create_hnsw_searcher(const Dict& options) {
+std::unique_ptr<ISearcher> create_hnsw_searcher(const Dict& options) {
   std::shared_ptr<UnityHnsw> index = read_uhnsw(options);
-  std::unique_ptr<Searcher> searcher = nullptr;
+  std::unique_ptr<ISearcher> searcher = nullptr;
   bool enable_profile = options.optional<bool>(constants::U_ENABLE_PROFILE).value_or(false);
   std::string dco_type =
       options.optional<std::string>(constants::U_DCO).value_or(constants::U_DCO_UNITY);
@@ -124,7 +124,7 @@ struct SearcherCreator {
     return *this;
   }
 
-  std::unique_ptr<Searcher> create() {
+  std::unique_ptr<ISearcher> create() {
     using unity::constants::U_HNSW;
     if (index_type == U_HNSW) {
       return detail::create_hnsw_searcher(options);

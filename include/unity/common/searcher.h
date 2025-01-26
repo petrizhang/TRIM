@@ -25,8 +25,6 @@
 
 namespace unity {
 
-using IDco = IDistanceComparisonOperator<unsigned, float>;
-
 struct ISearcher {
   virtual ~ISearcher() = default;
   virtual void set_data(const float* data, int n, int dim) { U_THROW_NOT_IMPLEMENTED; };
@@ -37,10 +35,8 @@ struct ISearcher {
   virtual void ann_search(const float* q, int k, int* dst) const = 0;
   virtual void range_search(const float* q, float radius, int* dst) const = 0;
   virtual void optimize(int num_threads) = 0;
-  virtual IDco* get_dco() const = 0;
+  virtual IDCO* get_dco() const = 0;
   virtual Dict get_profile() const = 0;
 };
-
-using Searcher = ISearcher;
 
 }  // namespace unity

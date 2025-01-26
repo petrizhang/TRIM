@@ -35,7 +35,7 @@ struct SetterProxy {
   using ProxyFunc = std::function<void(ChildClass*, const Object&)>;
   using ProxyPair = std::pair<ObjectType, ProxyFunc>;
 
-  std::string _prompt{"error"};
+  std::string _prompt{"setter"};
   std::unordered_map<std::string, ProxyPair> _proxy_map;
 
   SetterProxy() = default;

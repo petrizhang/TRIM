@@ -23,7 +23,7 @@
 
 #include "unity/unity-forwards.h"
 
-void bench(const unity::Searcher* searcher, double gamma, size_t n_test) {
+void bench(const unity::ISearcher* searcher, double gamma, size_t n_test) {
   size_t nb = searcher->num_data_points();
   auto* dco = searcher->get_dco();
   dco->try_set("gamma", gamma);
@@ -75,7 +75,7 @@ int main() {
   index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_pq8x120.bin";
   dim = 960;
   {
-    std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+    std::unique_ptr<unity::ISearcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                     .set("hnswlib_index_path", index_hnsw_path)
                                                     .set("pq_index_path", index_pq_path)
                                                     .set("dim", dim)
@@ -104,7 +104,7 @@ int main() {
     std::cout << "\n";
   }
   {
-    std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+    std::unique_ptr<unity::ISearcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                     .set("hnswlib_index_path", index_hnsw_path)
                                                     .set("dim", dim)
                                                     .set("metric", "L2")

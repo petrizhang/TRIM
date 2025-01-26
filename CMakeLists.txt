@@ -12,7 +12,6 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 # Build faiss static libraries to reduce compilation time for exampels and tests
 add_library(faiss_blas STATIC src/faiss_blas.cc)
 add_library(faiss STATIC src/faiss.cc)
-add_library(unity STATIC src/unity.cc)
 
 target_link_libraries(faiss faiss_blas)
 

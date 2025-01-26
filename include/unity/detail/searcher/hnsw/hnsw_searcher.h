@@ -36,8 +36,8 @@ namespace unity {
 namespace detail {
 
 template <typename TDco = UnityOp8<false>>
-struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
-  static_assert(std::is_base_of_v<IDco, TDco>, "Error: DCO must inherit from IDco.");
+struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
+  static_assert(std::is_base_of_v<IDCO, TDco>, "Error: DCO must inherit from IDCO.");
   using dist_t = float;
   using idx_t = unsigned;
   using This = HNSWSearcher<TDco>;
@@ -134,7 +134,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, Searcher {
 
   void optimize(int num_threads) override { U_THROW_MSG("not implemented error"); }
 
-  IDco* get_dco() const override { return &_dco; }
+  IDCO* get_dco() const override { return &_dco; }
 
   Dict get_profile() const override { return _dco.get_profile(); }
 

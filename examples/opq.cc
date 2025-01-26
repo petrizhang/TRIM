@@ -17,4 +17,29 @@
  * under the License.
  */
 
-#include "unity/unity.h"
+#include <algorithm>
+#include <iomanip>
+#include <iostream>
+
+#include "unity/detail/io/read_opq.h"
+
+int main() {
+  const char* opq_path = "/data/home/petrizhang/develop/TOP/test/index_opq.bin";
+  auto opq = unity::detail::read_index_opq(opq_path);
+  std::cout << opq->d << "\n";
+  std::vector<float> vec(opq->d);
+  for (int i = 0; i < vec.size(); i++) {
+    vec[i] = i;
+  }
+  std::cout << "\n";
+  std::unique_ptr<const float[]> del(opq->apply_chain(1, vec.data()));
+  if (del.get() == vec.data()) {
+    del.release();
+  }
+  
+  for (int i = 0; i < vec.size(); i++) {
+    std::cout << del[i] << ",";
+  }
+  std::cout << "\n";
+  return 0;
+}

@@ -189,6 +189,6 @@ struct IDistanceComparisonOperator {
   virtual Dict get_profile() const { return {}; }
 };
 
-using IDco = IDistanceComparisonOperator<unsigned, float>;
+using IDCO = IDistanceComparisonOperator<unsigned, float>;
 
 }  // namespace unity

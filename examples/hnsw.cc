@@ -76,7 +76,7 @@ int main() {
 
   // Search hnswlib index with top
   std::cout << "Start to load hnswlib index with UNITY...\n";
-  std::unique_ptr<unity::Searcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+  std::unique_ptr<unity::ISearcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                   .set("hnswlib_index_path", save_path)
                                                   .set("dim", dim)
                                                   .set("metric", "L2")

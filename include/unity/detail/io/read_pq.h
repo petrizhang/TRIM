@@ -38,20 +38,17 @@ inline std::unique_ptr<T> dyn_cast(std::unique_ptr<faiss::Index> ptr) {
 }
 
 inline void check_index_pq_compatibility(const faiss::IndexPQ* pq) {
-  U_THROW_IF_MSG(pq->do_polysemous_training,
-                 "UNITY error: IndexPQ must not have polysemous training enabled");
-  U_THROW_IF_MSG(pq->metric_type != faiss::MetricType::METRIC_L2,
-                 "UNITY error: only METRIC_L2 is supported");
+  U_THROW_IF_NOT_MSG(!pq->do_polysemous_training,
+                     "error reading IndexPQ: IndexPQ must not have polysemous training enabled");
+  U_THROW_IF_NOT_MSG(pq->metric_type == faiss::MetricType::METRIC_L2,
+                     "error reading IndexPQ: only METRIC_L2 is supported");
 }
 
 inline std::unique_ptr<faiss::IndexPQ> read_index_pq(const char* fname) {
   std::unique_ptr<faiss::Index> index(faiss::unity_read_index(fname));
   std::unique_ptr<faiss::IndexPQ> index_pq = dyn_cast<faiss::IndexPQ>(std::move(index));
-  if (index_pq == nullptr) {
-    U_THROW_MSG(
-        "failed to cast index to faiss::IndexPQ*: the provided index file may not be a valid "
-        "file of IndexPQ.");
-  }
+  U_THROW_IF_NOT_MSG(index_pq != nullptr,
+                     "error reading IndexPQ: failed to cast faiss::Index* to faiss::IndexPQ*");
   check_index_pq_compatibility(index_pq.get());
   return index_pq;
 }

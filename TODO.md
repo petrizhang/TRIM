@@ -17,6 +17,9 @@
 - [ ] Perf with VTune
 
 ### Project
+- [ ] Use static setter map for SetterProxy
+- [ ] Split declarations and definations of unity searcher
+- [ ] Use Google naming conventions
 - [ ] IGetter, ISetter, GetterProxy, SetterProxy
 - [ ] Unified graph index format
 - [ ] Seperated storage of graph index and data
