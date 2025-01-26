@@ -35,8 +35,8 @@ namespace unity {
 namespace detail {
 
 template <typename PQDecoderType, bool enable_profile = false>
-struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDCO {
-  using This = UnityOp<PQDecoderType, enable_profile>;
+struct UnityDCO final : SetterProxy<UnityDCO<PQDecoderType, enable_profile>>, IDCO {
+  using This = UnityDCO<PQDecoderType, enable_profile>;
   using Proxy = SetterProxy<This>;
   using Parent = IDCO;
   using idx_t = unsigned;
@@ -66,9 +66,11 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDCO
   /* Search parameters */
   float gamma{0.8};
 
-  ~UnityOp() override = default;
+  ~UnityDCO() override = default;
 
-  explicit UnityOp(const UnityHnsw* p_uhnsw) : SetterProxy<This>("UnityOp") {
+  UnityDCO() = default;
+
+  explicit UnityDCO(const UnityHnsw* p_uhnsw) : SetterProxy<This>("UnityDCO") {
     U_ASSERT(p_uhnsw != nullptr);
     U_ASSERT(p_uhnsw->owned_index_hnsw != nullptr);
     U_ASSERT(p_uhnsw->unity_index_pq.owned_index_pq != nullptr);
@@ -131,6 +133,12 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDCO
   dist_t estimate(idx_t i) const override {
     return faiss::distance_single_code<PQDecoderType>(m, nbits, dist_table_data,
                                                       codes + i * code_size);
+  }
+
+  std::unique_ptr<IDCO> clone() const override {
+    auto cloned = std::make_unique<UnityDCO>();
+    *cloned = *this;
+    return cloned;
   }
 
   void prefetch(idx_t i) const override { prefetch_l1(codes + code_size * i); }
@@ -281,13 +289,13 @@ struct UnityOp final : SetterProxy<UnityOp<PQDecoderType, enable_profile>>, IDCO
 };
 
 template <bool enable_profile = false>
-using UnityOp8 = UnityOp<faiss::PQDecoder8, enable_profile>;
+using UnityDCO8 = UnityDCO<faiss::PQDecoder8, enable_profile>;
 
 template <typename T>
 constexpr const bool is_unity_dco_v = false;
 
 template <typename T, bool v>
-constexpr const bool is_unity_dco_v<UnityOp<T, v>> = true;
+constexpr const bool is_unity_dco_v<UnityDCO<T, v>> = true;
 
 }  // namespace detail
 }  // namespace unity

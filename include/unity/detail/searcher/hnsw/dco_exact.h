@@ -31,7 +31,7 @@ namespace unity {
 namespace detail {
 
 template <bool enable_profile = false>
-struct ExactDco final : IDistanceComparisonOperator<unsigned, float> {
+struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
   using Parent = IDistanceComparisonOperator<unsigned, float>;
   using idx_t = unsigned;
   using dist_t = float;
@@ -42,16 +42,18 @@ struct ExactDco final : IDistanceComparisonOperator<unsigned, float> {
   const HnswlibIndex* _hnsw{nullptr};
   mutable Atomic<int64_t> _num_distance_computation{0};
 
-  ~ExactDco() override = default;
+  ExactDCO() = default;
 
-  explicit ExactDco(const UnityHnsw* uhnsw) {
+  ~ExactDCO() override = default;
+
+  explicit ExactDCO(const UnityHnsw* uhnsw) {
     U_ASSERT(uhnsw != nullptr);
     _hnsw = uhnsw->owned_index_hnsw.get();
     _dist_func = _hnsw->fstdistfunc_;
     _dist_func_param = _hnsw->dist_func_param_;
   }
 
-  explicit ExactDco(const HnswlibIndex* hnsw) {
+  explicit ExactDCO(const HnswlibIndex* hnsw) {
     U_ASSERT(hnsw != nullptr);
     _hnsw = hnsw;
     _dist_func = _hnsw->fstdistfunc_;
@@ -69,20 +71,18 @@ struct ExactDco final : IDistanceComparisonOperator<unsigned, float> {
     return dist < max_dist;
   }
 
-  void dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists, Bool8& lt_flags) const override {
-    assert(_query != nullptr);
-    if constexpr (enable_profile) {
-      _num_distance_computation.value.fetch_add(8);
-    }
-    Parent::dist_comp8(max_dist, ids, dists, lt_flags);
-  }
-
   dist_t compute(idx_t i) const override {
     assert(_query != nullptr);
     if constexpr (enable_profile) {
       _num_distance_computation.value.fetch_add(1);
     }
     return _dist_func(_query, _hnsw->getDataByInternalId(i), _dist_func_param);
+  }
+
+  std::unique_ptr<IDCO> clone() const override {
+    auto cloned = std::make_unique<ExactDCO>();
+    *cloned = *this;
+    return cloned;
   }
 
   void prefetch(idx_t i) const override { prefetch_l1(_hnsw->getDataByInternalId(i)); }

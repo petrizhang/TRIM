@@ -35,7 +35,7 @@
 namespace unity {
 namespace detail {
 
-template <typename TDco = UnityOp8<false>>
+template <typename TDco = UnityDCO8<false>>
 struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
   static_assert(std::is_base_of_v<IDCO, TDco>, "Error: DCO must inherit from IDCO.");
   using dist_t = float;

@@ -41,7 +41,7 @@ struct UnityIndexPQ {
 
   /// Compute distances between data points and their PQ centroids.
   void compute_pq_reconstruction_errors(IDCO* dco, ctpl::thread_pool& pool) {
-    U_THROW_IF_NOT_MSG(owned_index_pq != nullptr, "index is nullptr");
+    U_THROW_IF_NOT(owned_index_pq != nullptr);
 
     auto ntotal = owned_index_pq->ntotal;
     auto* index_pq = owned_index_pq.get();
@@ -58,12 +58,13 @@ struct UnityIndexPQ {
       if (task_end > end) {
         task_end = end;
       }
-      auto future = pool.push([=](int task_id) {
+      auto future = pool.push([dco, task_start, task_end, index_pq, out](int task_id) {
+        auto dco_copy = dco->clone();
         std::vector<float> recons(index_pq->pq.d);
         for (int j = task_start; j < task_end; j++) {
           index_pq->reconstruct(j, recons.data());
-          dco->set_query(recons.data());
-          float dist = dco->compute(j);
+          dco_copy->set_query(recons.data());
+          float dist = dco_copy->compute(j);
           out[j] = std::sqrt(dist);
         }
       });

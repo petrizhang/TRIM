@@ -73,7 +73,7 @@ std::unique_ptr<UnityHnsw> read_uhnsw(const Dict& options) {
     // Rorder PQ codes
     uhnsw->reorder_pq_codes();
     // Compute PQ reconstruction errors
-    ExactDco<> dco(uhnsw->owned_index_hnsw.get());
+    ExactDCO<> dco(uhnsw->owned_index_hnsw.get());
     uhnsw->unity_index_pq.compute_pq_reconstruction_errors(&dco, pool);
   }
 
@@ -88,20 +88,20 @@ std::unique_ptr<ISearcher> create_hnsw_searcher(const Dict& options) {
       options.optional<std::string>(constants::U_DCO).value_or(constants::U_DCO_UNITY);
   if (dco_type == constants::U_DCO_EXACT) {
     if (enable_profile) {
-      ExactDco<true> dco(index.get());
+      ExactDCO<true> dco(index.get());
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     } else {
-      ExactDco<false> dco(index.get());
+      ExactDCO<false> dco(index.get());
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     }
   } else if (dco_type == constants::U_DCO_UNITY) {
     U_THROW_IF_NOT_MSG(index->unity_index_pq.owned_index_pq != nullptr,
                        "using UNITY for distance comparision but missing PQ index");
     if (enable_profile) {
-      UnityOp8<true> dco(index.get());
+      UnityDCO8<true> dco(index.get());
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     } else {
-      UnityOp8<false> dco(index.get());
+      UnityDCO8<false> dco(index.get());
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     }
   } else {

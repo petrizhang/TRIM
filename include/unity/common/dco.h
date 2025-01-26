@@ -174,6 +174,8 @@ struct IDistanceComparisonOperator {
 
   virtual void estimate8(const Id8& ids, Dist8& dists) const { compute8(ids, dists); }
 
+  virtual std::unique_ptr<IDistanceComparisonOperator<idx_t, dist_t>> clone() const = 0;
+
   /**
    * Prefetch data for data point at a specified index. This function can be used to optimize
    * performance by loading data into cache.
