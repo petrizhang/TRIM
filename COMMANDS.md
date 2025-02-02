@@ -31,6 +31,9 @@ python3 bench.py -k 10         -nq 1000         -d "./tmp/data/gist-960-euclidea
 ### SIFT
 ```bash
 python3 bench.py -k 10 -nq 1000 -d ./tmp/data/sift-128-euclidean.hdf5 -m unity -b "hnswlib_index_path:\"./tmp/index/sift_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/sift_pq8x32.bin\";pq_m:32;pq_nbits:8;dco:\"unity\"" -s "enable_batch_dco:[false,true];ef:[10,20,30,40,50,60,70,80,90,100,200,400,800]"  -si ./tmp/index/sift_unity_hnsw16x500_pq8x32.bin -sr ./tmp/results/sift_uhnsw16x500_pq8x32.csv
+
+
+python3 bench.py -k 10 -nq 1000 -d ./tmp/data/sift-128-euclidean.hdf5 -m unity -b "hnswlib_index_path:\"./tmp/index/sift_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/sift_opq8x32.bin\";use_opq:true;pq_m:32;pq_nbits:8;dco:\"unity\"" -s "enable_batch_dco:[true];ef:[10,20,30,40,50,60,70,80,90,100,200,400,800]"  -si ./tmp/index/sift_unity_hnsw16x500_opq8x32.bin -sr ./tmp/results/sift_uhnsw16x500_opq8x32.csv
 ```
 
 
@@ -42,8 +45,10 @@ python3 plot.py
 
 
 ```bash
-python3 bench.py -k 10 -nq 1000 -d "./tmp/data/gist-960-euclidean.hdf5" -m unity -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"unity\"" -s "enable_batch_dco:[true];gamma:[0.8,0.802,0.804,0.806,0.81];refine_queue_size:[100,200];ef:[800]" -si "./tmp/index/gist_uhnsw16x500_pq8x120.empty" -sr "../results/5e654e6_nq1000_k10_gist_uhnsw16x500_pq8x120.csv"
+python3 bench.py -k 10 -nq 1000 -d "./tmp/data/gist-960-euclidean.hdf5" -m unity -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"unity\"" -s "enable_batch_dco:[true];gamma:[0.8,0.9];refine_queue_size:[100,200];ef:[800]" -si "./tmp/index/gist_uhnsw16x500_pq8x120.empty" -sr "../results/main_nq1000_k10_gist_uhnsw16x500_pq8x120.csv"
 
+
+python3 bench.py -k 10 -nq 1000 -d "./tmp/data/gist-960-euclidean.hdf5" -m unity -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_opq8x120.bin\";use_opq:true;pq_m:120;pq_nbits:8;dco:\"unity\"" -s "enable_batch_dco:[true];gamma:[0,0.8];refine_queue_size:[0];ef:[800]" -si "./tmp/index/gist_uhnsw16x500_opq8x120.empty" -sr "../results/main_nq1000_k10_gist_uhnsw16x500_opq8x120.csv"
 
 python3 bench.py -k 10 -nq 1000 -d "./tmp/data/nytimes-256-angular.hdf5" -m unity -b "hnswlib_index_path:\"./tmp/index/nytimes_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/nytimes_pq8x32.bin\";pq_m:32;pq_nbits:8;dco:\"unity\"" -s "enable_batch_dco:[true];gamma:[0.85,0.86,0.87,0.88];refine_queue_size:[10,20,30,40,50,60,70,80];ef:[10,20,30,40,50,60,70,80]" -si "./tmp/index/nytimes_uhnsw16x500_pq8x32.empty" -sr "../results/4c14a6f_nq10_k10_nytimes_uhnsw16x500_pq8x32.csv"
 ```

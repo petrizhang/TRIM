@@ -10,6 +10,8 @@
 - [x] 解决NYTimes和Glove数据集高recall性能劣化严重的问题
 - [x] Save Cleaned results Data
 - [ ] OPQ
+- [ ] Refactor OPQ
+- [ ] Use Google naming conventions
 - [ ] HNSW range search
 - [ ] IVFPQ ANN search
 - [ ] IVFPQ range search
@@ -19,7 +21,6 @@
 ### Project
 - [ ] Use static setter map for SetterProxy
 - [ ] Split declarations and definations of unity searcher
-- [ ] Use Google naming conventions
 - [ ] IGetter, ISetter, GetterProxy, SetterProxy
 - [ ] Unified graph index format
 - [ ] Seperated storage of graph index and data

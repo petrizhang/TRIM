@@ -48,10 +48,10 @@ inline void get_input_array_shapes(const py::buffer_info& buffer, size_t* rows, 
 }
 
 struct Searcher {
-  std::unique_ptr<unity::Searcher> searcher;
+  std::unique_ptr<unity::ISearcher> searcher;
 
   Searcher() : searcher(nullptr) {}
-  Searcher(std::unique_ptr<unity::Searcher> searcher) : searcher(std::move(searcher)) {};
+  Searcher(std::unique_ptr<unity::ISearcher> searcher) : searcher(std::move(searcher)) {};
 
   // TODO: delete this method, read data from hnswlib directly
   void set_data(py::object input) {

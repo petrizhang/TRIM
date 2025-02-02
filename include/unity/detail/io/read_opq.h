@@ -24,6 +24,7 @@
 #include "faiss/IndexPreTransform.h"
 #include "faiss/VectorTransform.h"
 #include "unity/common/u_assert.h"
+#include "unity/detail/index/opq.h"
 #include "unity/detail/io/read_faiss.h"
 #include "unity/detail/io/read_pq.h"
 
@@ -42,7 +43,7 @@ inline void check_opq_compatibility(const faiss::IndexPreTransform* transform,
                      "UNITY error: only METRIC_L2 is supported");
 }
 
-inline std::unique_ptr<faiss::IndexPreTransform> read_index_opq(const char* fname) {
+inline UnityIndexOPQ read_index_opq(const char* fname) {
   std::unique_ptr<faiss::Index> index(faiss::unity_read_index(fname));
   std::unique_ptr<faiss::IndexPreTransform> index_pre_transform =
       dyn_cast<faiss::IndexPreTransform>(std::move(index));
@@ -50,19 +51,16 @@ inline std::unique_ptr<faiss::IndexPreTransform> read_index_opq(const char* fnam
                      "error reading OPQ: failed to cast faiss::Index* to "
                      "faiss::IndexPreTransform*");
 
-  std::unique_ptr<faiss::Index> internal_index =
-      std::unique_ptr<faiss::Index>(index_pre_transform->index);
-  index_pre_transform->index = nullptr;
-
-  std::unique_ptr<faiss::IndexPQ> index_pq = dyn_cast<faiss::IndexPQ>(std::move(internal_index));
+  faiss::IndexPQ* index_pq = dynamic_cast<faiss::IndexPQ*>(index_pre_transform->index);
   U_THROW_IF_NOT_MSG(
       index_pq != nullptr,
       "error reading OPQ: failed to extract faiss::IndexPQ from faiss::IndexPreTransform");
 
-  check_opq_compatibility(index_pre_transform.get(), index_pq.get());
+  check_opq_compatibility(index_pre_transform.get(), index_pq);
 
-  index_pre_transform->index = index_pq.release();
-  return index_pre_transform;
+  UnityIndexOPQ index_opq(std::move(index_pre_transform), index_pq,
+                          index_pre_transform.get());
+  return std::move(index_opq);
 }
 
 }  // namespace detail

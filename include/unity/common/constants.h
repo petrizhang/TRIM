@@ -41,6 +41,7 @@ inline constexpr const char* U_DIM = "dim";
 inline constexpr const char* U_EF = "ef";
 inline constexpr const char* U_HNSWLIB_INDEX_PATH = "hnswlib_index_path";
 inline constexpr const char* U_PQ_INDEX_PATH = "pq_index_path";
+inline constexpr const char* U_USE_OPQ = "use_opq";
 
 inline Metric metric_map(const std::string& name) {
   if (name == U_METRIC_L2) {

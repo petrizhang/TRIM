@@ -64,8 +64,8 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
 
   // Index
   const HnswlibIndex* _hnsw{nullptr};
-  std::shared_ptr<UnityHnsw> _shared_uhnsw{nullptr};  // a UnityHnsw index with shared ownership
-  const UnityHnsw* _uhnsw{nullptr};                   // the underlying pointer of [shared_uhnsw]
+  std::shared_ptr<UnityHNSW> _shared_uhnsw{nullptr};  // a UnityHNSW index with shared ownership
+  const UnityHNSW* _uhnsw{nullptr};                   // the underlying pointer of [shared_uhnsw]
 
   // Parameters
   size_t _ef{32};
@@ -79,7 +79,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
 
   HNSWSearcher() = delete;
 
-  explicit HNSWSearcher(const std::shared_ptr<UnityHnsw>& index, TDco dco)
+  explicit HNSWSearcher(const std::shared_ptr<UnityHNSW>& index, TDco dco)
       : Proxy("HNSWSearcher"), _dco(std::move(dco)), _shared_uhnsw(index), _uhnsw(index.get()) {
     U_ASSERT(_uhnsw != nullptr);
     _hnsw = _uhnsw->owned_index_hnsw.get();

@@ -68,12 +68,12 @@ int main() {
   // Search hnswlib index with top
   const char* index_hnsw_path =
       "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_hnswlib16x500.bin";
-  const char* index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_pq8x32.bin";
+  const char* index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/sift_opq8x32.bin";
   int dim = 128;
 
-  index_hnsw_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_hnswlib16x500.bin";
-  index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_pq8x120.bin";
-  dim = 960;
+  // index_hnsw_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_hnswlib16x500.bin";
+  // index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_opq8x120.bin";
+  // dim = 960;
   {
     std::unique_ptr<unity::ISearcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
                                                     .set("hnswlib_index_path", index_hnsw_path)
@@ -81,8 +81,9 @@ int main() {
                                                     .set("dim", dim)
                                                     .set("metric", "L2")
                                                     .set("dco", "unity")
-                                                    .set("num_threads", 12)
+                                                    .set("num_threads", 30)
                                                     .set("enable_batch_dco", true)
+                                                    .set("use_opq", true)
                                                     .create();
     bench(searcher.get(), 0.8, 1000);
 

@@ -10,7 +10,8 @@ from utils import Timer
 
 
 class Algorithm(BaseANN):
-    def __init__(self, dim, method_param):
+    def __init__(self, dim, method_param: dict):
+        print(f"method_param:{method_param}")
         self.metric = "l2"
         self.method_param = method_param
         self.name = f"hnswlib ({self.method_param})"
@@ -18,6 +19,7 @@ class Algorithm(BaseANN):
         self.hnsw = hnswlib.Index(space=self.metric, dim=dim)
         self.hnswlib_index_path = method_param["hnswlib_index_path"]
         self.dco = "exact"
+        self.use_opq = method_param.get("use_opq", False)
 
         self.use_pq = False
         if "dco" in method_param and method_param["dco"] != "exact":
@@ -27,9 +29,13 @@ class Algorithm(BaseANN):
             self.pq_index_path = method_param["pq_index_path"]
             self.pq_m = method_param["pq_m"]
             self.pq_nbits = method_param["pq_nbits"]
-            # 8 is the length of the codes
-            self.index_pq = faiss.IndexPQ(dim, self.pq_m, self.pq_nbits)
-
+            if not self.use_opq:
+                # 8 is the length of the codes
+                self.index_pq = faiss.IndexPQ(dim, self.pq_m, self.pq_nbits)
+            else:
+                m, nbits = self.pq_m, self.pq_nbits
+                self.index_pq = faiss.index_factory(
+                    dim, f"OPQ{m},PQ{m}x{nbits}")
         self.searcher: unitylib.Searcher = None
 
     def fit(self, X):
@@ -50,7 +56,10 @@ class Algorithm(BaseANN):
                 self.hnswlib_index_path, timer.elapsed_time)
 
         if self.use_pq and not os.path.exists(self.pq_index_path):
-            print("Building faiss PQ index...")
+            if self.use_opq:
+                print("Building faiss OPQ index...")
+            else:
+                print("Building faiss PQ index...")
             with Timer() as timer:
                 self.index_pq.train(X)
                 self.index_pq.add(X)
@@ -87,6 +96,8 @@ class Algorithm(BaseANN):
             creator.set("dim", self.dim)
             creator.set("metric", "L2")
             creator.set("dco", self.dco)
+            creator.set("use_opq", self.use_opq)
+            creator.set("num_threads", os.cpu_count()-2)
             if self.use_pq:
                 creator.set("pq_index_path", self.pq_index_path)
             self.searcher = creator.create()

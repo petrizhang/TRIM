@@ -22,59 +22,66 @@
 #include <memory>
 
 #include "faiss/IndexPQ.h"
+#include "faiss/IndexPreTransform.h"
 #include "faiss/utils/AlignedTable.h"
 #include "unity/common/dco.h"
 #include "unity/common/u_assert.h"
+#include "unity/detail/index/pq.h"
 #include "unity/util/thread_pool.h"
 
 namespace unity {
 namespace detail {
 
-struct UnityIndexPQ {
-  std::unique_ptr<faiss::IndexPQ> owned_index_pq{nullptr};
-  /// Distances between data points and their PQ centroids.
-  faiss::AlignedTable<float> recons_errors;
-  bool has_recons_errors{false};
+struct UnityIndexOPQ {
+  UnityIndexPQ pq{nullptr, nullptr};
+  faiss::IndexPreTransform* transform{nullptr};
 
-  explicit UnityIndexPQ(std::unique_ptr<faiss::IndexPQ> owned_index)
-      : owned_index_pq(std::move(owned_index)) {}
+  UnityIndexOPQ(std::unique_ptr<faiss::Index> owned_index, faiss::IndexPQ* index_pq,
+                faiss::IndexPreTransform* transform)
+      : pq(std::move(owned_index), index_pq), transform(transform) {}
 
   /// Compute distances between data points and their PQ centroids.
   void compute_pq_reconstruction_errors(IDCO* dco, ctpl::thread_pool& pool) {
-    U_THROW_IF_NOT(owned_index_pq != nullptr);
+    U_THROW_IF_NOT(pq.owned_index != nullptr && pq.index_pq != nullptr);
 
-    auto ntotal = owned_index_pq->ntotal;
-    auto* index_pq = owned_index_pq.get();
-
-    int batch_size = owned_index_pq->ntotal / pool.size();
+    size_t ntotal = pq.index_pq->ntotal;
+    int batch_size = pq.index_pq->ntotal / pool.size();
     std::vector<std::future<void>> futures;
+    faiss::IndexPQ* faiss_index_pq = pq.index_pq;
+    faiss::IndexPreTransform* faiss_trans = transform;
 
-    int end = owned_index_pq->ntotal;
-    recons_errors.resize(ntotal);
+    int end = pq.index_pq->ntotal;
+    pq.recons_errors.resize(ntotal);
 
-    float* out = recons_errors.data();
+    float* out = pq.recons_errors.data();
     for (int task_start = 0, task_end = 0; task_end < end; task_start += batch_size) {
       task_end = task_start + batch_size;
       if (task_end > end) {
         task_end = end;
       }
-      auto future = pool.push([dco, task_start, task_end, index_pq, out](int task_id) {
-        auto dco_copy = dco->clone();
-        std::vector<float> recons(index_pq->pq.d);
-        for (int j = task_start; j < task_end; j++) {
-          index_pq->reconstruct(j, recons.data());
-          dco_copy->set_query(recons.data());
-          float dist = dco_copy->compute(j);
-          out[j] = std::sqrt(dist);
-        }
-      });
+      auto future =
+          pool.push([faiss_trans, faiss_index_pq, dco, task_start, task_end, out](int task_id) {
+            auto dco_copy = dco->clone();
+            std::vector<float> recons(faiss_index_pq->pq.d);
+            for (int j = task_start; j < task_end; j++) {
+              if (faiss_trans != nullptr) {
+                faiss_trans->reconstruct(j, recons.data());
+              } else {
+                faiss_index_pq->reconstruct(j, recons.data());
+              }
+              dco_copy->set_query(recons.data());
+              float dist = dco_copy->compute(j);
+              out[j] = std::sqrt(dist);
+            }
+          });
       futures.push_back(std::move(future));
     }
 
     for (auto& f : futures) {
       f.get();
     }
-    this->has_recons_errors = true;
+
+    pq.has_recons_errors = true;
   }
 };
 

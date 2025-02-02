@@ -17,29 +17,30 @@
  * under the License.
  */
 
-#include <algorithm>
-#include <iomanip>
-#include <iostream>
+#pragma once
 
-#include "unity/detail/io/read_opq.h"
+#include <memory>
 
-int main() {
-  const char* opq_path = "/data/home/petrizhang/develop/TOP/test/index_opq.bin";
-  auto opq = unity::detail::read_index_opq(opq_path);
-  std::cout << opq.pq.index_pq->d << "\n";
-  std::vector<float> vec(opq.pq.index_pq->d);
-  for (int i = 0; i < vec.size(); i++) {
-    vec[i] = i;
-  }
-  std::cout << "\n";
-  std::unique_ptr<const float[]> del(opq.transform->apply_chain(1, vec.data()));
-  if (del.get() == vec.data()) {
-    del.release();
-  }
+#include "faiss/IndexPQ.h"
+#include "faiss/utils/AlignedTable.h"
+#include "unity/common/dco.h"
+#include "unity/common/u_assert.h"
+#include "unity/util/thread_pool.h"
 
-  for (int i = 0; i < vec.size(); i++) {
-    std::cout << del[i] << ",";
-  }
-  std::cout << "\n";
-  return 0;
-}
+namespace unity {
+namespace detail {
+
+struct UnityIndexPQ {
+  std::unique_ptr<faiss::Index> owned_index{nullptr};
+  faiss::IndexPQ* index_pq{nullptr};
+  /// Distances between data points and their PQ centroids.
+  faiss::AlignedTable<float> recons_errors;
+  bool has_recons_errors{false};
+
+  explicit UnityIndexPQ(std::unique_ptr<faiss::Index> owned_index, faiss::IndexPQ* index_pq)
+      : owned_index(std::move(owned_index)), index_pq(index_pq) {}
+
+};
+
+}  // namespace detail
+}  // namespace unity

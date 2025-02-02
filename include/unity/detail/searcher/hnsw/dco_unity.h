@@ -55,6 +55,8 @@ struct UnityDCO final : SetterProxy<UnityDCO<PQDecoderType, enable_profile>>, ID
   faiss::AlignedTable<dist_t> dist_table;
 
   /* Indexes */
+  /// OPQ transformation matrix
+  const faiss::IndexPreTransform* transform{nullptr};
   const faiss::IndexPQ* faiss_index_pq{nullptr};
   const hnswlib::HierarchicalNSW<float>* hnsw{nullptr};
 
@@ -70,28 +72,39 @@ struct UnityDCO final : SetterProxy<UnityDCO<PQDecoderType, enable_profile>>, ID
 
   UnityDCO() = default;
 
-  explicit UnityDCO(const UnityHnsw* p_uhnsw) : SetterProxy<This>("UnityDCO") {
+  explicit UnityDCO(const UnityHNSW* p_uhnsw) : SetterProxy<This>("UnityDCO") {
     U_ASSERT(p_uhnsw != nullptr);
     U_ASSERT(p_uhnsw->owned_index_hnsw != nullptr);
-    U_ASSERT(p_uhnsw->unity_index_pq.owned_index_pq != nullptr);
-    faiss_index_pq = p_uhnsw->unity_index_pq.owned_index_pq.get();
+    U_ASSERT(p_uhnsw->unity_index_opq.pq.index_pq != nullptr);
+    faiss_index_pq = p_uhnsw->unity_index_opq.pq.index_pq;
     m = faiss_index_pq->pq.M;
     nbits = faiss_index_pq->pq.nbits;
     code_size = faiss_index_pq->code_size;
-    codes = p_uhnsw->unity_index_pq.owned_index_pq->codes.data();
-    recons_errors = p_uhnsw->unity_index_pq.recons_errors.data();
+    codes = p_uhnsw->unity_index_opq.pq.index_pq->codes.data();
+    recons_errors = p_uhnsw->unity_index_opq.pq.recons_errors.data();
 
     hnsw = p_uhnsw->owned_index_hnsw.get();
     dist_func = hnsw->fstdistfunc_;
     dist_func_param = hnsw->dist_func_param_;
 
+    transform = p_uhnsw->unity_index_opq.transform;
     Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
   }
 
   void set_query(const dist_t* query_data) override {
     query = query_data;
     dist_table.resize(faiss_index_pq->pq.M * faiss_index_pq->pq.ksub);
-    faiss_index_pq->pq.compute_distance_table(query, dist_table.data());
+
+    if (transform != nullptr) {
+      std::unique_ptr<const float[]> transformed_query(transform->apply_chain(1, query));
+      if (transformed_query.get() == query) {
+        transformed_query.release();
+      }
+      faiss_index_pq->pq.compute_distance_table(transformed_query.get(), dist_table.data());
+    } else {
+      faiss_index_pq->pq.compute_distance_table(query, dist_table.data());
+    }
+
     dist_table_data = dist_table.data();
   }
 

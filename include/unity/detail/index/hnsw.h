@@ -23,7 +23,8 @@
 
 #include "faiss/utils/AlignedTable.h"
 #include "hnswlib/hnswlib.h"
-#include "unity/detail/index/index_pq.h"
+#include "unity/detail/index/opq.h"
+#include "unity/detail/index/pq.h"
 
 namespace unity {
 namespace detail {
@@ -31,20 +32,20 @@ namespace detail {
 using Space = hnswlib::SpaceInterface<float>;
 using HnswlibIndex = hnswlib::HierarchicalNSW<float>;
 
-struct UnityHnsw {
+struct UnityHNSW {
   std::unique_ptr<Space> owned_space{nullptr};
   std::unique_ptr<HnswlibIndex> owned_index_hnsw{nullptr};
-  UnityIndexPQ unity_index_pq{nullptr};
+  UnityIndexOPQ unity_index_opq{nullptr,nullptr,nullptr};
   bool reorderd{false};
 
-  UnityHnsw() = default;
-  ~UnityHnsw() = default;
+  UnityHNSW() = default;
+  ~UnityHNSW() = default;
 
   /// Reorders PQ codes based on HNSW internal data order.
   void reorder_pq_codes() {
-    U_ASSERT(owned_index_hnsw != nullptr && unity_index_pq.owned_index_pq != nullptr);
+    U_ASSERT(owned_index_hnsw != nullptr && unity_index_opq.pq.index_pq != nullptr);
 
-    faiss::IndexPQ* faiss_index_pq = unity_index_pq.owned_index_pq.get();
+    faiss::IndexPQ* faiss_index_pq = unity_index_opq.pq.index_pq;
     std::vector<uint8_t> reordered_codes(faiss_index_pq->codes.size());
     U_THROW_IF_NOT_MSG(owned_index_hnsw->cur_element_count.load() == (size_t)faiss_index_pq->ntotal,
                        "the HNSW and PQ index must have the same number of data points");
