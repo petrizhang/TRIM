@@ -16,7 +16,7 @@ class BaseANN(object):
         """
         pass
 
-    def query(self, q: numpy.array, n: int) -> numpy.array:
+    def ann_query(self, q: numpy.array, n: int) -> numpy.array:
         """Performs a query on the algorithm to find the nearest neighbors. 
 
         Note: This is a placeholder method to be implemented by subclasses.
@@ -29,6 +29,10 @@ class BaseANN(object):
             numpy.array: An array of indices representing the nearest neighbors.
         """
         return []  # array of candidate indices
+    
+    def range_query(self, q: numpy.array, r: float) -> numpy.array:
+
+        return []  # array of candidate indices
 
     def get_additional(self) -> Dict[str, Any]:
         """Returns additional attributes to be stored with the result.
@@ -37,7 +41,10 @@ class BaseANN(object):
             dict: A dictionary of additional attributes.
         """
         return {}
-
+    
+    def get_pruning_ratio():
+        pass
+    
     def set_query_arguments(self, **kwargs):
         pass
 

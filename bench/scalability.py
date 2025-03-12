@@ -8,26 +8,23 @@ from typing import List
 
 import pandas as pd
 import utils
-from scipy.spatial import distance
 from alg import BaseANN
 from utils import Timer
 
 
-
 class DataSet:
-    def __init__(self, base, query, ranges, groudtruth, groundtruth_001, groundtruth_01):
+    def __init__(self, base, query, groudtruth):
         self.base = base
         self.query = query
-        self.ranges = ranges
+        # self.ranges = ranges
         self.groundtruth = groudtruth
-        self.groundtruth_001 = groundtruth_001
-        self.groundtruth_01 = groundtruth_01
+        # self.groundtruth_001 = groundtruth_001
+        # self.groundtruth_01 = groundtruth_01
 
 
 def load_dataset(path: str):
-    base, query, ranges, groundtruth, groundtruth_001, groundtruth_01 = utils.read_hdf5_dataset(path,
-                                                       ["train", "test", "ranges", "neighbors", "neighbors_001", "neighbors_01"])
-    return DataSet(base, query, ranges, groundtruth, groundtruth_001, groundtruth_01)
+    base, query, groundtruth = utils.read_hdf5_dataset(path, ["train", "test", "neighbors"])
+    return DataSet(base, query, groundtruth)
 
 
 def enumerate_combinations(config_dict):
@@ -79,49 +76,7 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
     # line["latency(ms)"] = duration_ms / nq
     line["QPS"] = nq / (duration_ms / 1000)
     line["nq"] = nq
-    line["pruning_ratio"] = alg.get_pruning_ratio() / nq
-    print(line)
-    return line
-
-def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search_args: dict) -> List[dict]:
-    line = dict(**search_args)
-    alg.set_query_arguments(**search_args)
-    if nq < 0 or nq > dataset.query.shape[0]:
-        nq = dataset.query.shape[0]
-    duration_ms = 0
-    hit = 0
-    total = 0
-    print("="*40)
-    print(f"Running queries under config {search_args}...")
-    for i in range(nq):
-        if i % 100 == 0:
-            print(f"Running query {i}...")
-        
-        # i=8
-        q = dataset.query[i]
-        if se == 0.01:
-            gt = dataset.groundtruth_001[i]
-            radius = dataset.ranges[i][0]
-        elif se == 0.1:
-            gt = dataset.groundtruth_01[i]
-            radius = dataset.ranges[i][1]
-        else :
-            raise ValueError("Invalid value for 'se'. It must be either 0.001 or 0.01.")
-
-        start = time.time()
-        result = alg.range_query(q, radius)
-        end = time.time()
-
-        duration_ms += ((end-start) * 1000)
-        gt_set = set(gt)
-        # print("Groundthruth:", gt_set)
-        total += len(gt_set)
-        hit += len(gt_set & set(result))
-    recall = hit / total
-    line["recall"] = recall
-    # line["latency(ms)"] = duration_ms / nq
-    line["QPS"] = nq / (duration_ms / 1000)
-    line["nq"] = nq
+    line["data_size"] = dataset.base.shape[0] / 1000000
     line["pruning_ratio"] = alg.get_pruning_ratio() / nq
     print(line)
     return line
@@ -160,7 +115,7 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
         if query_type == "ann":
             line = bench_epoch_ann(alg, dataset, k, nq, args)
         elif query_type == "range":
-            line = bench_epoch_range(alg, dataset, se, nq, args)
+            raise ValueError("Not implemented yet.")
         else:
             raise ValueError("Invalid query type. It must be either ann or range.")
         if line is not None:
@@ -169,9 +124,9 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
     results = pd.DataFrame(results)
 
     if method == "uIVFPQ":
-        columns = ["QPS", "pruning_ratio", "recall", "gamma", "nprobe", "k_factor"]
+        columns = ["data_size", "QPS", "pruning_ratio", "recall", "gamma", "nprobe", "k_factor"]
     else:
-        columns = ["QPS", "pruning_ratio", "recall", "gamma", "ef"]
+        columns = ["data_size", "QPS", "pruning_ratio", "recall", "gamma", "ef"]
 
     if not os.path.exists(save_result_path):
         results.to_csv(save_result_path, index=False, columns=columns)
@@ -179,6 +134,7 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
         results.to_csv(save_result_path, mode="a", header=False, index=False, columns=columns)
     print(f"Benchmark results for {alg.name} saved to {save_result_path}.")
     print(results)
+
 
 
 class Args(object):
@@ -227,7 +183,7 @@ def main():
     #             save_index_path="./tmp/index/sift_hnswlib16x500.bin",
     #             save_result_path="./tmp/results/sift_hnsw16x500.csv")
 
-    # Parse build and search arguments
+ # Parse build and search arguments
     build_args = parse_index_config(args.build_args)
     search_args = parse_index_config(args.search_args)
 
