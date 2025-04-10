@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "unity/adapter/faiss_blas-forwards.h"
+#include "trim/adapter/faiss_blas-forwards.h"
 
 int main() {
   // Define matrix dimensions

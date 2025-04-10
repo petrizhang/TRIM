@@ -17,29 +17,8 @@
  * under the License.
  */
 
-#include <algorithm>
-#include <iomanip>
-#include <iostream>
+#pragma once
 
-#include "trim/detail/io/read_opq.h"
-
-int main() {
-  const char* opq_path = "/data/home/petrizhang/develop/TOP/test/index_opq.bin";
-  auto opq = trim::detail::read_index_opq(opq_path);
-  std::cout << opq.pq.index_pq->d << "\n";
-  std::vector<float> vec(opq.pq.index_pq->d);
-  for (int i = 0; i < vec.size(); i++) {
-    vec[i] = i;
-  }
-  std::cout << "\n";
-  std::unique_ptr<const float[]> del(opq.transform->apply_chain(1, vec.data()));
-  if (del.get() == vec.data()) {
-    del.release();
-  }
-
-  for (int i = 0; i < vec.size(); i++) {
-    std::cout << del[i] << ",";
-  }
-  std::cout << "\n";
-  return 0;
-}
+#include "trim/adapter/faiss-inl.h"
+#include "trim/adapter/faiss_blas-inl.h"
+#include "trim/trim-forwards.h"

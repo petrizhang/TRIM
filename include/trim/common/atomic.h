@@ -17,29 +17,38 @@
  * under the License.
  */
 
-#include <algorithm>
-#include <iomanip>
-#include <iostream>
+#pragma once
 
-#include "trim/detail/io/read_opq.h"
+#include <atomic>
+#include <utility>
 
-int main() {
-  const char* opq_path = "/data/home/petrizhang/develop/TOP/test/index_opq.bin";
-  auto opq = trim::detail::read_index_opq(opq_path);
-  std::cout << opq.pq.index_pq->d << "\n";
-  std::vector<float> vec(opq.pq.index_pq->d);
-  for (int i = 0; i < vec.size(); i++) {
-    vec[i] = i;
-  }
-  std::cout << "\n";
-  std::unique_ptr<const float[]> del(opq.transform->apply_chain(1, vec.data()));
-  if (del.get() == vec.data()) {
-    del.release();
+namespace trim {
+
+template <typename T>
+struct Atomic {
+  std::atomic<T> value;
+
+  Atomic() = default;
+
+  explicit Atomic(T init_value) : value(init_value) {}
+
+  Atomic(const Atomic& other) : value(other.value.load()) {}
+
+  Atomic& operator=(const Atomic& other) {
+    if (this != &other) {
+      value.store(other.value.load());
+    }
+    return *this;
   }
 
-  for (int i = 0; i < vec.size(); i++) {
-    std::cout << del[i] << ",";
+  Atomic(Atomic&& other) noexcept : value(other.value.load()) {}
+
+  Atomic& operator=(Atomic&& other) noexcept {
+    if (this != &other) {
+      value.store(other.value.load());
+    }
+    return *this;
   }
-  std::cout << "\n";
-  return 0;
-}
+};
+
+}  // namespace trim

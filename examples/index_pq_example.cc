@@ -19,13 +19,13 @@
 
 #include <faiss/IndexFlat.h>
 #include <faiss/IndexIVFPQ.h>
-#include <gtest/gtest.h>
+// #include <gtest/gtest.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <random>
 
-#include "unity/detail/io/read_faiss.h"
+#include "trim/detail/io/read_faiss.h"
 
 int main() {
   // dimension of the vectors to index

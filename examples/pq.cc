@@ -21,9 +21,9 @@
 #include <iomanip>
 #include <iostream>
 
-#include "unity/unity-forwards.h"
+#include "trim/trim-forwards.h"
 
-void bench(const unity::ISearcher* searcher, double gamma, size_t n_test) {
+void bench(const trim::ISearcher* searcher, double gamma, size_t n_test) {
   size_t nb = searcher->num_data_points();
   auto* dco = searcher->get_dco();
   dco->try_set("gamma", gamma);
@@ -47,7 +47,7 @@ void bench(const unity::ISearcher* searcher, double gamma, size_t n_test) {
   for (size_t i = 0; i < n_pair; i++) {
     if (distances[i] - lowerbounds[i] < -10e-9) {
       if (gamma == 0) {
-        U_THROW_MSG("test failed");
+        T_THROW_MSG("test failed");
       }
     } else {
       success += 1;
@@ -75,12 +75,12 @@ int main() {
   // index_pq_path = "/data/home/petrizhang/develop/TOP/bench/tmp/index/gist_opq8x120.bin";
   // dim = 960;
   {
-    std::unique_ptr<unity::ISearcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+    std::unique_ptr<trim::ISearcher> searcher = trim::SearcherCreator(trim::constants::T_HNSW)
                                                     .set("hnswlib_index_path", index_hnsw_path)
                                                     .set("pq_index_path", index_pq_path)
                                                     .set("dim", dim)
                                                     .set("metric", "L2")
-                                                    .set("dco", "unity")
+                                                    .set("dco", "trim")
                                                     .set("num_threads", 30)
                                                     .set("enable_batch_dco", true)
                                                     .set("use_opq", true)
@@ -105,7 +105,7 @@ int main() {
     std::cout << "\n";
   }
   {
-    std::unique_ptr<unity::ISearcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+    std::unique_ptr<trim::ISearcher> searcher = trim::SearcherCreator(trim::constants::T_HNSW)
                                                     .set("hnswlib_index_path", index_hnsw_path)
                                                     .set("dim", dim)
                                                     .set("metric", "L2")

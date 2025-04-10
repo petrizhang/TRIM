@@ -17,29 +17,23 @@
  * under the License.
  */
 
-#include <algorithm>
-#include <iomanip>
-#include <iostream>
+#include <functional>
 
-#include "trim/detail/io/read_opq.h"
+#include "trim/common/common.h"
 
-int main() {
-  const char* opq_path = "/data/home/petrizhang/develop/TOP/test/index_opq.bin";
-  auto opq = trim::detail::read_index_opq(opq_path);
-  std::cout << opq.pq.index_pq->d << "\n";
-  std::vector<float> vec(opq.pq.index_pq->d);
-  for (int i = 0; i < vec.size(); i++) {
-    vec[i] = i;
-  }
-  std::cout << "\n";
-  std::unique_ptr<const float[]> del(opq.transform->apply_chain(1, vec.data()));
-  if (del.get() == vec.data()) {
-    del.release();
-  }
+namespace trim {
 
-  for (int i = 0; i < vec.size(); i++) {
-    std::cout << del[i] << ",";
-  }
-  std::cout << "\n";
-  return 0;
-}
+class Defer {
+ public:
+  template <typename F>
+  explicit Defer(F&& defer_func) : defer_func_(std::forward<F>(defer_func)) {}
+  ~Defer() noexcept { defer_func_(); }
+
+  U_FORBID_COPY_AND_ASSIGN(Defer);
+  U_FORBID_MOVE(Defer);
+
+ private:
+  std::function<void()> defer_func_;
+};
+
+}  // namespace trim

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(unity LANGUAGES CXX)
+project(trim LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -8,6 +8,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_FLAGS "-march=native")
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
+include_directories("/usr/include/hdf5/serial")
+
 
 # Build faiss static libraries to reduce compilation time for exampels and tests
 add_library(faiss_blas STATIC src/faiss_blas.cc)

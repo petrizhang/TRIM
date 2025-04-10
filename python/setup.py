@@ -13,6 +13,7 @@ __version__ = '0.0.1'
 include_dirs = [
     pybind11.get_include(),
     np.get_include(),
+    # '/usr/include/hdf5/serial'
 ]
 
 # compatibility when run in python_bindings
@@ -24,15 +25,18 @@ else:
     source_files = ['./python/bindings.cc']
     include_dirs.extend(['./include'])
 
+# libraries = ['hdf5_cpp', 'hdf5']
+# library_dirs = ['/home/yitong/miniconda3/envs/yitong/lib']
 libraries = []
 extra_objects = []
 
 ext_modules = [
     Extension(
-        'unitylib',
+        'trimlib',
         source_files,
         include_dirs=include_dirs,
         libraries=libraries,
+        # library_dirs=library_dirs,
         language='c++',
         extra_objects=extra_objects,
     ),
@@ -66,7 +70,8 @@ def cpp_flag(compiler):
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'unix': "-O3 -march=native -Wno-sign-compare -Wno-unknown-pragmas".split()
+        # 'unix': "-O3 -march=native -Wno-sign-compare -Wno-unknown-pragmas".split()
+        'unix': "-O3 -march=native -mno-avx512f -Wno-sign-compare -Wno-unknown-pragmas".split()
     }
 
     link_opts = {
@@ -93,7 +98,7 @@ class BuildExt(build_ext):
 
 
 setup(
-    name='unitylib',
+    name='trimlib',
     version=__version__,
     description='Smaller & Faster Full-Featured Similarity Search Engine',
     author='',

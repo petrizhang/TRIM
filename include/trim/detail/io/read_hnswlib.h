@@ -17,29 +17,25 @@
  * under the License.
  */
 
-#include <algorithm>
-#include <iomanip>
-#include <iostream>
+#pragma once
 
-#include "trim/detail/io/read_opq.h"
+#include <memory>
 
-int main() {
-  const char* opq_path = "/data/home/petrizhang/develop/TOP/test/index_opq.bin";
-  auto opq = trim::detail::read_index_opq(opq_path);
-  std::cout << opq.pq.index_pq->d << "\n";
-  std::vector<float> vec(opq.pq.index_pq->d);
-  for (int i = 0; i < vec.size(); i++) {
-    vec[i] = i;
-  }
-  std::cout << "\n";
-  std::unique_ptr<const float[]> del(opq.transform->apply_chain(1, vec.data()));
-  if (del.get() == vec.data()) {
-    del.release();
-  }
+#include "hnswlib/hnswlib.h"
+#include "trim/common/t_assert.h"
+#include "trim/common/common.h"
 
-  for (int i = 0; i < vec.size(); i++) {
-    std::cout << del[i] << ",";
-  }
-  std::cout << "\n";
-  return 0;
+namespace trim {
+namespace detail {
+
+std::unique_ptr<hnswlib::HierarchicalNSW<float>> read_hnswlib(hnswlib::SpaceInterface<float>* space,
+                                                              Metric metric,
+                                                              const std::string& path, int dim) {
+
+  T_THROW_IF_NOT_MSG(metric == Metric::L2, "only L2 metric is supported now");
+  auto hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(space, path, false, 0, false);
+  return hnsw;
 }
+
+}  // namespace detail
+}  // namespace trim

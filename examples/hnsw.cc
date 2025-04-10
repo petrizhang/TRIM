@@ -20,7 +20,7 @@
 #include <iostream>
 
 #include "hnswlib/hnswalg.h"
-#include "unity/unity-forwards.h"
+#include "trim/trim-forwards.h"
 
 struct RandomGenerator {
   std::mt19937 mt;
@@ -75,8 +75,8 @@ int main() {
   std::cout << "\n";
 
   // Search hnswlib index with top
-  std::cout << "Start to load hnswlib index with UNITY...\n";
-  std::unique_ptr<unity::ISearcher> searcher = unity::SearcherCreator(unity::constants::U_HNSW)
+  std::cout << "Start to load hnswlib index with TRIM...\n";
+  std::unique_ptr<trim::ISearcher> searcher = trim::SearcherCreator(trim::constants::T_HNSW)
                                                   .set("hnswlib_index_path", save_path)
                                                   .set("dim", dim)
                                                   .set("metric", "L2")
@@ -86,8 +86,9 @@ int main() {
 
   constexpr const int k = 10;
   std::vector<int> knn(k);
-  const float* data = base.data();
-  searcher->set_data(data, nb, dim);
+  float* data = base.data();
+  // searcher->set_data(data, nb, dim);
+  searcher->set_data(data);
   searcher->set("ef", ef);
 
   searcher->ann_search(&base.at(0), 10, knn.data());
