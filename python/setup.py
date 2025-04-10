@@ -25,8 +25,6 @@ else:
     source_files = ['./python/bindings.cc']
     include_dirs.extend(['./include'])
 
-# libraries = ['hdf5_cpp', 'hdf5']
-# library_dirs = ['/home/yitong/miniconda3/envs/yitong/lib']
 libraries = []
 extra_objects = []
 
