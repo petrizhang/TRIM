@@ -73,7 +73,7 @@ def generate_clustering_landmarks(data, W, sampled_data_idx):
     
     return centroids, all_distances.flatten(), all_labels.flatten()
 
-def generate_Unity_landmarks(indexPath, sampled_data_idx):
+def generate_trim_landmarks(indexPath, sampled_data_idx):
     # Load PQ index
     index_pq = faiss.read_index(indexPath)  
     # Get PQ codes for the sampled data
@@ -108,8 +108,8 @@ print("Generate distancing landmarks done")
 centroids, cluster_landmarks_distances, I = generate_clustering_landmarks(data, W, sampled_data_idx)
 print("Generate clustering landmarks done")
 
-unity_landmarks = generate_Unity_landmarks(indexPath, sampled_data_idx)
-print("Generate Unity landmarks done")
+trim_landmarks = generate_trim_landmarks(indexPath, sampled_data_idx)
+print("Generate trim landmarks done")
 
 distance_ratios1 = []
 distance_ratios2 = []
@@ -146,10 +146,10 @@ for i in range(len(sampled_data_idx)):
     lb3 = abs(cluster_landmark_distance - query_to_centroid)
     distance_ratios3.append(lb3 / real_distance)
     
-    # Method 4：Unity landmarks
-    unity_landmark = unity_landmarks[i].reshape(1, -1)
-    landmark_to_data = cdist(cur_data, unity_landmark, metric='euclidean')[0][0]
-    landmark_to_query = cdist(q, unity_landmark, metric='euclidean')[0][0]
+    # Method 4：trim landmarks
+    trim_landmark = trim_landmarks[i].reshape(1, -1)
+    landmark_to_data = cdist(cur_data, trim_landmark, metric='euclidean')[0][0]
+    landmark_to_query = cdist(q, trim_landmark, metric='euclidean')[0][0]
     lb4 = abs(landmark_to_data - landmark_to_query)
     distance_ratios4.append(lb4 / real_distance)
 
@@ -157,5 +157,5 @@ for i in range(len(sampled_data_idx)):
 print("Random Landmarks Ratio:", np.mean(distance_ratios1))
 print("Distancing Landmarks Ratio:", np.mean(distance_ratios2))
 print("Cluster Landmarks Ratio:", np.mean(distance_ratios3))
-print("Unity Landmarks Ratio:", np.mean(distance_ratios4))
+print("Trim Landmarks Ratio:", np.mean(distance_ratios4))
 

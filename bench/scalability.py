@@ -123,7 +123,7 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
 
     results = pd.DataFrame(results)
 
-    if method == "uIVFPQ":
+    if method == "tIVFPQ":
         columns = ["data_size", "QPS", "pruning_ratio", "recall", "gamma", "nprobe", "k_factor"]
     else:
         columns = ["data_size", "QPS", "pruning_ratio", "recall", "gamma", "ef"]
@@ -154,7 +154,7 @@ def main():
     parser.add_argument("-d", "--dataset", required=True,
                         help="Path to the dataset.")
     parser.add_argument("-m", "--method", required=True,
-                        choices=['hnsw', 'uIVFPQ', 'unity'], help="Method to test")
+                        choices=['hnsw', 'tIVFPQ', 'trim'], help="Method to test")
     parser.add_argument("-b", "--build_args", required=True,
                         help="Build parameters in the format: M:16;efConstruction:500")
     parser.add_argument("-s", "--search_args", required=True,

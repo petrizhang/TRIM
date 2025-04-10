@@ -166,17 +166,17 @@ def validate(gamma, sampled_data, landmarks, queries):
         print(f"Total: {num}, Wrong: {wrong}, Ratio: {(wrong / num * 100):.3f}%")
 
 # Load dataset
-# dataPath = "../../yitong/Datasets/nytimes-256.hdf5"
-# indexPath = "./tmp/index/nytimes_pq8x64.bin"
-# sample_size = 3000  # Number of samples to take
+dataPath = "../../yitong/Datasets/nytimes-256.hdf5"
+indexPath = "./tmp/index/nytimes_pq8x64.bin"
+sample_size = 3000  # Number of samples to take
 
 # dataPath = "../../yitong/Datasets/gist-960.hdf5"
 # indexPath = "./tmp/index/gist_pq8x240.bin"
 # sample_size = 1000  # Number of samples to take
 
-dataPath = "../../yitong/Datasets/glove-100.hdf5"
-indexPath = "./tmp/index/glove_pq8x25.bin"
-sample_size = 1000  # Number of samples to take
+# dataPath = "../../yitong/Datasets/glove-100.hdf5"
+# indexPath = "./tmp/index/glove_pq8x25.bin"
+# sample_size = 1000  # Number of samples to take
 
 # dataPath = "../../yitong/Datasets/tiny5m-384.hdf5"
 # indexPath = "./tmp/index/tiny5m_pq8x96.bin"

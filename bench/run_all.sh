@@ -111,7 +111,7 @@ bench_hnsw() {
     local command="python3 bench.py -k $k \
         -nq $nq \
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \
-        -m unity \
+        -m trim \
         -b \"hnswlib_index_path:\\\"./tmp/index/${dataset_short_name}_hnswlib${M}x${efCons}.bin\\\";M:${M};efConstruction:${efCons};dco:\\\"exact\\\"\" \
         -s \"enable_batch_dco:[false];ef:${ef}\" \
         -si \"./tmp/index/${dataset_short_name}_hnsw${M}x${efCons}.empty\" \
@@ -130,7 +130,7 @@ bench_hnsw() {
     fi
 }
 
-bench_unity() {
+bench_trim() {
     if [ "$#" -ne 9 ]; then
         echo "no enough parameters"
         return 1
@@ -150,7 +150,7 @@ bench_unity() {
     local command="python3 bench.py -k $k \
         -nq $nq \
         -d \"./tmp/data/${dataset_full_name}.hdf5\" \
-        -m unity \
+        -m trim \
         -b \"hnswlib_index_path:\\\"./tmp/index/${dataset_short_name}_hnswlib${M}x${efCons}.bin\\\";M:${M};efConstruction:${efCons};pq_index_path:\\\"./tmp/index/${dataset_short_name}_pq8x${pq_m}.bin\\\";pq_m:${pq_m};pq_nbits:8;dco:\\\"$dco\\\"\" \
         -s \"enable_batch_dco:[true];gamma:${gamma};refine_queue_size:${refine_size};ef:${ef}\" \
         -si \"./tmp/index/${dataset_short_name}_uhnsw${M}x${efCons}_pq8x${pq_m}.empty\" \
@@ -174,25 +174,25 @@ bench_unity() {
 # GIST
 #################################################
 
-# # HNSW (UNITY Implementation)
+# # HNSW (TRIM Implementation)
 bench_hnsw gist-960-euclidean gist $M $efCons $hnsw_ef
 
-# UNITY
+# TRIM
 for pq_m in "${gist_pq_m[@]}"; do
-    bench_unity gist-960-euclidean gist $M $efCons $gist_ef \
-               unity $pq_m $gist_gamma $refine_queue_size
+    bench_trim gist-960-euclidean gist $M $efCons $gist_ef \
+               trim $pq_m $gist_gamma $refine_queue_size
 done
 
 #################################################
 # GLOVE
 #################################################
-# HNSW (UNITY Implementation)
+# HNSW (TRIM Implementation)
 bench_hnsw glove-100-angular glove $M $efCons $hnsw_ef
 
-# UNITY
+# TRIM
 for pq_m in "${glove_pq_m[@]}"; do
-    bench_unity glove-100-angular glove $M $efCons $gist_ef \
-               unity $pq_m $glove_gamma $refine_queue_size
+    bench_trim glove-100-angular glove $M $efCons $gist_ef \
+               trim $pq_m $glove_gamma $refine_queue_size
 done
 
 
@@ -200,13 +200,13 @@ done
 # NYTimes
 #################################################
 
-# HNSW (UNITY Implementation)
+# HNSW (TRIM Implementation)
 bench_hnsw nytimes-256-angular nytimes $M $efCons $hnsw_ef
 
-# UNITY 
+# TRIM 
 for pq_m in "${nytimes_pq_m[@]}"; do
-    bench_unity nytimes-256-angular nytimes $M $efCons $nytimes_ef \
-                unity $pq_m $nytimes_gamma $nytimes_refine_queue_size
+    bench_trim nytimes-256-angular nytimes $M $efCons $nytimes_ef \
+                trim $pq_m $nytimes_gamma $nytimes_refine_queue_size
 done
 
 

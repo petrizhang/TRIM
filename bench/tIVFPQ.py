@@ -1,7 +1,7 @@
 import os
 import faiss
 import numpy as np
-import unitylib
+import trimlib
 import utils
 from alg import BaseANN
 from utils import Timer
@@ -12,11 +12,11 @@ class Algorithm(BaseANN):
         print(f"method_param:{method_param}")
         self.metric = "l2"
         self.method_param = method_param
-        self.name = f"uIVFPQ ({self.method_param})"
+        self.name = f"tIVFPQ ({self.method_param})"
         self.dim = dim
         self.ivfpq = None
         self.ivfpq_index_path = method_param["ivfpq_index_path"]
-        self.searcher: unitylib.Searcher = None
+        self.searcher: trimlib.Searcher = None
 
     def fit(self, X):
         assert len(X[0]) == self.dim
@@ -38,13 +38,13 @@ class Algorithm(BaseANN):
             # utils.write_build_time(self.ivfpq_index_path, timer.elapsed_time)
 
 
-    def set_query_arguments(self, nprobe, k_factor, unity_opened = True, gamma=0.8):
+    def set_query_arguments(self, nprobe, k_factor, trim_opened = True, gamma=0.8):
         assert self.searcher is not None
         self.searcher.set("nprobe", nprobe)
         self.searcher.set("gamma", gamma)
         # self.searcher.set("ef", ef)
         self.searcher.set("k_factor", k_factor)
-        self.searcher.set("unity_opened", unity_opened)
+        self.searcher.set("trim_opened", trim_opened)
         self.searcher.clear_pruning_ratio()
 
     def ann_query(self, v, n):
@@ -69,7 +69,7 @@ class Algorithm(BaseANN):
 
     def load_index(self, index_path: str) -> None:
         if self.searcher is None:
-            creator = unitylib.SearcherCreator("ivfpq")
+            creator = trimlib.SearcherCreator("ivfpq")
             creator.set("ivfpq_index_path", self.ivfpq_index_path)
             self.searcher = creator.create()
 

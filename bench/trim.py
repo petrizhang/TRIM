@@ -3,7 +3,7 @@ import os
 import faiss
 import hnswlib
 import numpy as np
-import unitylib
+import trimlib
 import utils
 from alg import BaseANN
 from utils import Timer
@@ -36,7 +36,7 @@ class Algorithm(BaseANN):
                 m, nbits = self.pq_m, self.pq_nbits
                 self.index_pq = faiss.index_factory(
                     dim, f"OPQ{m},PQ{m}x{nbits}")
-        self.searcher: unitylib.Searcher = None
+        self.searcher: trimlib.Searcher = None
 
     def fit(self, X):
         assert len(X[0]) == self.dim
@@ -98,7 +98,7 @@ class Algorithm(BaseANN):
 
     def load_index(self, index_path: str) -> None:
         if self.searcher is None:
-            creator = unitylib.SearcherCreator("hnsw")
+            creator = trimlib.SearcherCreator("hnsw")
             creator.set("hnswlib_index_path", self.hnswlib_index_path)
             creator.set("dim", self.dim)
             creator.set("metric", "L2")

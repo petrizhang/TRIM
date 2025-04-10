@@ -4,7 +4,7 @@ import utils
 import faiss
 from scipy.spatial.distance import cdist
 
-def generate_Unity_landmarks(indexPath):
+def generate_trim_landmarks(indexPath):
     # Load PQ index
     index_pq = faiss.read_index(indexPath)  
     # Get PQ codes for the sampled data
@@ -29,8 +29,8 @@ n, d = data.shape
 sample_num = 10000
 sampled_data_idx = np.random.choice(n, size=sample_num, replace=False)
 
-landmarks = generate_Unity_landmarks(indexPath)
-print("Generate Unity landmarks done")
+landmarks = generate_trim_landmarks(indexPath)
+print("Generate trim landmarks done")
 
 gammas =  [0.5,0.6,0.7,0.8,0.9,1]
 

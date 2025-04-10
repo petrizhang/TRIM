@@ -72,6 +72,12 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
         duration_ms += ((end-start) * 1000)
         gt_set = set(gt)
         # print("Groundthruth:", gt_set)
+        # print("My answer:", knn)
+        # dist = distance.euclidean(q, dataset.base[93438])
+        # print(f"93438 distance: {dist*dist}")
+        # print("93438 data:")
+        # print(dataset.base[93438])
+
         total += len(gt_set)
         hit += len(gt_set & set(knn))
     recall = hit / total
@@ -94,6 +100,7 @@ def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search
     print("="*40)
     print(f"Running queries under config {search_args}...")
     for i in range(nq):
+       
         if i % 100 == 0:
             print(f"Running query {i}...")
         
@@ -107,6 +114,11 @@ def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search
             radius = dataset.ranges[i][1]
         else :
             raise ValueError("Invalid value for 'se'. It must be either 0.001 or 0.01.")
+
+        # if i==730:
+        #     print(f"radius: {radius}")
+        #     print(f"gt: {gt}")
+        #     print(f"43482 distance: {distance.euclidean(q, dataset.base[43482])}")
 
         start = time.time()
         result = alg.range_query(q, radius)
@@ -168,7 +180,7 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
 
     results = pd.DataFrame(results)
 
-    if method == "uIVFPQ":
+    if method == "tIVFPQ":
         columns = ["QPS", "pruning_ratio", "recall", "gamma", "nprobe", "k_factor"]
     else:
         columns = ["QPS", "pruning_ratio", "recall", "gamma", "ef"]
@@ -198,7 +210,7 @@ def main():
     parser.add_argument("-d", "--dataset", required=True,
                         help="Path to the dataset.")
     parser.add_argument("-m", "--method", required=True,
-                        choices=['hnsw', 'uIVFPQ', 'unity'], help="Method to test")
+                        choices=['hnsw', 'tIVFPQ', 'trim'], help="Method to test")
     parser.add_argument("-b", "--build_args", required=True,
                         help="Build parameters in the format: M:16;efConstruction:500")
     parser.add_argument("-s", "--search_args", required=True,
