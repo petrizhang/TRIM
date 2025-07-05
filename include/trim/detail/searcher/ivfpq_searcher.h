@@ -32,6 +32,8 @@ namespace detail {
         float _k_factor{10};
         float _gamma{0.8};
         mutable float _pruning_ratio{0.0f};
+        mutable float _actual_distance_computation{0.0f};
+        mutable float _total_distance_computation{0.0f};
         bool _trim_opened{true};
 
         //Index
@@ -49,6 +51,8 @@ namespace detail {
         explicit IVFPQSearcher(const char* index_path):Proxy("IVFPQSearcher"){  
             _ivfpq = new faiss::tIVFPQ(index_path);
             _pruning_ratio = 0.0f;
+            _actual_distance_computation = 0.0f;
+            _total_distance_computation = 0.0f;
             
             Proxy::template bind<BOOL_TYPE>("trim_opened", &This::set_trim_opened);
             Proxy::template bind<DOUBLE_TYPE>("k_factor", &This::set_k_factor);
@@ -87,8 +91,14 @@ namespace detail {
         Dict get_profile() const override { T_THROW_MSG("not implemented error");}
 
         float get_pruning_ratio() const override { return _pruning_ratio; }
+
+        float get_actual_distance_computation() const override { return _actual_distance_computation; }
+
+        float get_total_distance_computation() const override { return _total_distance_computation; }
   
         void clear_pruning_ratio() const override { _pruning_ratio = 0.0; }
+
+        void clear_num_distance_computation() const override { _actual_distance_computation = 0.0; _total_distance_computation = 0.0; }
         
         void ann_search(const float* q, int k, int* dst) const override {
            
@@ -140,6 +150,10 @@ namespace detail {
                 results_queue.pop();
                 i--;
             }
+
+            _actual_distance_computation += can_size;
+            _total_distance_computation += can_size;
+            _pruning_ratio += 0.0;
 
             // Free allocated memory
             delete[] approx_distances;
@@ -283,6 +297,8 @@ namespace detail {
                 i--;
             }
 
+            _actual_distance_computation += actual_access_count;
+            _total_distance_computation += total_access_count;
             _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
             
         }
@@ -390,6 +406,8 @@ namespace detail {
                 i--;
             }
 
+            _actual_distance_computation += actual_access_count;
+            _total_distance_computation += total_access_count;
             _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
             
         }
@@ -425,6 +443,10 @@ namespace detail {
                     result.push_back(id);
                 }  
             }
+
+            _actual_distance_computation += (result_set.lims[1] - result_set.lims[0]);
+            _total_distance_computation += (result_set.lims[1] - result_set.lims[0]);
+            _pruning_ratio += 0.0;
         }
 
         void _range_search_with_trim(const float* q, float radius, std::vector<int> &result) const{
@@ -488,6 +510,8 @@ namespace detail {
                 }  
             }
             
+            _actual_distance_computation += actual_access_count;
+            _total_distance_computation += total_access_count;
             _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
              
         }
@@ -580,6 +604,8 @@ namespace detail {
                 }  
             }
             
+            _actual_distance_computation += actual_access_count;
+            _total_distance_computation += total_access_count;
             _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
              
         }
@@ -691,6 +717,8 @@ namespace detail {
                 }  
             }
             
+            _actual_distance_computation += actual_access_count;
+            _total_distance_computation += total_access_count;
             _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
 
             delete[] sim_table;

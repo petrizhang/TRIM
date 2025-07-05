@@ -37,8 +37,13 @@ struct ISearcher {
   virtual void optimize(int num_threads) = 0;
   virtual IDCO* get_dco() const = 0;
   virtual Dict get_profile() const = 0;
-  virtual void clear_pruning_ratio() const = 0;
+  
   virtual float get_pruning_ratio() const = 0;
+  virtual float get_actual_distance_computation() const = 0;
+  virtual float get_total_distance_computation() const = 0;
+  
+  virtual void clear_pruning_ratio() const = 0;
+  virtual void clear_num_distance_computation() const = 0;
 };
 
 }  // namespace trim

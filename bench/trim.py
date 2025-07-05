@@ -71,6 +71,7 @@ class Algorithm(BaseANN):
         self.searcher.set("gamma", gamma)
         self.searcher.set("ef", ef)
         self.searcher.clear_pruning_ratio()
+        self.searcher.clear_num_distance_computation()
 
     def ann_query(self, v, n):
         # print(np.expand_dims(v,axis=0).shape)
@@ -79,11 +80,19 @@ class Algorithm(BaseANN):
     
     def range_query(self, v, r):
         return self.searcher.range_search(np.expand_dims(v, axis=0), radius=r)
-    
+
+    def get_M(self):
+        return self.pq_m
+
     def get_pruning_ratio(self):
         return self.searcher.get_pruning_ratio()
     
-
+    def get_actual_distance_computation(self):
+        return self.searcher.get_actual_distance_computation()
+    
+    def get_total_distance_computation(self):
+        return self.searcher.get_total_distance_computation()
+    
     def set_data(self, base_data):
         assert self.searcher is not None
         self.searcher.set_data(base_data)

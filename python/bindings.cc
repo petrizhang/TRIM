@@ -93,11 +93,27 @@ struct Searcher {
 
   void clear_pruning_ratio() { searcher->clear_pruning_ratio(); }
 
+  void clear_num_distance_computation() { searcher->clear_num_distance_computation(); }
+
   float get_pruning_ratio() const {
     if (!searcher) {
         throw std::runtime_error("Searcher is not initialized.");
     }
     return searcher->get_pruning_ratio();
+  }
+
+  float get_actual_distance_computation() const {
+    if (!searcher) {
+        throw std::runtime_error("Searcher is not initialized.");
+    }
+    return searcher->get_actual_distance_computation();
+  }
+
+  float get_total_distance_computation() const {
+    if (!searcher) {
+        throw std::runtime_error("Searcher is not initialized.");
+    }
+    return searcher->get_total_distance_computation();
   }
 
 };
@@ -132,7 +148,10 @@ PYBIND11_MODULE(trimlib, m) {
       .def("set", &Searcher::set, py::arg("name"), py::arg("value"))
       .def("optimize", &Searcher::optimize, py::arg("num_threads") = 0)
       .def("clear_pruning_ratio", &Searcher::clear_pruning_ratio)
-      .def("get_pruning_ratio", &Searcher::get_pruning_ratio); 
+      .def("clear_num_distance_computation", &Searcher::clear_num_distance_computation)
+      .def("get_pruning_ratio", &Searcher::get_pruning_ratio)
+      .def("get_actual_distance_computation", &Searcher::get_actual_distance_computation)
+      .def("get_total_distance_computation", &Searcher::get_total_distance_computation); 
 
   py::class_<SearcherCreator>(m, "SearcherCreator")
       .def(py::init<std::string>(), py::arg("index_type"))

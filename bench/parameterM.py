@@ -52,8 +52,14 @@ def parse_index_config(config_string):
 def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args: dict) -> List[dict]:
     line = dict(**search_args)
     alg.set_query_arguments(**search_args)
-    if nq < 0 or nq > dataset.query.shape[0]:
-        nq = dataset.query.shape[0]
+
+    max_nq = min(dataset.query.shape[0], 300)
+    if nq < 0 or nq > max_nq:
+        nq = max_nq
+    
+    dataset.query = dataset.query[:nq]
+    dataset.groundtruth = dataset.groundtruth[:nq]
+
     duration_ms = 0
     hit = 0
     total = 0
@@ -84,18 +90,24 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
     line["recall"] = recall
     # line["latency(ms)"] = duration_ms / nq
     line["QPS"] = nq / (duration_ms / 1000)
-    line["nq"] = nq
-    line["pruning_ratio"] = alg.get_pruning_ratio() / nq
-    line["actual_distance_computation"] = alg.get_actual_distance_computation() / nq
-    line["total_distance_computation"] = alg.get_total_distance_computation() / nq
+    # line["nq"] = nq
+    # line["pruning_ratio"] = alg.get_pruning_ratio() / nq
+    # line["actual_distance_computation"] = alg.get_actual_distance_computation() / nq
+    # line["total_distance_computation"] = alg.get_total_distance_computation() / nq
     print(line)
     return line
 
 def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search_args: dict) -> List[dict]:
     line = dict(**search_args)
     alg.set_query_arguments(**search_args)
-    if nq < 0 or nq > dataset.query.shape[0]:
-        nq = dataset.query.shape[0]
+    
+    max_nq = min(dataset.query.shape[0], 300)
+    if nq < 0 or nq > max_nq:
+        nq = max_nq
+    
+    dataset.query = dataset.query[:nq]
+    dataset.groundtruth = dataset.groundtruth[:nq]
+    
     duration_ms = 0
     hit = 0
     total = 0
@@ -135,10 +147,10 @@ def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search
     line["recall"] = recall
     # line["latency(ms)"] = duration_ms / nq
     line["QPS"] = nq / (duration_ms / 1000)
-    line["nq"] = nq
-    line["pruning_ratio"] = alg.get_pruning_ratio() / nq
-    line["actual_distance_computation"] = alg.get_actual_distance_computation() / nq
-    line["total_distance_computation"] = alg.get_total_distance_computation() / nq
+    # line["nq"] = nq
+    # line["pruning_ratio"] = alg.get_pruning_ratio() / nq
+    # line["actual_distance_computation"] = alg.get_actual_distance_computation() / nq
+    # line["total_distance_computation"] = alg.get_total_distance_computation() / nq
     print(line)
     return line
 
@@ -179,15 +191,23 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
             line = bench_epoch_range(alg, dataset, se, nq, args)
         else:
             raise ValueError("Invalid query type. It must be either ann or range.")
+        
+        if "pq_m" in build_args:
+            line["m"] = build_args["pq_m"]
+        elif "m" in build_args:
+            line["m"] = build_args["m"]
+        else:
+            raise KeyError("Neither 'pq_m' nor 'm' found in build_args")
+        
         if line is not None:
             results.append(line)
 
     results = pd.DataFrame(results)
 
     if method == "tIVFPQ":
-        columns = ["QPS", "pruning_ratio", "recall", "gamma", "nprobe", "k_factor", "total_distance_computation", "actual_distance_computation"]
+        columns = ["QPS", "recall", "gamma", "nprobe", "m"]
     else:
-        columns = ["QPS", "pruning_ratio", "recall", "gamma", "ef", "total_distance_computation", "actual_distance_computation"]
+        columns = ["QPS", "recall", "gamma", "ef", "m"]
 
     if not os.path.exists(save_result_path):
         results.to_csv(save_result_path, index=False, columns=columns)

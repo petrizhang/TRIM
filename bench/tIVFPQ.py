@@ -25,11 +25,11 @@ class Algorithm(BaseANN):
             print("Building IVFPQ index...")
             # with Timer() as timer:
             quantizer = faiss.IndexFlatL2(self.dim)
-            nlist = self.method_param.get("C", 1024)
-            m = self.method_param.get("m", 32)
+            nlist = self.method_param.get("C", 4096)
+            self.m = self.method_param.get("m", 32)
             nbits = self.method_param.get("nbits", 8)
 
-            self.ivfpq = faiss.IndexIVFPQ(quantizer, self.dim, nlist, m, nbits)
+            self.ivfpq = faiss.IndexIVFPQ(quantizer, self.dim, nlist, self.m, nbits)
             self.ivfpq.train(X)
             self.ivfpq.add(X)
 
@@ -46,6 +46,7 @@ class Algorithm(BaseANN):
         self.searcher.set("k_factor", k_factor)
         self.searcher.set("trim_opened", trim_opened)
         self.searcher.clear_pruning_ratio()
+        self.searcher.clear_num_distance_computation()
 
     def ann_query(self, v, n):
         # print(np.expand_dims(v,axis=0).shape)
@@ -55,9 +56,17 @@ class Algorithm(BaseANN):
     def range_query(self, v, r):
         return self.searcher.range_search(np.expand_dims(v, axis=0), radius=r)
     
+    def get_M(self):
+        return self.m
+
     def get_pruning_ratio(self):
         return self.searcher.get_pruning_ratio()
     
+    def get_actual_distance_computation(self):
+        return self.searcher.get_actual_distance_computation()
+    
+    def get_total_distance_computation(self):
+        return self.searcher.get_total_distance_computation()
 
     def set_data(self, base_data):
         assert self.searcher is not None

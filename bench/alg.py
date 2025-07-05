@@ -42,7 +42,16 @@ class BaseANN(object):
         """
         return {}
     
+    def get_M():
+        pass
+    
     def get_pruning_ratio():
+        pass
+
+    def get_actual_distance_computation():
+        pass
+
+    def get_total_distance_computation():
         pass
     
     def set_query_arguments(self, **kwargs):

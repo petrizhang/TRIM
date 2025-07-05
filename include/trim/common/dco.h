@@ -189,6 +189,8 @@ struct IDistanceComparisonOperator {
    * @return A dictionary containing profile information.
    */
   virtual Dict get_profile() const { return {}; }
+
+  virtual float get_gamma() const { return 0.0; }
 };
 
 using IDCO = IDistanceComparisonOperator<unsigned, float>;

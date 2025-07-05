@@ -87,6 +87,8 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
 
   void prefetch(idx_t i) const override { prefetch_l1(_hnsw->getDataByInternalId(i)); }
 
+  float get_gamma() { return 0.0; }
+
   Dict get_profile() const override {
     Dict dict;
     dict.put("num_distance_computation", Object(_num_distance_computation.value.load()));

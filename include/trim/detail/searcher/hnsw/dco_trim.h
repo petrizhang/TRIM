@@ -158,6 +158,8 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
 
   void set_gamma(float gamma) { this->gamma = gamma; }
 
+  float get_gamma() { return gamma; }
+
   void _prefetch_vector(idx_t i) const { prefetch_l1(hnsw->getDataByInternalId(i)); }
 
 #ifdef USE_AVX
