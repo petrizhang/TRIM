@@ -16,12 +16,13 @@ d = vectors.shape[1]  # Dimensionality of the vectors
 m = 16  # Code length per subquantizer
 nbits = 8  # Number of subquantizers
 
-opq = False
+use_fast_scan = True
 # Create a PQ index using FAISS's index factory
-if opq:
-    index = faiss.index_factory(d, f"OPQ{m},PQ{m}x{nbits}")
+if use_fast_scan:
+    # index = faiss.index_factory(d, f"OPQ{m},PQ{m}x{nbits}")
+    index = faiss.index_factory(d, f"IVF{16},PQ{d//2}x{4}fs")
 else:
-    index = faiss.IndexPQ(d, m, nbits)  # 8 is the length of the codes
+    index = faiss.IndexPQFastScan(d, m, nbits)  # 8 is the length of the codes
 
 # Train the index (if necessary)
 index.train(vectors)
@@ -30,7 +31,7 @@ index.train(vectors)
 index.add(vectors)
 
 # Save the index to a file
-index_file = "index_opq.bin" if opq else "index_pq.bin"
+index_file = "index_ivfpqfs.bin" if use_fast_scan else "index_pq.bin"
 faiss.write_index(index, index_file)
 
 # Print information about the saved index

@@ -17,5 +17,14 @@
  * under the License.
  */
 
-#include "trim/adapter/faiss_blas-inl.h"
+#include "trim/detail/index/tIVFPQfs.h"
 
+int main() {
+  using namespace faiss;
+  const char* index_path = "/data/home/petrizhang/develop/TOP/test/index_ivfpqfs.bin";
+  tIVFPQfs index(index_path);
+  index.compute_recons_errors();
+  std::cout << "Index Read: ntotal=" << index.ntotal << ", nlist=" << index.nlist
+            << ", M=" << index.M << ", nbtis=" << index.nbits << ", bbs=" << index.bbs << "\n";
+  return 0;
+}

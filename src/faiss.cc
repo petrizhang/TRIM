@@ -17,4 +17,4 @@
  * under the License.
  */
 
-#include "unity/adapter/faiss-inl.h"
+#include "trim/adapter/faiss-inl.h"
