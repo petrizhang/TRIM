@@ -45,6 +45,7 @@ struct tIVFPQfs : IndexIVFPQFastScan {
       ivpq->ksub = (1 << pq.nbits);
       ivpq->code_size = pq.code_size;
       ivpq->init_code_packer();
+      ivpq->fine_quantizer = (Quantizer*)ivpq->quantizer;
       // ivpq->init_fastscan(M, nbits, nlist, metric_type, bbs);
     } else
       throw std::invalid_argument("Wrong index type");

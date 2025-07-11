@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -812,8 +812,7 @@ def handle_Index(the_class):
                    replacement_range_search_preassigned, ignore_missing=True)
     replace_method(the_class, 'sa_encode', replacement_sa_encode)
     replace_method(the_class, 'sa_decode', replacement_sa_decode)
-    replace_method(the_class, 'add_sa_codes', replacement_add_sa_codes,
-                   ignore_missing=True)
+    replace_method(the_class, 'add_sa_codes', replacement_add_sa_codes)
     replace_method(the_class, 'permute_entries', replacement_permute_entries,
                    ignore_missing=True)
 
@@ -870,7 +869,7 @@ def handle_IndexBinary(the_class):
         self.reconstruct_n_c(n0, ni, swig_ptr(x))
         return x
 
-    def replacement_search(self, x, k):
+    def replacement_search(self, x, k, *, params=None):
         x = _check_dtype_uint8(x)
         n, d = x.shape
         assert d == self.code_size
@@ -879,7 +878,8 @@ def handle_IndexBinary(the_class):
         labels = np.empty((n, k), dtype=np.int64)
         self.search_c(n, swig_ptr(x),
                       k, swig_ptr(distances),
-                      swig_ptr(labels))
+                      swig_ptr(labels),
+                      params=params)
         return distances, labels
 
     def replacement_search_preassigned(self, x, k, Iq, Dq):
@@ -907,12 +907,12 @@ def handle_IndexBinary(the_class):
         )
         return D, I
 
-    def replacement_range_search(self, x, thresh):
+    def replacement_range_search(self, x, thresh, *, params=None):
         n, d = x.shape
         x = _check_dtype_uint8(x)
         assert d == self.code_size
         res = RangeSearchResult(n)
-        self.range_search_c(n, swig_ptr(x), thresh, res)
+        self.range_search_c(n, swig_ptr(x), thresh, res, params=params)
         # get pointers and copy them
         lims = rev_swig_ptr(res.lims, n + 1).copy()
         nd = int(lims[-1])
@@ -1038,7 +1038,7 @@ def handle_VectorTransform(the_class):
 
 def handle_AutoTuneCriterion(the_class):
     def replacement_set_groundtruth(self, D, I):
-        if D:
+        if D is not None:
             assert I.shape == D.shape
         self.nq, self.gt_nnn = I.shape
         self.set_groundtruth_c(
@@ -1396,3 +1396,12 @@ def handle_QINCo(the_class):
 
     the_class.__init__ = replacement_init
     the_class.from_torch = from_torch
+
+
+def handle_shard_ivf_index_centroids(func):
+    def wrapper(*args, **kwargs):
+        args = list(args)
+        if len(args) > 3 and args[3] is not None:
+            args[3] = faiss.PyCallbackShardingFunction(args[3])
+        return func(*args, **kwargs)
+    return wrapper

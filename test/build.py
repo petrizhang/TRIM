@@ -30,6 +30,7 @@ index.train(vectors)
 # Add vectors to the index
 index.add(vectors)
 
+
 # Save the index to a file
 index_file = "index_ivfpqfs.bin" if use_fast_scan else "index_pq.bin"
 faiss.write_index(index, index_file)
@@ -38,12 +39,16 @@ faiss.write_index(index, index_file)
 print(f"Index saved to '{index_file}'")
 
 
-# 加载索引
-index = hnswlib.Index(space='l2', dim=256)
+index = faiss.read_index(index_file)
+r = index.reconstruct_n(0)
+print(r)
 
-# 初始化索引，设置最大元素数量、ef_construction和M
-index.init_index(max_elements=1000, ef_construction=200, M=16)
+# # 加载索引
+# index = hnswlib.Index(space='l2', dim=256)
 
-# 将数据添加到索引中
-index.add_items(vectors)
-index.save_index("hnswlib.bin")
+# # 初始化索引，设置最大元素数量、ef_construction和M
+# index.init_index(max_elements=1000, ef_construction=200, M=16)
+
+# # 将数据添加到索引中
+# index.add_items(vectors)
+# index.save_index("hnswlib.bin")
