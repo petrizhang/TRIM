@@ -17,13 +17,41 @@
  * under the License.
  */
 
+#include <fstream>
+#include <iostream>
+#include <vector>
+
 #include "trim/detail/index/tIVFPQfs.h"
+
+// 从二进制文件加载矩阵
+std::vector<float> load_matrix(const std::string& dataPath, size_t rows, size_t cols) {
+  // 读取矩阵数据
+  std::ifstream dataFile(dataPath, std::ios::binary);
+  if (!dataFile.is_open()) {
+    throw std::runtime_error("无法打开数据文件");
+  }
+
+  // 计算总元素数
+  size_t totalElements = rows * cols;
+  std::vector<float> flatData(totalElements);
+
+  // 读取所有数据到一维数组
+  dataFile.read(reinterpret_cast<char*>(flatData.data()), totalElements * sizeof(float));
+  dataFile.close();
+
+  return flatData;
+}
 
 int main() {
   using namespace faiss;
   const char* index_path = "/data/home/petrizhang/develop/TOP/test/index_ivfpqfs.bin";
+  const char* data_path = "/data/home/petrizhang/develop/TOP/test/data.bin";
+  auto data = load_matrix(data_path, 1000, 256);
+
   tIVFPQfs index(index_path);
+  index.set_data(data.data());
   index.compute_recons_errors();
+  
   std::cout << "Index Read: ntotal=" << index.ntotal << ", nlist=" << index.nlist
             << ", M=" << index.M << ", nbtis=" << index.nbits << ", bbs=" << index.bbs << "\n";
   return 0;

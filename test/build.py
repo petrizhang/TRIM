@@ -24,12 +24,21 @@ if use_fast_scan:
 else:
     index = faiss.IndexPQFastScan(d, m, nbits)  # 8 is the length of the codes
 
+
 # Train the index (if necessary)
 index.train(vectors)
 
 # Add vectors to the index
 index.add(vectors)
 
+vec = np.empty(d, dtype="float32")
+index.reconstruct_from_offset(0, 0, faiss.swig_ptr(vec))
+print(vec)
+
+# Save the vector data to a file
+data_file = "data.bin"
+vectors.tofile(data_file)
+print(f"Vector data saved to '{data_file}'")
 
 # Save the index to a file
 index_file = "index_ivfpqfs.bin" if use_fast_scan else "index_pq.bin"
@@ -37,11 +46,6 @@ faiss.write_index(index, index_file)
 
 # Print information about the saved index
 print(f"Index saved to '{index_file}'")
-
-
-index = faiss.read_index(index_file)
-r = index.reconstruct_n(0)
-print(r)
 
 # # 加载索引
 # index = hnswlib.Index(space='l2', dim=256)

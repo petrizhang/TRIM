@@ -45,7 +45,7 @@ struct tIVFPQfs : IndexIVFPQFastScan {
       ivpq->ksub = (1 << pq.nbits);
       ivpq->code_size = pq.code_size;
       ivpq->init_code_packer();
-      ivpq->fine_quantizer = (Quantizer*)ivpq->quantizer;
+      ivpq->fine_quantizer = &ivpq->pq;
       // ivpq->init_fastscan(M, nbits, nlist, metric_type, bbs);
     } else
       throw std::invalid_argument("Wrong index type");
@@ -75,7 +75,7 @@ struct tIVFPQfs : IndexIVFPQFastScan {
 
   // TODO: fix bug of this method
   void compute_recons_errors() {
-    // FAISS_ASSERT(data != nullptr);
+    FAISS_ASSERT(data != nullptr);
     if (!invlists) {
       std::cerr << "Error: invlists is null." << std::endl;
       return;
