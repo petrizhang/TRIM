@@ -46,13 +46,28 @@ int main() {
   using namespace faiss;
   const char* index_path = "/data/home/petrizhang/develop/TOP/test/index_ivfpqfs.bin";
   const char* data_path = "/data/home/petrizhang/develop/TOP/test/data.bin";
-  auto data = load_matrix(data_path, 1000, 256);
+  auto vector_data = load_matrix(data_path, 1000, 256);
 
   tIVFPQfs index(index_path);
-  index.set_data(data.data());
+  index.set_data(vector_data.data());
   index.compute_recons_errors();
-  
+
+  int k = 10;
+  std::vector<int64_t> ids(k);
+  std::vector<float> distances(k);
+  index.search(1, vector_data.data(), k, distances.data(), ids.data());
+  for (auto f : distances) {
+    std::cout << f << ",";
+  }
+  std::cout << "\n";
+
+  for (auto id : ids) {
+    std::cout << id << ",";
+  }
+  std::cout << "\n";
   std::cout << "Index Read: ntotal=" << index.ntotal << ", nlist=" << index.nlist
             << ", M=" << index.M << ", nbtis=" << index.nbits << ", bbs=" << index.bbs << "\n";
+  std::cout << index._pruning_ratio;
+  std::cout << std::endl;
   return 0;
 }
