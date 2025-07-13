@@ -58,7 +58,7 @@ InvertedLists* trim_read_InvertedLists(IOReader* reader, int io_flags = 0);
 void trim_read_index_header(Index* idx, IOReader* f);
 void trim_read_direct_map(DirectMap* dm, IOReader* f);
 void trim_read_ivf_header(IndexIVF* ivf, IOReader* f,
-                           std::vector<std::vector<idx_t>>* ids = nullptr);
+                          std::vector<std::vector<idx_t>>* ids = nullptr);
 void trim_read_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags);
 ArrayInvertedLists* set_array_invlist(IndexIVF* ivf, std::vector<std::vector<idx_t>>& ids);
 void trim_read_ProductQuantizer(ProductQuantizer* pq, IOReader* f);
@@ -272,7 +272,12 @@ void trim_read_ivf_header(IndexIVF* ivf, IOReader* f, std::vector<std::vector<id
 // used for legacy formats
 ArrayInvertedLists* trim_set_array_invlist(IndexIVF* ivf, std::vector<std::vector<idx_t>>& ids) {
   ArrayInvertedLists* ail = new ArrayInvertedLists(ivf->nlist, ivf->code_size);
-  std::swap(ail->ids, ids);
+
+  ail->ids.resize(ids.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    ail->ids[i] = MaybeOwnedVector<idx_t>(std::move(ids[i]));
+  }
+
   ivf->invlists = ail;
   ivf->own_invlists = true;
   return ail;

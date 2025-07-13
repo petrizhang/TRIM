@@ -16,12 +16,14 @@ d = vectors.shape[1]  # Dimensionality of the vectors
 m = 16  # Code length per subquantizer
 nbits = 8  # Number of subquantizers
 
-opq = False
+use_fast_scan = True
 # Create a PQ index using FAISS's index factory
-if opq:
-    index = faiss.index_factory(d, f"OPQ{m},PQ{m}x{nbits}")
+if use_fast_scan:
+    # index = faiss.index_factory(d, f"OPQ{m},PQ{m}x{nbits}")
+    index = faiss.index_factory(d, f"IVF{16},PQ{d//2}x{4}fs")
 else:
-    index = faiss.IndexPQ(d, m, nbits)  # 8 is the length of the codes
+    index = faiss.IndexPQFastScan(d, m, nbits)  # 8 is the length of the codes
+
 
 # Train the index (if necessary)
 index.train(vectors)
@@ -29,20 +31,28 @@ index.train(vectors)
 # Add vectors to the index
 index.add(vectors)
 
+vec = np.empty(d, dtype="float32")
+index.reconstruct_from_offset(0, 0, faiss.swig_ptr(vec))
+print(vec)
+
+# Save the vector data to a file
+data_file = "data.bin"
+vectors.tofile(data_file)
+print(f"Vector data saved to '{data_file}'")
+
 # Save the index to a file
-index_file = "index_opq.bin" if opq else "index_pq.bin"
+index_file = "index_ivfpqfs.bin" if use_fast_scan else "index_pq.bin"
 faiss.write_index(index, index_file)
 
 # Print information about the saved index
 print(f"Index saved to '{index_file}'")
 
+# # 加载索引
+# index = hnswlib.Index(space='l2', dim=256)
 
-# 加载索引
-index = hnswlib.Index(space='l2', dim=256)
+# # 初始化索引，设置最大元素数量、ef_construction和M
+# index.init_index(max_elements=1000, ef_construction=200, M=16)
 
-# 初始化索引，设置最大元素数量、ef_construction和M
-index.init_index(max_elements=1000, ef_construction=200, M=16)
-
-# 将数据添加到索引中
-index.add_items(vectors)
-index.save_index("hnswlib.bin")
+# # 将数据添加到索引中
+# index.add_items(vectors)
+# index.save_index("hnswlib.bin")

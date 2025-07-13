@@ -17,5 +17,5 @@
  * under the License.
  */
 
-#include "unity/adapter/faiss_blas-inl.h"
+#include "trim/adapter/faiss_blas-inl.h"
 

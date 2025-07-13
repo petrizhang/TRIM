@@ -1,0 +1,73 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+#include <fstream>
+#include <iostream>
+#include <vector>
+
+#include "trim/detail/index/tIVFPQfs.h"
+
+// 从二进制文件加载矩阵
+std::vector<float> load_matrix(const std::string& dataPath, size_t rows, size_t cols) {
+  // 读取矩阵数据
+  std::ifstream dataFile(dataPath, std::ios::binary);
+  if (!dataFile.is_open()) {
+    throw std::runtime_error("无法打开数据文件");
+  }
+
+  // 计算总元素数
+  size_t totalElements = rows * cols;
+  std::vector<float> flatData(totalElements);
+
+  // 读取所有数据到一维数组
+  dataFile.read(reinterpret_cast<char*>(flatData.data()), totalElements * sizeof(float));
+  dataFile.close();
+
+  return flatData;
+}
+
+int main() {
+  using namespace faiss;
+  const char* index_path = "/data/home/petrizhang/develop/TOP/test/index_ivfpqfs.bin";
+  const char* data_path = "/data/home/petrizhang/develop/TOP/test/data.bin";
+  auto vector_data = load_matrix(data_path, 1000, 256);
+
+  tIVFPQfs index(index_path);
+  index.set_data(vector_data.data());
+  index.compute_recons_errors();
+
+  int k = 10;
+  std::vector<int64_t> ids(k);
+  std::vector<float> distances(k);
+  index.search(1, vector_data.data(), k, distances.data(), ids.data());
+  for (auto f : distances) {
+    std::cout << f << ",";
+  }
+  std::cout << "\n";
+
+  for (auto id : ids) {
+    std::cout << id << ",";
+  }
+  std::cout << "\n";
+  std::cout << "Index Read: ntotal=" << index.ntotal << ", nlist=" << index.nlist
+            << ", M=" << index.M << ", nbtis=" << index.nbits << ", bbs=" << index.bbs << "\n";
+  std::cout << index._pruning_ratio;
+  std::cout << std::endl;
+  return 0;
+}

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -19,7 +19,6 @@
 #include <faiss/impl/AuxIndexStructures.h>
 #include <faiss/impl/FaissAssert.h>
 #include <faiss/utils/hamming.h>
-#include <faiss/utils/utils.h>
 
 namespace faiss {
 
@@ -302,7 +301,8 @@ struct BuildScanner {
 
 InvertedListScanner* IndexIVFSpectralHash::get_InvertedListScanner(
         bool store_pairs,
-        const IDSelector* sel) const {
+        const IDSelector* sel,
+        const IVFSearchParameters*) const {
     FAISS_THROW_IF_NOT(!sel);
     BuildScanner bs;
     return dispatch_HammingComputer(code_size, bs, this, store_pairs);

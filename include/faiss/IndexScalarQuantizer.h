@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -96,7 +96,8 @@ struct IndexIVFScalarQuantizer : IndexIVF {
 
     InvertedListScanner* get_InvertedListScanner(
             bool store_pairs,
-            const IDSelector* sel) const override;
+            const IDSelector* sel,
+            const IVFSearchParameters* params) const override;
 
     void reconstruct_from_offset(int64_t list_no, int64_t offset, float* recons)
             const override;
