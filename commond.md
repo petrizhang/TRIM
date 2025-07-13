@@ -113,32 +113,44 @@ python3 parameterM.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/nytimes-2
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/gist-960.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.67];ef:[10,30,50,70,90,150,300,400,600,800,1000]" -si "./tmp/index/gist_thnsw16x500_pq8x120.empty" -sr "./results/QPSDCRecall_GIST_tHNSW_KNN_k10.csv"
 # tHNSW (without pLB)
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/gist-960.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.0];ef:[60,100,150,200,300,400,500,1100,1700]" -si "./tmp/index/gist_thnsw16x500_pq8x120.empty" -sr "./results/QPSDCRecall_GIST_tHNSW_KNN_k10.csv"
+# tHNSW (random landmarks)
+python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/gist-960.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;random_landmark_size:10;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.02];ef:[60,100,150,200,300,400,500,1100,1700]" -si "./tmp/index/gist_thnsw16x500_pq8x120.empty" -sr "./results/QPSDCRecall_GIST_tHNSW_KNN_k10.csv"
 # tHNSW
 python3 bench.py -qt ann -k 100 -nq 1000 -d "../../yitong/Datasets/gist-960.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.7];ef:[100,200,300,400,600,800,1000,1200,1400,1600,1800,2000,2500,3000,3500,4000]" -si "./tmp/index/gist_thnsw16x500_pq8x120.empty" -sr "./results/QPSDCRecall_GIST_tHNSW_KNN_k100.csv"
 # tHNSW (without pLB)
 python3 bench.py -qt ann -k 100 -nq 1000 -d "../../yitong/Datasets/gist-960.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.0];ef:[200,400,600,800,1000,1500,2000,3000,4000]" -si "./tmp/index/gist_thnsw16x500_pq8x120.empty" -sr "./results/QPSDCRecall_GIST_tHNSW_KNN_k100.csv"
+# tHNSW (random landmarks)
+python3 bench.py -qt ann -k 100 -nq 1000 -d "../../yitong/Datasets/gist-960.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;random_landmark_size:10;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.02];ef:[200,400,600,800,1000,1500,2000,3000,4000]" -si "./tmp/index/gist_thnsw16x500_pq8x120.empty" -sr "./results/QPSDCRecall_GIST_tHNSW_KNN_k100.csv"
 
 # GloVe
 # tHNSW
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/glove_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/glove_pq8x25.bin\";pq_m:25;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.61];ef:[10,30,70,150,400,800,1000,1500,3000,4000]" -si "./tmp/index/glove_thnsw16x500_pq8x25.empty" -sr "./results/QPSDCRecall_GloVe_tHNSW_KNN_k10.csv"
 # tHNSW (without pLB)
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/glove_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/glove_pq8x25.bin\";pq_m:25;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.0];ef:[100,200,400,600,800,1000,2000,3500,4500]" -si "./tmp/index/glove_thnsw16x500_pq8x25.empty" -sr "./results/QPSDCRecall_GloVe_tHNSW_KNN_k10.csv"
+# tHNSW (random landmarks)
+python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/glove_hnswlib16x500.bin\";M:16;efConstruction:500;random_landmark_size:10;pq_index_path:\"./tmp/index/glove_pq8x25.bin\";pq_m:25;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.2];ef:[100,200,400,600,800,1000,2000,3500,4500]" -si "./tmp/index/glove_thnsw16x500_pq8x25.empty" -sr "./results/QPSDCRecall_GloVe_tHNSW_KNN_k10.csv"
 # tHNSW
 python3 bench.py -qt ann -k 100 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/glove_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/glove_pq8x25.bin\";pq_m:25;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.65];ef:[100,160,200,400,800,1000,1200,1500,2000]" -si "./tmp/index/glove_thnsw16x500_pq8x25.empty" -sr "./results/QPSDCRecall_GloVe_tHNSW_KNN_k100.csv"
 # tHNSW (without pLB)
 python3 bench.py -qt ann -k 100 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/glove_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/glove_pq8x25.bin\";pq_m:25;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.0];ef:[200,400,600,800,1000,2000,4000,6000,8000]" -si "./tmp/index/glove_thnsw16x500_pq8x25.empty" -sr "./results/QPSDCRecall_GloVe_tHNSW_KNN_k100.csv"
+# tHNSW (random landmarks)
+python3 bench.py -qt ann -k 100 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/glove_hnswlib16x500.bin\";M:16;efConstruction:500;random_landmark_size:10;pq_index_path:\"./tmp/index/glove_pq8x25.bin\";pq_m:25;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.2];ef:[200,400,600,800,1000,2000,4000,6000,8000]" -si "./tmp/index/glove_thnsw16x500_pq8x25.empty" -sr "./results/QPSDCRecall_GloVe_tHNSW_KNN_k100.csv"
 
 # NYTimes
 # tHNSW
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/nytimes-256.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/nytimes_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/nytimes_pq8x64.bin\";pq_m:64;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.76];ef:[10,50,90,150,300,400,600,800,1000,3000,5000]" -si "./tmp/index/nytimes_thnsw16x500_pq8x64.empty" -sr "./results/QPSDCRecall_NYTimes_tHNSW_KNN_k10.csv"
 # tHNSW (without pLB)
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/nytimes-256.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/nytimes_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/nytimes_pq8x64.bin\";pq_m:64;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.0];ef:[60,100,200,300,500,1000,2000,3000,5000]" -si "./tmp/index/nytimes_thnsw16x500_pq8x64.empty" -sr "./results/QPSDCRecall_NYTimes_tHNSW_KNN_k10.csv"
+# tHNSW (random landmarks)
+python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/nytimes-256.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/nytimes_hnswlib16x500.bin\";M:16;efConstruction:500;random_landmark_size:10;pq_index_path:\"./tmp/index/nytimes_pq8x64.bin\";pq_m:64;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.2];ef:[60,100,200,300,500,1000,2000,3000,5000]" -si "./tmp/index/nytimes_thnsw16x500_pq8x64.empty" -sr "./results/QPSDCRecall_NYTimes_tHNSW_KNN_k10.csv"
 
 # Tiny5m
 # tHNSW
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/tiny5m-384.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/tiny5m_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/tiny5m_pq8x96.bin\";pq_m:96;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.64];ef:[10,50,90,150,300,600,800,1000,2000,3000,4000]" -si "./tmp/index/tiny5m_thnsw16x500_pq8x96.empty" -sr "./results/QPSDCRecall_Tiny5m_tHNSW_KNN_k10.csv"
 # tHNSW (without pLB)
 python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/tiny5m-384.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/tiny5m_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/tiny5m_pq8x96.bin\";pq_m:96;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.0];ef:[60,100,200,300,500,1000,1500,2000,2500,3000]" -si "./tmp/index/tiny5m_thnsw16x500_pq8x96.empty" -sr "./results/QPSDCRecall_Tiny5m_tHNSW_KNN_k10.csv"
+# tHNSW (without pLB)
+python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/tiny5m-384.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/tiny5m_hnswlib16x500.bin\";M:16;efConstruction:500;random_landmark_size:10;pq_index_path:\"./tmp/index/tiny5m_pq8x96.bin\";pq_m:96;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.006];ef:[60,100,200,300,500,1000,1500,2000,2500,3000]" -si "./tmp/index/tiny5m_thnsw16x500_pq8x96.empty" -sr "./results/QPSDCRecall_Tiny5m_tHNSW_KNN_k10.csv"
 
 
 #### HNSW-range
@@ -267,3 +279,12 @@ python3 bench.py -qt range -se 0.01 -nq 1000 -d "../../yitong/Datasets/tiny5m-38
 python3 bench.py -qt range -se 0.01 -nq 1000 -d "../../yitong/Datasets/tiny5m-384.hdf5" -m tIVFPQ -b 'ivfpq_index_path:"./tmp/index/tiny5m_ivfpq4096x16.bin";C:4096;m:16;nbits:8' -s 'trim_opened:[true];gamma:[0.0];k_factor:[1.0];nprobe:[100,150,200,250,300,350,400,450,500]' -si "./tmp/index/tiny5m_ivfpq4096x16.bin" -sr "./results/QPSDCRecall_Tiny5m_tIVFPQ_ARS_0.01%.csv"
 
 
+# FastScan
+# IVFPQfs
+# GIST m=32
+python3 bench.py -qt ann -k 10 -nq 10 -d "../../yitong/Datasets/gist-960.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/gist_ivfpqfs4096x32.bin";C:4096;m:32;nbits:4' -s 'k_factor:[100000.0];nprobe:[4000]' -si "./tmp/index/gist_ivfpqfs4096x32.bin" -sr "./results/QPSDCRecall_GIST_IVFPQfs_KNN_k10.csv"
+
+# Glove m=50
+python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/glove_ivfpqfs4096x50.bin";C:4096;m:50;nbits:4' -s 'k_factor:[3,5,8,10,30,50,100,300,400,500];nprobe:[1200]' -si "./tmp/index/glove_ivfpqfs4096x50.bin" -sr "./results/QPSDCRecall_GloVe_IVFPQfs_KNN_k10.csv"
+# Glove m=25
+python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/glove_ivfpqfs4096x25.bin";C:4096;m:25;nbits:4' -s 'k_factor:[10,20,50,80,100,200,300,400,500,600,800,1000,1200];nprobe:[1000]' -si "./tmp/index/glove_ivfpqfs4096x25.bin" -sr "./results/QPSDCRecall_GloVe_IVFPQfs_KNN_k10.csv"

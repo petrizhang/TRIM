@@ -44,6 +44,7 @@ inline constexpr const char* T_IVFPQ_INDEX_PATH = "ivfpq_index_path";
 inline constexpr const char* DATA_PATH = "data_path";
 inline constexpr const char* T_PQ_INDEX_PATH = "pq_index_path";
 inline constexpr const char* T_USE_OPQ = "use_opq";
+inline constexpr const char* RANDOM_LANDMARK_SIZE = "random_landmark_size";
 
 inline Metric metric_map(const std::string& name) {
   if (name == T_METRIC_L2) {

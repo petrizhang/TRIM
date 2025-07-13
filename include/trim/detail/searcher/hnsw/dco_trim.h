@@ -50,6 +50,7 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
   size_t m{0};
   size_t nbits{0};
   size_t code_size{0};
+  size_t _random_landmark_size{0};
   hnswlib::DISTFUNC<dist_t> dist_func{nullptr};
   void* dist_func_param{nullptr};
   faiss::AlignedTable<dist_t> dist_table;
@@ -65,6 +66,9 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
   Atomic<int64_t> num_pq_distance_computation;
   Atomic<int64_t> num_lowerbound_computation;
 
+  /* For storing random landmarks */
+  int* _random_landmarks{nullptr};
+
   /* Search parameters */
   float gamma{0.8};
 
@@ -72,39 +76,95 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
 
   TrimDCO() = default;
 
-  explicit TrimDCO(const TrimHNSW* p_uhnsw) : SetterProxy<This>("TrimDCO") {
+  explicit TrimDCO(const TrimHNSW* p_uhnsw, size_t random_landmark_size = 0) : SetterProxy<This>("TrimDCO") {
     T_ASSERT(p_uhnsw != nullptr);
     T_ASSERT(p_uhnsw->owned_index_hnsw != nullptr);
-    T_ASSERT(p_uhnsw->trim_index_opq.pq.index_pq != nullptr);
-    faiss_index_pq = p_uhnsw->trim_index_opq.pq.index_pq;
-    m = faiss_index_pq->pq.M;
-    nbits = faiss_index_pq->pq.nbits;
-    code_size = faiss_index_pq->code_size;
-    codes = p_uhnsw->trim_index_opq.pq.index_pq->codes.data();
-    recons_errors = p_uhnsw->trim_index_opq.pq.recons_errors.data();
-
     hnsw = p_uhnsw->owned_index_hnsw.get();
     dist_func = hnsw->fstdistfunc_;
     dist_func_param = hnsw->dist_func_param_;
 
-    transform = p_uhnsw->trim_index_opq.transform;
     Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
+    Proxy::template bind<INTEGER_TYPE>("random_landmark_size", &This::set_random_landmark_size);
+    
+    _random_landmark_size = random_landmark_size;
+
+    if(_random_landmark_size > 0){
+      
+      _random_landmarks = new int[_random_landmark_size];
+
+      int total_data_size = hnsw->cur_element_count;
+      std::cout << "total_data_size:" << total_data_size << std::endl;
+      std::vector<int> data_ids(total_data_size);
+      for (int i = 0; i < total_data_size; ++i) {
+          data_ids[i] = i;
+      }
+
+      std::random_device rd;
+      std::mt19937 g(rd());
+      std::shuffle(data_ids.begin(), data_ids.end(), g);
+
+      for (int i = 0; i < _random_landmark_size; ++i) {
+          _random_landmarks[i] = data_ids[i];
+      }
+
+      // 输出随机选择的地标 ID
+      std::cout << "Random landmarks: ";
+      for (int i = 0; i < _random_landmark_size; ++i) {
+          std::cout << _random_landmarks[i] << " ";
+      }
+      std::cout << std::endl;
+
+      float* xl_distances = new float[total_data_size * _random_landmark_size];
+      for(int i = 0; i < total_data_size; i++){
+        for(int l = 0; l < _random_landmark_size; l++){
+          if(i == _random_landmarks[l]){
+            // std::cout << "reapted:"<< i << std::endl;
+            xl_distances[i *_random_landmark_size + l] = 0;
+          }else{
+            // std::cout << "processing: ("<< i << ", " << _random_landmarks[l] << ")" << std::endl;
+            xl_distances[i *_random_landmark_size + l] = sqrt(dist_func(hnsw->getDataByInternalId(i), 
+                                                          hnsw->getDataByInternalId(_random_landmarks[l]), 
+                                                          dist_func_param));
+          }
+        }
+      }
+      recons_errors = xl_distances;
+    }
+    else{
+      T_ASSERT(p_uhnsw->trim_index_opq.pq.index_pq != nullptr);
+      faiss_index_pq = p_uhnsw->trim_index_opq.pq.index_pq;
+      m = faiss_index_pq->pq.M;
+      nbits = faiss_index_pq->pq.nbits;
+      code_size = faiss_index_pq->code_size;
+      codes = p_uhnsw->trim_index_opq.pq.index_pq->codes.data();
+      recons_errors = p_uhnsw->trim_index_opq.pq.recons_errors.data();
+      transform = p_uhnsw->trim_index_opq.transform;
+    }
+  
   }
 
   void set_query(const dist_t* query_data) override {
     query = query_data;
-    dist_table.resize(faiss_index_pq->pq.M * faiss_index_pq->pq.ksub);
+    if(_random_landmark_size == 0){
+      dist_table.resize(faiss_index_pq->pq.M * faiss_index_pq->pq.ksub);
 
-    if (transform != nullptr) {
-      std::unique_ptr<const float[]> transformed_query(transform->apply_chain(1, query));
-      if (transformed_query.get() == query) {
-        transformed_query.release();
+      if (transform != nullptr) {
+        std::unique_ptr<const float[]> transformed_query(transform->apply_chain(1, query));
+        if (transformed_query.get() == query) {
+          transformed_query.release();
+        }
+        faiss_index_pq->pq.compute_distance_table(transformed_query.get(), dist_table.data());
+      } else {
+        faiss_index_pq->pq.compute_distance_table(query, dist_table.data());
       }
-      faiss_index_pq->pq.compute_distance_table(transformed_query.get(), dist_table.data());
-    } else {
-      faiss_index_pq->pq.compute_distance_table(query, dist_table.data());
+  }
+  else{
+    dist_table.resize(_random_landmark_size);
+    for (int i = 0; i < _random_landmark_size; i++) {
+      dist_table[i] = compute(_random_landmarks[i]);
+      // dist_table[i] = fvec_L2sqr(query, _random_landmarks[i]);
     }
-
+  }
     dist_table_data = dist_table.data();
   }
 
@@ -132,10 +192,28 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
   }
 
   dist_t relaxed_lowerbound(idx_t i) const override {
+    // std::cout << "id:" << i << std::endl; 
+    // std::cout << "compute:" << compute(i) << std::endl; 
     assert(query != nullptr);
-    dist_t a = std::sqrt(estimate(i));
-    dist_t b = recons_errors[i];
-    return (a - b) * (a - b) + 2 * gamma * a * b;
+    if(_random_landmark_size > 0){
+      dist_t max_lowerbound = -1.0f;
+      for (int l = 0; l < _random_landmark_size; l++) {
+          dist_t a = sqrt(dist_table_data[l]);
+          // std::cout << "a:" << a << std::endl; 
+          dist_t b = recons_errors[i * _random_landmark_size + l];
+          // std::cout << "b:" << b << std::endl; 
+          dist_t vec_lowerbound = (a - b) * (a - b) + 2 * gamma * a * b;
+          // std::cout << "vec_lowerbound:" << vec_lowerbound << std::endl; 
+          max_lowerbound = std::max(max_lowerbound, vec_lowerbound); 
+          // std::cout << "max_lowerbound:" << max_lowerbound << std::endl; 
+      }
+      return max_lowerbound;
+    }
+    else{
+      dist_t a = std::sqrt(estimate(i));
+      dist_t b = recons_errors[i];
+      return (a - b) * (a - b) + 2 * gamma * a * b;
+    }
   }
 
   void relaxed_lowerbound8(const Id8& ids, Dist8& dists) const override {
@@ -158,12 +236,56 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
 
   void set_gamma(float gamma) { this->gamma = gamma; }
 
+  void set_random_landmark_size(size_t size = 0) { _random_landmark_size = size; }
+
   float get_gamma() { return gamma; }
+
+  size_t get_random_landmark_size() { return _random_landmark_size; }
 
   void _prefetch_vector(idx_t i) const { prefetch_l1(hnsw->getDataByInternalId(i)); }
 
 #ifdef USE_AVX
   void _relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
+    
+    if(_random_landmark_size > 0){
+        
+      __m256 vec_max_lowerbound = _mm256_set1_ps(-1.0f);
+
+      for (int i = 0; i < _random_landmark_size; i++) {
+          // Prefetch dist_table_data
+          prefetch_l1(dist_table_data + i);
+
+          // ql distances
+          __m256 q_landmark_dist = _mm256_set1_ps(dist_table_data[i]);
+
+          // Prefetch reconstruction errors
+          for (int j = 0; j < 8; ++j) {
+            prefetch_l1(recons_errors + ids[j] * _random_landmark_size + i);
+          }
+
+          // xl distances
+          __m256 vec_recons_error = _mm256_set_ps(recons_errors[ids[7] * _random_landmark_size + i],
+                                                  recons_errors[ids[6] * _random_landmark_size + i],
+                                                  recons_errors[ids[5] * _random_landmark_size + i],
+                                                  recons_errors[ids[4] * _random_landmark_size + i],
+                                                  recons_errors[ids[3] * _random_landmark_size + i],
+                                                  recons_errors[ids[2] * _random_landmark_size + i],
+                                                  recons_errors[ids[1] * _random_landmark_size + i],
+                                                  recons_errors[ids[0] * _random_landmark_size + i]);
+
+          // Lowerbounds
+          __m256 vec_lowerbounds = _relaxed_lowerbound8_avx2(gamma, q_landmark_dist, vec_recons_error);
+
+          // Compare and update max_lowerbound
+          vec_max_lowerbound = _mm256_max_ps(vec_max_lowerbound, vec_lowerbounds);
+      }
+
+      // Store the final max_lowerbound values to dists
+      _mm256_storeu_ps(dists.data(), vec_max_lowerbound);
+
+      return;
+    }
+
     // PQ distances
     float pq_dist[8] = {
         0,
@@ -291,16 +413,88 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
     __m256 vec_2gamma_ab = _mm256_mul_ps(vec_2gamma, vec_ab);
     __m256 lowerbounds = _mm256_add_ps(vec_diff_squared, vec_2gamma_ab);
     return lowerbounds;
+    
+    // float fvec_L2sqr(const float* x, idx_t id) const {
+    
+    //   size_t d = this->d;
+    //   const float* y = hnsw->getDataByInternalId(id);
+  
+    //   __m256 sum = _mm256_setzero_ps();
+    //   size_t i;
+
+    //   for (i = 0; i < d - 7; i += 8) {
+    //       __m256 x_vec = _mm256_loadu_ps(x + i);
+    //       __m256 y_vec = _mm256_loadu_ps(y + i);
+    //       __m256 diff = _mm256_sub_ps(x_vec, y_vec);
+    //       __m256 sq = _mm256_mul_ps(diff, diff);
+    //       sum = _mm256_add_ps(sum, sq);
+    //   }
+
+    //   float res[8];
+    //   _mm256_storeu_ps(res, sum);
+    //   float result = res[0] + res[1] + res[2] + res[3] + res[4] + res[5] + res[6] + res[7];
+
+    //   for (; i < d; i++) {
+    //       const float tmp = x[i] - y[i];
+    //       result += tmp * tmp;
+    //   }
+
+    //   return result;
+       
+    // }
+
   }
 #else
   void _relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
-    Parent::relaxed_lowerbound8(ids, dists);
+    if(_random_landmark_size > 0){
+      
+      float max_lowerbound[8] = {-1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+      
+      for (int i = 0; i < _random_landmark_size; i++) {
+
+          prefetch_l1(dist_table_data + i);
+          float q_landmark_dist = sqrt(dist_table_data[i]);
+
+          for (int j = 0; j < 8; ++j) {
+              prefetch_l1(recons_errors + ids[j] * _random_landmark_size + i);
+              float vec_recons_error =  recons_errors[ids[j] * _random_landmark_size + i];
+              float vec_lowerbound = (q_landmark_dist - vec_recons_error) * 
+                                      (q_landmark_dist - vec_recons_error) + 
+                                      2 * gamma * q_landmark_dist * vec_recons_error;
+              max_lowerbound[j] = std::max(max_lowerbound[j], vec_lowerbound)
+          }
+      }
+
+      for (int i = 0; i < 8; ++i) {
+        dists[i] = max_lowerbound[i];
+      }
+
+      return;
+    }
+    else{
+      Parent::relaxed_lowerbound8(ids, dists);
+    }
   }
 
   void _dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const {
     Parent::dist_comp8(max_dist, ids, dists);
   }
+
+  // float fvec_L2sqr(const float* x, idx_t id) const {
+  //   const float* y = hnsw->getDataByInternalId(id);
+
+  //   size_t i;
+  //   float res = 0;
+  //   for (i = 0; i < this->d; i++) {
+  //       const float tmp = x[i] - y[i];
+  //       res += tmp * tmp;
+  //   }
+    
+  //   return res;
+  // }
+
 #endif
+
 };
 
 template <bool enable_profile = false>

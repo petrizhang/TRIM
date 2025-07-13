@@ -100,6 +100,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
     Proxy::template bind<BOOL_TYPE>("enable_profile", &This::set_enable_profile);
     Proxy::template bind<BOOL_TYPE>("enable_batch_dco", &This::set_enable_batch_dco);
     Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
+
   }
 
   ~HNSWSearcher() override = default;
@@ -199,6 +200,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
     if (index.cur_element_count.load() == 0) return;
 
     _dco.set_query((dist_t*)query_data);
+
     dist_t seed_dist = std::numeric_limits<dist_t>::max();
     tableint seed = _init_search_seed(query_data, &seed_dist);
 
@@ -207,10 +209,12 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
         top_candidates;
 
     if (_enable_batch_dco){
-      if(_dco.get_gamma() == 0.0)
+      // the query algorithm for tHNSW without pRLB or random landmarks
+      if(_dco.get_gamma() == 0.0 || _dco.get_random_landmark_size() > 0)
         top_candidates = _ann_search_level0_batch8_Gamma0(seed, seed_dist, k, std::max(_ef, k));
-      else
+      else{
         top_candidates = _ann_search_level0_batch8(seed, seed_dist, k, std::max(_ef, k));
+      }
     }
     else 
       top_candidates = _ann_search_level0(seed, seed_dist, k, std::max(_ef, k));
@@ -490,7 +494,6 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
           // if (UNLIKELY(result_queue.size() < result_set_size)) {
 
             actual_data_access_count++;
-
             dist_t dist = _dco.compute(neighbor_id);
             dist_t lowerbound = _dco.relaxed_lowerbound(neighbor_id);
 
@@ -534,7 +537,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
     return result_queue;
   }
 
-  // Peform ANN search over the bottom layer with amma = 0 (using the original hnsw search algorithm)
+  // Peform ANN search over the bottom layer with gamma = 0 or radom landmarks (using the original hnsw search algorithm)
   ResultQueue _ann_search_level0_batch8_Gamma0(tableint seed, dist_t seed_dist,
                                                           size_t result_set_size,
                                                           size_t ef) const {

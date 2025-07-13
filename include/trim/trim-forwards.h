@@ -94,8 +94,12 @@ std::unique_ptr<TrimHNSW> read_uhnsw(const Dict& options) {
 std::unique_ptr<ISearcher> create_hnsw_searcher(const Dict& options) {
   std::shared_ptr<TrimHNSW> index = read_uhnsw(options);
   std::unique_ptr<ISearcher> searcher = nullptr;
+
   bool enable_profile = options.optional<bool>(constants::T_ENABLE_PROFILE).value_or(false);
   std::string dco_type = options.optional<std::string>(constants::T_DCO).value_or(constants::T_DCO_TRIM);
+  std::size_t rl_size = options.optional<size_t>(constants::RANDOM_LANDMARK_SIZE).value_or(0);
+  std::cout<< "random_landmark_size: " << rl_size << std::endl;
+
   if (dco_type == constants::T_DCO_EXACT) {
     if (enable_profile) {
       ExactDCO<true> dco(index.get());
@@ -108,10 +112,10 @@ std::unique_ptr<ISearcher> create_hnsw_searcher(const Dict& options) {
     T_THROW_IF_NOT_MSG(index->trim_index_opq.pq.index_pq != nullptr,
                        "using TRIM for distance comparision but missing PQ index");
     if (enable_profile) {
-      TrimDCO8<true> dco(index.get());
+      TrimDCO8<true> dco(index.get(), rl_size);
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     } else {
-      TrimDCO8<false> dco(index.get());
+      TrimDCO8<false> dco(index.get(), rl_size);
       return std::make_unique<HNSWSearcher<decltype(dco)>>(index, std::move(dco));
     }
   } else {

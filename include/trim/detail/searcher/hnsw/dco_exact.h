@@ -89,6 +89,8 @@ struct ExactDCO final : IDistanceComparisonOperator<unsigned, float> {
 
   float get_gamma() { return 0.0; }
 
+  size_t get_random_landmark_size() { return 0; }
+
   Dict get_profile() const override {
     Dict dict;
     dict.put("num_distance_computation", Object(_num_distance_computation.value.load()));

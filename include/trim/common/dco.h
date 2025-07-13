@@ -191,6 +191,8 @@ struct IDistanceComparisonOperator {
   virtual Dict get_profile() const { return {}; }
 
   virtual float get_gamma() const { return 0.0; }
+
+  virtual size_t get_random_landmark_size() const { return 0; }
 };
 
 using IDCO = IDistanceComparisonOperator<unsigned, float>;
