@@ -11,6 +11,7 @@ import utils
 from scipy.spatial import distance
 from alg import BaseANN
 from utils import Timer
+import numpy as np
 
 
 
@@ -48,6 +49,34 @@ def parse_index_config(config_string):
         config_dict[name] = parse_json_value(value_str)
     return config_dict
 
+# def find_nearest_neighbors(q, dataset, k):
+#     """
+#     找到与查询向量 q 距离最近的 k 个数据的 ID 和其距离。
+    
+#     参数:
+#     - q: 查询向量，形状为 (d,) 的一维数组。
+#     - dataset: 包含数据集的对象，dataset.base 是形状为 (n, d) 的二维数组。
+#     - k: 返回最近的 k 个数据。
+    
+#     返回:
+#     - nearest_ids: 最近的 k 个数据的 ID，形状为 (k,) 的一维数组。
+#     - nearest_dists: 最近的 k 个数据的距离，形状为 (k,) 的一维数组。
+#     """
+#     # 计算查询向量与数据集中每个向量的距离
+#     dists = np.array([distance.euclidean(q, d) for d in dataset.base])
+    
+#     # 获取距离最小的 k 个索引
+#     nearest_ids = np.argsort(dists)[:k]
+    
+#     # 获取对应的 k 个距离
+#     nearest_dists = dists[nearest_ids]
+
+#     # print("find_nearest_neighbors:")
+#     # print(f"nearest_ids:{nearest_ids}")
+#     # print(f"nearest_dists:{nearest_dists}")
+    
+#     return nearest_ids, nearest_dists
+
 
 def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args: dict) -> List[dict]:
     line = dict(**search_args)
@@ -71,12 +100,12 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
 
         duration_ms += ((end-start) * 1000)
         gt_set = set(gt)
+        # print("My answer:", set(knn))
         # print("Groundthruth:", gt_set)
-        # print("My answer:", knn)
-        # dist = distance.euclidean(q, dataset.base[93438])
-        # print(f"93438 distance: {dist*dist}")
-        # print("93438 data:")
-        # print(dataset.base[93438])
+        # print("GT Distance:")
+        # for g in gt:
+        #     dist = distance.euclidean(q, dataset.base[g])
+        #     print(f"Distance to index {g}: {dist}")
 
         total += len(gt_set)
         hit += len(gt_set & set(knn))
@@ -88,6 +117,8 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
     line["pruning_ratio"] = alg.get_pruning_ratio() / nq
     line["actual_distance_computation"] = alg.get_actual_distance_computation() / nq
     line["total_distance_computation"] = alg.get_total_distance_computation() / nq
+    # print(f"nprobe:{alg.ivfpq_fs.nprobe}")
+    # print(f"k_factor:{alg.ivfpq_fs.k_factor}")
     print(line)
     return line
 
@@ -149,7 +180,7 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
     # Load dataset
     dataset = load_dataset(data_path)
     dim = dataset.base.shape[1]
-    
+
     # Build or load index
     if not os.path.exists(save_index_path):
         alg: BaseANN = alg_class(dim, build_args)
@@ -186,6 +217,8 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
 
     if method == "tIVFPQ":
         columns = ["QPS", "pruning_ratio", "recall", "gamma", "nprobe", "k_factor", "total_distance_computation", "actual_distance_computation"]
+    elif method == "IVFPQfs":
+        columns = ["QPS", "pruning_ratio", "recall", "nprobe", "k_factor", "total_distance_computation", "actual_distance_computation"]
     else:
         columns = ["QPS", "pruning_ratio", "recall", "gamma", "ef", "total_distance_computation", "actual_distance_computation"]
 
@@ -214,9 +247,9 @@ def main():
     parser.add_argument("-d", "--dataset", required=True,
                         help="Path to the dataset.")
     parser.add_argument("-m", "--method", required=True,
-                        choices=['hnsw', 'tIVFPQ', 'trim'], help="Method to test")
+                        choices=['hnsw', 'tIVFPQ', 'trim', 'IVFPQfs'], help="Method to test")
     parser.add_argument("-b", "--build_args", required=True,
-                        help="Build parameters in the format: M:16;efConstruction:500")
+                        help="Build parameters in the format: M:16;efConstruction:500;random_landmark_size:0")
     parser.add_argument("-s", "--search_args", required=True,
                         help="Search parameters in the format: gamma:[0.8];ef:[10,20];enable_batch_dco:[true,false]")
     parser.add_argument("-nq", "--num_query", default=-1, required=False, type=int,

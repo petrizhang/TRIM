@@ -255,8 +255,8 @@ class IndexALT:
                 # result1_id_array[qi, :] = a[:, 0]
                 # result1_dist_array[qi, :] = a[:, 1]
 
-                if self.dim < 4:
-                    continue
+                # if self.dim < 4:
+                #     continue
 
                 # 算PQ的，并计算recall
                 for gamma in gammas:
@@ -310,11 +310,14 @@ class IndexALT:
         self.randomLandmarks = self.base[self.randomLandmark_ids]
         self.randomLandmark_id_set = set(self.randomLandmark_ids)
 
-        if self.dim < 4:
-            return
+        # if self.dim < 4:
+        #     return
         
         # 用PQ生成landmark
-        self.pq_m = self.dim // 4  # 一般用整除避免小数
+        if self.dim == 2:
+            self.pq_m = 2
+        else:
+            self.pq_m = self.dim // 4  # 一般用整除避免小数
         pq_path = f"/home/yitong/TOP/bench/tmp/index/random_pq8x{self.pq_m}.index"
 
         # 判断索引是否存在
@@ -343,8 +346,8 @@ class IndexALT:
         self.b2l_dist_table1 = euclidean_distance_matrix_parallel(
             self.base, self.randomLandmarks, n_jobs=self.n_jobs
         )
-        if self.dim < 4:
-            return      
+        # if self.dim < 4:
+        #     return      
         # PQLandmark，存的是距离的平方
         # print(self.base.shape)
         # print(self.PQLandmarks.shape)
@@ -408,28 +411,28 @@ def experiment_task(dim, n_landmarks, gammas):
     print("Random:")
     print(f"dim:{dim}, prune_ratio:{prune_ratio1:.3f}")
 
-    if dim >= 4:
-        recall_sum = defaultdict(float)
-        disCom2_sum = defaultdict(float)
-        count = defaultdict(int)
+    # if dim >= 4:
+    recall_sum = defaultdict(float)
+    disCom2_sum = defaultdict(float)
+    count = defaultdict(int)
 
-        # print(stats2)
-        for _, entry in stats2.iterrows():
-            gamma = entry["gamma"]
-            recall = entry["recall"]
-            disCom2 = entry[KEY_DISTANCE_COMPUTATION2]
-            recall_sum[gamma] += recall
-            disCom2_sum[gamma] += disCom2
-            count[gamma] += 1
+    # print(stats2)
+    for _, entry in stats2.iterrows():
+        gamma = entry["gamma"]
+        recall = entry["recall"]
+        disCom2 = entry[KEY_DISTANCE_COMPUTATION2]
+        recall_sum[gamma] += recall
+        disCom2_sum[gamma] += disCom2
+        count[gamma] += 1
 
-        gamma_to_avg_recall = {gamma: recall_sum[gamma] / count[gamma] for gamma in recall_sum}
-        gamma_to_disCom2 = {gamma: disCom2_sum[gamma] / count[gamma] for gamma in disCom2_sum}
-        prune_ratio2 = {gamma: max(0, 1 - gamma_to_disCom2[gamma]/n_base) for gamma in gamma_to_disCom2}
+    gamma_to_avg_recall = {gamma: recall_sum[gamma] / count[gamma] for gamma in recall_sum}
+    gamma_to_disCom2 = {gamma: disCom2_sum[gamma] / count[gamma] for gamma in disCom2_sum}
+    prune_ratio2 = {gamma: max(0, 1 - gamma_to_disCom2[gamma]/n_base) for gamma in gamma_to_disCom2}
 
-        print("PQ:")
-        
-        for gamma in gamma_to_disCom2:
-            print(f"dim: {dim}, gamma: {gamma}, prune_ratio: {prune_ratio2[gamma]:.3f}, recall: {gamma_to_avg_recall[gamma]:.3f}")
+    print("PQ:")
+    
+    for gamma in gamma_to_disCom2:
+        print(f"dim: {dim}, gamma: {gamma}, prune_ratio: {prune_ratio2[gamma]:.3f}, recall: {gamma_to_avg_recall[gamma]:.3f}")
 
     # === 写入 CSV ===
     output_path = "/home/yitong/TOP/bench/results/testDim.csv"
@@ -445,22 +448,22 @@ def experiment_task(dim, n_landmarks, gammas):
         # 写入 Random 结果（recall 留空）
         writer.writerow([dim, "random", f"{prune_ratio1:.3f}", "1.000"])
 
-        if dim >= 4:
-            # 写入每个 gamma 的 PQ 结果
-            for gamma in gamma_to_avg_recall:
-                writer.writerow([
-                                dim,
-                                gamma,
-                                f"{prune_ratio2[gamma]:.3f}",
-                                f"{gamma_to_avg_recall[gamma]:.3f}"
-                            ])
+        # if dim >= 4:
+        # 写入每个 gamma 的 PQ 结果
+        for gamma in gamma_to_avg_recall:
+            writer.writerow([
+                            dim,
+                            gamma,
+                            f"{prune_ratio2[gamma]:.3f}",
+                            f"{gamma_to_avg_recall[gamma]:.3f}"
+                        ])
 
 
 if __name__ == "__main__":
 
     n_landmarks = 100
-    dim = 128
-    gammas = [0.1, 0.2, 0.3, 0.4, 0.5,0.6,0.7,0.8,0.9,1]
+    dim = 2
+    gammas = [0.0]
     # gammas = [0.16,0.17,0.18,0.19]
     # gammas = [0.5, 0.55, 0.6, 0.65, 0.7,0.75, 0.8, 0.85 ,0.9,0.95, 1]
     experiment_task(dim, n_landmarks, gammas)
