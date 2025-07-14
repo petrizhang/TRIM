@@ -11,8 +11,10 @@
 #include "faiss/IndexIVFPQFastScan.h"
 #include "faiss/impl/io.h"
 #include "faiss/impl/io_macros.h"
+#include "faiss/impl/pq4_fast_scan.h"
 #include "faiss/impl/simd_result_handlers.h"
 #include "faiss/invlists/BlockInvertedLists.h"
+#include "trim/common/dco.h"
 #include "trim/detail/io/read_faiss.h"
 
 namespace faiss {
@@ -35,7 +37,7 @@ struct TrimRefineResultHandler
   int64_t _k;
   float* _result_dis;
   int64_t* _result_ids;
-  const float* _global_recons_errors;
+  const float* _recons_errors;  // reconstruction errors for this list
   float _gamma = 0.8;
   std::priority_queue<std::pair<float, faiss::idx_t>, std::vector<std::pair<float, faiss::idx_t>>>
       _results_queue;
@@ -48,9 +50,7 @@ struct TrimRefineResultHandler
   // Intermediate data buffers
   //===--------------------------------------------------------------------===//
   static constexpr size_t bbs = 32;
-  std::array<int64_t, bbs> _ids;
   std::array<float, bbs> _pq_dist_sqrt;
-  std::array<float, bbs> _recons_error_sqrt;
   std::array<float, bbs> _lowerbounds;
 
   //===--------------------------------------------------------------------===//
@@ -63,27 +63,23 @@ struct TrimRefineResultHandler
   //===--------------------------------------------------------------------===//
   // Constructors and methods
   //===--------------------------------------------------------------------===//
-  TrimRefineResultHandler(size_t ntotal, int64_t k, float* dis, int64_t* ids,
-                          const float* global_recons_errors, size_t d, const float* data,
-                          const float* query)
+  TrimRefineResultHandler(size_t ntotal, int64_t k, float* dis, int64_t* ids, size_t d,
+                          const float* data, const float* query)
       : ParentClass(1, ntotal, nullptr),
         _k(k),
         _result_dis(dis),
         _result_ids(ids),
-        _global_recons_errors(global_recons_errors),
         _d(d),
         _data(data),
-        _query(query) {
-    FAISS_ASSERT(global_recons_errors != nullptr);
-  }
+        _query(query) {}
 
   void handle(size_t q, size_t b, simd16uint16 d0, simd16uint16 d1) final {
+    FAISS_ASSERT(_recons_errors != nullptr);
     this->adjust_with_origin(q, d0, d1);
-    load_id(b);
-    load_recons_errors();
-    load_pq_dist(d0, d1);
-    compute_lowerbounds();
-    refine();
+    // load_pq_dist(d0, d1);
+    // compute_lowerbounds(b);
+    compute_lowerbounds_simd(d0, d1, b);
+    refine(b);
   }
 
   void end() override {
@@ -101,55 +97,69 @@ struct TrimRefineResultHandler
   // compute and adjust idx
   int64_t adjust_id(size_t b, size_t j) {
     int64_t idx = j0 + 32 * b + j;
-    if (idx > ntotal) {
+    if (idx >= ntotal) {
       return -1;
     }
     idx = id_map[idx];
     return idx;
   }
 
-  void refine() {
+  void refine(size_t b) {
     _total_distance_computation += bbs;
-    for (size_t i = 0; i < bbs; i++) {
-      auto lowerbound = _lowerbounds[i];
-      auto id = _ids[i];
-      if (id < 0) {
-        continue;
+
+    // for (size_t i = 0; i < 8; i++) {
+    //   auto lowerbound = _lowerbounds[i];
+    //   if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
+    //     _actual_distance_computation++;
+    //     auto id = adjust_id(b, i);
+    //     if (id < 0) {
+    //       continue;
+    //     }
+    //     float dist = fvec_L2sqr(_query, id);
+    //     _results_queue.emplace(dist, id);
+    //     if (_results_queue.size() > _k) _results_queue.pop();
+    //   }
+    // }
+
+    for (size_t j = 0; j < bbs / 8; j++) {
+      trim::Bool8 bools(true);
+      __m256 lb_batch = _mm256_loadu_ps(_lowerbounds.data() + j);
+      if (!_results_queue.empty()) {
+        __m256 threshold = _mm256_set1_ps(_results_queue.top().first);
+        __m256 cmp_result = _mm256_cmp_ps(lb_batch, threshold, _CMP_LT_OQ);
+        int mask = _mm256_movemask_ps(cmp_result);
+        bools = trim::Bool8(mask);
+        if (!bools.has_true()) {
+          continue;
+        }
       }
-      if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
-        _actual_distance_computation++;
-        float dist = fvec_L2sqr(_query, id);
-        _results_queue.emplace(dist, id);
-        if (_results_queue.size() > _k) _results_queue.pop();
+
+      for (size_t i = 0; i < 8; i++) {
+        if (bools.get(i)) {
+          auto lowerbound = lb_batch[i];
+          if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
+            _actual_distance_computation++;
+            auto id = adjust_id(b, i + j * 8);
+            if (id < 0) {
+              continue;
+            }
+            float dist = fvec_L2sqr(_query, id);
+            _results_queue.emplace(dist, id);
+            if (_results_queue.size() > _k) _results_queue.pop();
+          }
+        }
       }
     }
   }
 
-  void load_recons_errors() {
-    const float* __restrict recons_errors = _global_recons_errors;
-    float* __restrict dest = _recons_error_sqrt.data();
-    for (size_t i = 0; i < bbs; i++) {
-      int64_t id = _ids[i];
-      float error = recons_errors[id];
-      dest[i] = error;
-    }
-  }
-
-  void compute_lowerbounds() {
+  void compute_lowerbounds(size_t b) {
     const float* __restrict data_a = _pq_dist_sqrt.data();
-    const float* __restrict data_b = _recons_error_sqrt.data();
+    const float* __restrict data_b = _recons_errors + j0 + 32 * b;
     const float gamma_value = _gamma;
     for (size_t i = 0; i < bbs; i++) {
       float ai = data_a[i];
       float bi = data_b[i];
       _lowerbounds[i] = (ai - bi) * (ai - bi) + 2 * gamma_value * ai * bi;
-    }
-  }
-
-  void load_id(size_t b) {
-    for (int64_t j = 0; j < bbs; ++j) {
-      int64_t id = adjust_id(b, j);
-      _ids[j] = id;
     }
   }
 
@@ -183,6 +193,50 @@ struct TrimRefineResultHandler
     float_vec_hi1 = dequantize(float_vec_hi1);
     __m256 float_vec_hi_sqrt1 = _mm256_sqrt_ps(float_vec_hi1);
     _mm256_storeu_ps(_pq_dist_sqrt.data() + 24, float_vec_hi_sqrt1);
+  }
+
+  void compute_lowerbounds_simd(simd16uint16 d0, simd16uint16 d1, size_t batch_round) {
+    float a = 1.0, b = 0.0;
+    if (normalizers) {
+      a = 1 / normalizers[0];
+      b = normalizers[1];
+    }
+
+    const float* __restrict landmark_dists = _recons_errors + j0 + batch_round * bbs;
+    __m256 vec_a = _mm256_set1_ps(a);
+    __m256 vec_b = _mm256_set1_ps(b);
+
+    auto dequantize = [vec_a, vec_b](__m256 dis) { return dis * vec_a + vec_b; };
+    const float gamma = _gamma;
+    // Process d0
+    __m256 float_vec_lo0, float_vec_hi0;
+    convert_16x_uint16_to_2x8_float32(d0.i, &float_vec_lo0, &float_vec_hi0);
+    float_vec_lo0 = dequantize(float_vec_lo0);
+    __m256 float_vec_lo_sqrt0 = _mm256_sqrt_ps(float_vec_lo0);
+    __m256 recons_error_vec_lo0 = _mm256_loadu_ps(landmark_dists);
+    __m256 lb_vec_lo0 = _relaxed_lowerbound8_avx2(gamma, float_vec_lo_sqrt0, recons_error_vec_lo0);
+    _mm256_storeu_ps(_lowerbounds.data(), lb_vec_lo0);
+
+    float_vec_hi0 = dequantize(float_vec_hi0);
+    __m256 float_vec_hi_sqrt0 = _mm256_sqrt_ps(float_vec_hi0);
+    __m256 recons_error_vec_hi0 = _mm256_loadu_ps(landmark_dists + 8);
+    __m256 lb_vec_hi0 = _relaxed_lowerbound8_avx2(gamma, float_vec_hi_sqrt0, recons_error_vec_hi0);
+    _mm256_storeu_ps(_lowerbounds.data() + 8, lb_vec_hi0);
+
+    // Process d1
+    __m256 float_vec_lo1, float_vec_hi1;
+    convert_16x_uint16_to_2x8_float32(d1.i, &float_vec_lo1, &float_vec_hi1);
+    float_vec_lo1 = dequantize(float_vec_lo1);
+    __m256 float_vec_lo_sqrt1 = _mm256_sqrt_ps(float_vec_lo1);
+    __m256 recons_error_vec_lo1 = _mm256_loadu_ps(landmark_dists + 16);
+    __m256 lb_vec_lo1 = _relaxed_lowerbound8_avx2(gamma, float_vec_lo_sqrt1, recons_error_vec_lo1);
+    _mm256_storeu_ps(_lowerbounds.data() + 16, lb_vec_lo1);
+
+    float_vec_hi1 = dequantize(float_vec_hi1);
+    __m256 float_vec_hi_sqrt1 = _mm256_sqrt_ps(float_vec_hi1);
+    __m256 recons_error_vec_hi1 = _mm256_loadu_ps(landmark_dists + 24);
+    __m256 lb_vec_hi1 = _relaxed_lowerbound8_avx2(gamma, float_vec_hi_sqrt1, recons_error_vec_hi1);
+    _mm256_storeu_ps(_lowerbounds.data() + 24, lb_vec_hi1);
   }
 
   void convert_16x_uint16_to_2x8_float32(__m256i uint16_vec, __m256* float_vec_lo,
@@ -228,10 +282,26 @@ struct TrimRefineResultHandler
 
     return result;
   }
+
+  __always_inline __m256 _relaxed_lowerbound8_avx2(float gamma, __m256 pq_dist_vec,
+                                                   __m256 recons_error_vec) {
+    // Squared root of PQ distances
+    __m256 vec_a = pq_dist_vec;
+    // Reconstruction errors (actully squared roots of reconstruction errors)
+    __m256 vec_b = recons_error_vec;
+    // lowerbounds = (a[i] - b[i])^2 + 2 * gamma * a[i] * b[i]
+    __m256 vec_diff = _mm256_sub_ps(vec_a, vec_b);
+    __m256 vec_diff_squared = _mm256_mul_ps(vec_diff, vec_diff);
+    __m256 vec_2gamma = _mm256_set1_ps(2 * gamma);
+    __m256 vec_ab = _mm256_mul_ps(vec_a, vec_b);
+    __m256 vec_2gamma_ab = _mm256_mul_ps(vec_2gamma, vec_ab);
+    __m256 lowerbounds = _mm256_add_ps(vec_diff_squared, vec_2gamma_ab);
+    return lowerbounds;
+  }
 };
 
 struct tIVFPQfs : IndexIVFPQFastScan {
-  std::vector<float> recons_errors;
+  std::vector<std::vector<float>> perlist_recons_errors;
   float* data{nullptr};
   float gamma = 0.8;
   //===--------------------------------------------------------------------===//
@@ -282,7 +352,6 @@ struct tIVFPQfs : IndexIVFPQFastScan {
 
     this->metric_type = METRIC_L2;
     // this->parallel_mode = PARALLEL_MODE_NO_HEAP_INIT;
-    recons_errors.resize(ntotal, 0.0);
   }
 
   ~tIVFPQfs() {}
@@ -410,8 +479,8 @@ struct tIVFPQfs : IndexIVFPQFastScan {
     }
 
     size_t ndis = 0, nlist_visited = 0;
-    auto handler = std::make_unique<TrimRefineResultHandler>(ntotal, k, distances, labels,
-                                                             recons_errors.data(), d, data, x);
+    auto handler =
+        std::make_unique<TrimRefineResultHandler>(ntotal, k, distances, labels, d, data, x);
     handler->_gamma = gamma;
     search_implem_10(n, x, *handler.get(), cq, &ndis, &nlist_visited, scaler, params);
     _actual_distance_computation = handler->_actual_distance_computation;
@@ -419,29 +488,101 @@ struct tIVFPQfs : IndexIVFPQFastScan {
     _pruning_ratio = handler->_pruning_ratio;
   }
 
+  void search_implem_10(idx_t n, const float* x, SIMDResultHandlerToFloat& handler,
+                        const CoarseQuantized& cq, size_t* ndis_out, size_t* nlist_out,
+                        const NormTableScaler* scaler, const IVFSearchParameters* params) const {
+    size_t dim12 = ksub * M2;
+    AlignedTable<uint8_t> dis_tables;
+    AlignedTable<uint16_t> biases;
+    std::unique_ptr<float[]> normalizers(new float[2 * n]);
+
+    compute_LUT_uint8(n, x, cq, dis_tables, biases, normalizers.get());
+
+    bool single_LUT = !lookup_table_is_3d();
+
+    size_t ndis = 0;
+    int qmap1[1];
+
+    handler.q_map = qmap1;
+    handler.begin(skip & 16 ? nullptr : normalizers.get());
+    size_t nprobe = cq.nprobe;
+
+    for (idx_t i = 0; i < n; i++) {
+      const uint8_t* LUT = nullptr;
+      qmap1[0] = i;
+
+      if (single_LUT) {
+        LUT = dis_tables.get() + i * dim12;
+      }
+      for (idx_t j = 0; j < nprobe; j++) {
+        size_t ij = i * nprobe + j;
+        if (!single_LUT) {
+          LUT = dis_tables.get() + ij * dim12;
+        }
+        if (biases.get()) {
+          handler.dbias = biases.get() + ij;
+        }
+
+        idx_t list_no = cq.ids[ij];
+        if (list_no < 0) {
+          continue;
+        }
+        size_t ls = invlists->list_size(list_no);
+        if (ls == 0) {
+          continue;
+        }
+
+        InvertedLists::ScopedCodes codes(invlists, list_no);
+        InvertedLists::ScopedIds ids(invlists, list_no);
+
+        handler.ntotal = ls;
+        handler.id_map = ids.get();
+
+        ((TrimRefineResultHandler&)handler)._recons_errors = perlist_recons_errors[list_no].data();
+        pq4_accumulate_loop(1, roundup(ls, bbs), bbs, M2, codes.get(), LUT, handler, scaler);
+
+        ndis++;
+      }
+    }
+
+    handler.end();
+    *ndis_out = ndis;
+    *nlist_out = nlist;
+  }
+
   // TODO: fix bug of this method
   void compute_recons_errors() {
     FAISS_ASSERT(data != nullptr);
+
+    perlist_recons_errors.resize(nlist);
+    for (size_t i = 0; i < nlist; i++) {
+      size_t list_size = this->get_list_size(i);
+      size_t target_size = roundup(list_size, bbs);
+      auto& invlist_errors = perlist_recons_errors[i];
+      invlist_errors.resize(target_size);
+      invlist_errors.assign(target_size, 0.0f);
+    }
+
     if (!invlists) {
       std::cerr << "Error: invlists is null." << std::endl;
       return;
     }
 
-    BlockInvertedLists* bil = dynamic_cast<BlockInvertedLists*>(invlists);
     std::vector<float> x_approx(d);
     for (int list_no = 0; list_no < nlist; list_no++) {
-      size_t list_size = bil->list_size(list_no);
+      size_t list_size = invlists->list_size(list_no);
 
       if (list_size == 0) {
         continue;
       }
 
-      const idx_t* ids = bil->get_ids(list_no);
-      for (size_t i = 0; i < list_size; i++) {
-        idx_t id = ids[i];
-        reconstruct_from_offset(list_no, i, x_approx.data());
+      auto& invlist_errors = perlist_recons_errors[list_no];
+      const idx_t* ids = invlists->get_ids(list_no);
+      for (size_t offset = 0; offset < list_size; offset++) {
+        idx_t id = ids[offset];
+        reconstruct_from_offset(list_no, offset, x_approx.data());
         float error = fvec_L2sqr(x_approx.data(), id);
-        recons_errors[id] = std::sqrt(error);
+        invlist_errors[offset] = std::sqrt(error);
       }
     }
   }
