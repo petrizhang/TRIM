@@ -30,6 +30,8 @@ inline constexpr const char* T_METRIC_IP = "IP";
 
 inline constexpr const char* T_HNSW = "hnsw";
 inline constexpr const char* T_IVFPQ = "ivfpq";
+inline constexpr const char* T_IVFPQFS = "ivfpq_fs";
+
 
 inline constexpr const char* T_DCO = "dco";
 inline constexpr const char* T_DCO_EXACT = "exact";
@@ -41,6 +43,7 @@ inline constexpr const char* T_DIM = "dim";
 inline constexpr const char* T_EF = "ef";
 inline constexpr const char* T_HNSWLIB_INDEX_PATH = "hnswlib_index_path";
 inline constexpr const char* T_IVFPQ_INDEX_PATH = "ivfpq_index_path";
+inline constexpr const char* T_IVFPQFS_INDEX_PATH = "ivfpqfs_index_path";
 inline constexpr const char* DATA_PATH = "data_path";
 inline constexpr const char* T_PQ_INDEX_PATH = "pq_index_path";
 inline constexpr const char* T_USE_OPQ = "use_opq";

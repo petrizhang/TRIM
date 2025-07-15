@@ -281,10 +281,20 @@ python3 bench.py -qt range -se 0.01 -nq 1000 -d "../../yitong/Datasets/tiny5m-38
 
 # FastScan
 # IVFPQfs
-# GIST m=32
-python3 bench.py -qt ann -k 10 -nq 10 -d "../../yitong/Datasets/gist-960.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/gist_ivfpqfs4096x32.bin";C:4096;m:32;nbits:4' -s 'k_factor:[100000.0];nprobe:[4000]' -si "./tmp/index/gist_ivfpqfs4096x32.bin" -sr "./results/QPSDCRecall_GIST_IVFPQfs_KNN_k10.csv"
+# GIST m=480 
+python3 bench.py -qt ann -k 10 -nq 100 -d "../../yitong/Datasets/gist-960.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/gist_ivfpqfs4096x480.bin";C:4096;m:480;nbits:4' -s 'k_factor:[50];nprobe:[10,20,30,40,50,60,70,80,100,150,200,250,300,400,500]' -si "./tmp/index/gist_ivfpqfs4096x480.bin" -sr "./results/QPSDCRecall_GIST_IVFPQfs_KNN_k10.csv"
 
+# Glove m=50 (取了k_factor=100的)
+python3 bench.py -qt ann -k 10 -nq 100 -d "../../yitong/Datasets/glove-100.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/glove_ivfpqfs4096x50.bin";C:4096;m:50;nbits:4' -s 'k_factor:[80,100];nprobe:[100,200,400,600,800,1000,1200,1400,1600]' -si "./tmp/index/glove_ivfpqfs4096x50.bin" -sr "./results/QPSDCRecall_GloVe_IVFPQfs_KNN_k10.csv"
+
+# NYTimes m=128
+<!-- python3 bench.py -qt ann -k 10 -nq 1 -d "../../yitong/Datasets/nytimes-256.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/nytimes_ivfpqfs4096x128.bin";C:4096;m:128;nbits:4' -s 'k_factor:[80];nprobe:[20,40,60,80,100,150,200,400,600,800,1000,2000,3000]' -si "./tmp/index/nytimes_ivfpqfs4096x128.bin" -sr "./results/QPSDCRecall_NYTimes_IVFPQfs_KNN_k10.csv" -->
+python3 bench.py -qt ann -k 10 -nq 100 -d "../../yitong/Datasets/nytimes-256_normalized.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/nytimes_ivfpqfs4096x128.bin";C:4096;m:128;nbits:4' -s 'k_factor:[60,70,80];nprobe:[20,40,60,80,100,150,200,400,600,800,1000,2000,3000]' -si "./tmp/index/nytimes_ivfpqfs4096x128.bin" -sr "./results/QPSDCRecall_NYTimes_IVFPQfs_KNN_k10.csv"
+
+# Tiny5M m=192
+python3 bench.py -qt ann -k 10 -nq 500 -d "../../yitong/Datasets/tiny5m-384.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/tiny5m_ivfpqfs4096x192.bin";C:4096;m:192;nbits:4' -s 'k_factor:[60,70,80];nprobe:[20,30,40,50,60,70,80,90,100,200,300,400,500]' -si "./tmp/index/tiny5m_ivfpqfs4096x192.bin" -sr "./results/QPSDCRecall_Tiny5m_IVFPQfs_KNN_k10.csv"
+
+
+# tIVFPQfs
 # Glove m=50
-python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/glove_ivfpqfs4096x50.bin";C:4096;m:50;nbits:4' -s 'k_factor:[3,5,8,10,30,50,100,300,400,500];nprobe:[1200]' -si "./tmp/index/glove_ivfpqfs4096x50.bin" -sr "./results/QPSDCRecall_GloVe_IVFPQfs_KNN_k10.csv"
-# Glove m=25
-python3 bench.py -qt ann -k 10 -nq 1000 -d "../../yitong/Datasets/glove-100.hdf5" -m IVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/glove_ivfpqfs4096x25.bin";C:4096;m:25;nbits:4' -s 'k_factor:[10,20,50,80,100,200,300,400,500,600,800,1000,1200];nprobe:[1000]' -si "./tmp/index/glove_ivfpqfs4096x25.bin" -sr "./results/QPSDCRecall_GloVe_IVFPQfs_KNN_k10.csv"
+python3 bench.py -qt ann -k 10 -nq 500 -d "../../yitong/Datasets/glove-100.hdf5" -m tIVFPQfs -b 'ivfpqfs_index_path:"./tmp/index/glove_tivfpqfs4096x50.bin";C:4096;m:50;nbits:4' -s 'gamma:[0.4];nprobe:[100,200,400,600,800,1000,1200,1400,1600]' -si "./tmp/index/glove_tivfpqfs4096x50.bin" -sr "./results/QPSDCRecall_GloVe_tIVFPQfs_KNN_k10.csv"

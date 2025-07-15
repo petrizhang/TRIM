@@ -54,6 +54,7 @@ int main() {
 
   int k = 10;
   std::vector<int64_t> ids(k);
+  
   std::vector<float> distances(k);
   index.search(1, vector_data.data(), k, distances.data(), ids.data());
   for (auto f : distances) {

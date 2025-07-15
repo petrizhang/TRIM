@@ -613,6 +613,13 @@ struct tIVFPQfs : IndexIVFPQFastScan {
 
     return result;
   }
+
+  void clear_profile(){
+    _pruning_ratio = 0.0;
+    _actual_distance_computation = 0.0;
+    _total_distance_computation = 0.0;
+  }
+
 };
 
 }  // namespace faiss

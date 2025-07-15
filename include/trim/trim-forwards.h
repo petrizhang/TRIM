@@ -40,6 +40,7 @@
 #include "trim/detail/io/read_pq.h"
 #include "trim/detail/searcher/hnsw/hnsw_searcher.h"
 #include "trim/detail/searcher/ivfpq_searcher.h"
+#include "trim/detail/searcher/ivfpqfs_searcher.h"
 #include "trim/util/thread_pool.h"
 
 namespace trim {
@@ -134,6 +135,14 @@ std::unique_ptr<ISearcher> create_ivfpq_searcher(const Dict& options) {
   
 }
 
+std::unique_ptr<ISearcher> create_ivfpqfs_searcher(const Dict& options) {
+  std::string index_path = options.require<std::string>(constants::T_IVFPQFS_INDEX_PATH);
+  // std::string data_path = options.require<std::string>(constants::DATA_PATH);
+  std::unique_ptr<ISearcher> searcher = std::make_unique<IVFPQFastScanSearcher>(index_path.c_str());
+  return searcher;
+  
+}
+
 }  // namespace detail
 
 struct SearcherCreator {
@@ -150,11 +159,16 @@ struct SearcherCreator {
   std::unique_ptr<ISearcher> create() {
     using trim::constants::T_HNSW;
     using trim::constants::T_IVFPQ;
+    using trim::constants::T_IVFPQFS;
+
     if (index_type == T_HNSW) {
       return detail::create_hnsw_searcher(options);
     } 
     else if (index_type == T_IVFPQ) {
       return detail::create_ivfpq_searcher(options);
+    }
+    else if (index_type == T_IVFPQFS){
+      return detail::create_ivfpqfs_searcher(options);
     }
     T_THROW_FMT("cannot create searcher for unsupported index type %s", index_type.c_str());
   }

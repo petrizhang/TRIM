@@ -449,72 +449,72 @@ namespace detail {
             _pruning_ratio += 0.0;
         }
 
-        void _range_search_with_trim(const float* q, float radius, std::vector<int> &result) const{
+        // void _range_search_with_trim(const float* q, float radius, std::vector<int> &result) const{
         
-            FAISS_THROW_IF_NOT(radius >= 0);
+        //     FAISS_THROW_IF_NOT(radius >= 0);
 
-            // const int D = _ivfpq->d;
-            const int code_size = _ivfpq->code_size;
+        //     // const int D = _ivfpq->d;
+        //     const int code_size = _ivfpq->code_size;
 
-            // Allocate temporary memory for distances and indices
-            std::unique_ptr<idx_t[]> coarse_ids(new idx_t[_nprobe]);
-            std::unique_ptr<float[]> coarse_dists(new float[_nprobe]);
+        //     // Allocate temporary memory for distances and indices
+        //     std::unique_ptr<idx_t[]> coarse_ids(new idx_t[_nprobe]);
+        //     std::unique_ptr<float[]> coarse_dists(new float[_nprobe]);
 
-            // Use the quantizer to find the nprobe nearest centroids to the query
-            _ivfpq->quantizer->search(1, q, _nprobe, coarse_dists.get(), coarse_ids.get());
-            _ivfpq->invlists->prefetch_lists(coarse_ids.get(), _nprobe);
+        //     // Use the quantizer to find the nprobe nearest centroids to the query
+        //     _ivfpq->quantizer->search(1, q, _nprobe, coarse_dists.get(), coarse_ids.get());
+        //     _ivfpq->invlists->prefetch_lists(coarse_ids.get(), _nprobe);
 
-            // Iterate over each selected list (centroid)
-            std::unique_ptr<faiss::InvertedListScanner> scanner(_ivfpq->get_InvertedListScanner(false, nullptr));
-            // Compute the distance table
-            scanner->set_query(q);
+        //     // Iterate over each selected list (centroid)
+        //     std::unique_ptr<faiss::InvertedListScanner> scanner(_ivfpq->get_InvertedListScanner(false, nullptr));
+        //     // Compute the distance table
+        //     scanner->set_query(q);
             
-            int total_access_count = 0;
-            std::vector<int> top_candidates;
-            float radius2 = radius * radius;
-            for (idx_t list_no = 0; list_no < _nprobe; list_no++) {
+        //     int total_access_count = 0;
+        //     std::vector<int> top_candidates;
+        //     float radius2 = radius * radius;
+        //     for (idx_t list_no = 0; list_no < _nprobe; list_no++) {
                 
-                size_t list_size = _ivfpq->invlists->list_size(coarse_ids[list_no]);
+        //         size_t list_size = _ivfpq->invlists->list_size(coarse_ids[list_no]);
                 
-                if (list_size == 0) {
-                    continue;
-                }
+        //         if (list_size == 0) {
+        //             continue;
+        //         }
 
-                total_access_count += list_size;
-                scanner->set_list(coarse_ids[list_no], coarse_dists[list_no]);
+        //         total_access_count += list_size;
+        //         scanner->set_list(coarse_ids[list_no], coarse_dists[list_no]);
 
-                const uint8_t* codes = dynamic_cast<faiss::ArrayInvertedLists*>(_ivfpq->invlists)->get_codes(coarse_ids[list_no]);
-                const idx_t* ids = dynamic_cast<faiss::ArrayInvertedLists*>(_ivfpq->invlists)->get_ids(coarse_ids[list_no]);
+        //         const uint8_t* codes = dynamic_cast<faiss::ArrayInvertedLists*>(_ivfpq->invlists)->get_codes(coarse_ids[list_no]);
+        //         const idx_t* ids = dynamic_cast<faiss::ArrayInvertedLists*>(_ivfpq->invlists)->get_ids(coarse_ids[list_no]);
 
-                for (size_t i = 0; i < list_size; i++) {
-                    idx_t id = ids[i];
-                    const uint8_t* code = codes + i * code_size;
+        //         for (size_t i = 0; i < list_size; i++) {
+        //             idx_t id = ids[i];
+        //             const uint8_t* code = codes + i * code_size;
 
-                    float dist_lq = std::sqrt(scanner->distance_to_code(code));
-                    float dist_lx = _ivfpq->recons_errors[id];
-                    float lowerbound = relaxed_lowerbound(dist_lq, dist_lx);
+        //             float dist_lq = std::sqrt(scanner->distance_to_code(code));
+        //             float dist_lx = _ivfpq->recons_errors[id];
+        //             float lowerbound = relaxed_lowerbound(dist_lq, dist_lx);
 
-                    if(lowerbound <= radius2){
-                       top_candidates.push_back(id);
-                    }
-                }
-            }  
+        //             if(lowerbound <= radius2){
+        //                top_candidates.push_back(id);
+        //             }
+        //         }
+        //     }  
             
-            int actual_access_count = top_candidates.size();
-            for(size_t i=0; i<top_candidates.size(); i++){
-                faiss::idx_t id = top_candidates[i];
-                float dist = _ivfpq->fvec_L2sqr(q, id);
+        //     int actual_access_count = top_candidates.size();
+        //     for(size_t i=0; i<top_candidates.size(); i++){
+        //         faiss::idx_t id = top_candidates[i];
+        //         float dist = _ivfpq->fvec_L2sqr(q, id);
 
-                if(dist <= radius2){
-                    result.push_back(id);
-                }  
-            }
+        //         if(dist <= radius2){
+        //             result.push_back(id);
+        //         }  
+        //     }
             
-            _actual_distance_computation += actual_access_count;
-            _total_distance_computation += total_access_count;
-            _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
+        //     _actual_distance_computation += actual_access_count;
+        //     _total_distance_computation += total_access_count;
+        //     _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
              
-        }
+        // }
 
         void _range_search_with_trim8(const float* q, float radius, std::vector<int> &result) const{
         

@@ -42,6 +42,7 @@ struct IVFPQFastScanSearcher : SetterProxy<IVFPQFastScanSearcher>, ISearcher {
 
   // Index
   std::unique_ptr<faiss::tIVFPQfs> _ivfpqfs{nullptr};
+  // faiss::tIVFPQfs* _ivfpqfs{nullptr};
 
   // data
   const float* _data{nullptr};
@@ -53,15 +54,15 @@ struct IVFPQFastScanSearcher : SetterProxy<IVFPQFastScanSearcher>, ISearcher {
   IVFPQFastScanSearcher() = delete;
 
   explicit IVFPQFastScanSearcher(const char* index_path) : Proxy("IVFPQFastScanSearcher") {
-    _ivfpq = new faiss::tIVFPQ(index_path);
+    _ivfpqfs = std::make_unique<faiss::tIVFPQfs>(index_path);
+    // _ivfpqfs = new faiss::tIVFPQfs(index_path);
     _pruning_ratio = 0.0f;
     _actual_distance_computation = 0.0f;
     _total_distance_computation = 0.0f;
 
-    Proxy::template bind<BOOL_TYPE>("trim_opened", &This::set_trim_opened);
-    Proxy::template bind<DOUBLE_TYPE>("k_factor", &This::set_k_factor);
     Proxy::template bind<INTEGER_TYPE>("nprobe", &This::set_nprobe);
     Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
+
   }
 
   ~IVFPQFastScanSearcher() override = default;
@@ -80,13 +81,13 @@ struct IVFPQFastScanSearcher : SetterProxy<IVFPQFastScanSearcher>, ISearcher {
 
   const float* get_data(unsigned i) const override { return _ivfpqfs->get_data(i); }
 
-  size_t num_data_points() const override { return _ivfpq == nullptr ? 0 : _ivfpqfs->ntotal; }
+  size_t num_data_points() const override { return _ivfpqfs == nullptr ? 0 : _ivfpqfs->ntotal; }
 
   void set_k_factor(float kf) { this->_k_factor = kf; }
 
-  void set_nprobe(size_t nprobe) { this->_nprobe = nprobe; }
+  void set_nprobe(size_t nprobe) { this->_nprobe = nprobe; _ivfpqfs->nprobe = nprobe;}
 
-  void set_gamma(float gamma) { this->_gamma = gamma; }
+  void set_gamma(float gamma) { this->_gamma = gamma; _ivfpqfs->gamma = gamma;}
 
   void set_trim_opened(bool flag) { this->_trim_opened = flag; }
 
@@ -111,7 +112,27 @@ struct IVFPQFastScanSearcher : SetterProxy<IVFPQFastScanSearcher>, ISearcher {
 
   void ann_search(const float* q, int k, int* dst) const override {
     // omp_set_num_threads(1);
+    // std::cout << "gamma:" << _ivfpqfs->gamma << std::endl;
+    // std::cout << "nprobe:" << _ivfpqfs->nprobe << std::endl;
+    
+    std::vector<int64_t> ids(k);
+    std::vector<float> distances(k);
+    // std::cout << "start query" << std::endl;
+    _ivfpqfs->search(1, q, k, distances.data(), ids.data());
+    // std::cout << "end query" << std::endl;
+
+    for (int i = 0; i < k; ++i) {
+      dst[i] = static_cast<int>(ids[i]);
+    }
+    _actual_distance_computation += _ivfpqfs->_actual_distance_computation;
+    _total_distance_computation += _ivfpqfs->_total_distance_computation;
+    _pruning_ratio += _ivfpqfs->_pruning_ratio;
+    _ivfpqfs->clear_profile();
   }
+
+  void range_search(const float* q, float radius, std::vector<int> &result) const override { T_THROW_MSG("not implemented error"); }
+  
+
 };
 }  // namespace detail
 }  // namespace trim
