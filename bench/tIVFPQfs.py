@@ -15,7 +15,7 @@ class Algorithm(BaseANN):
         self.name = f"tIVFPQfs ({self.method_param})"
         self.dim = dim
         self.ivfpq_fs = None
-        self.ivfpq_index_path = method_param["ivfpq_index_path"]
+        self.ivfpq_index_path = method_param["ivfpqfs_index_path"]
         self.searcher: trimlib.Searcher = None
 
     def fit(self, X):
@@ -23,28 +23,20 @@ class Algorithm(BaseANN):
 
         if not os.path.exists(self.ivfpq_index_path):
             print("Building tIVFPQfs index...")
-            # with Timer() as timer:
-            quantizer = faiss.IndexFlatL2(self.dim)
             nlist = self.method_param.get("C", 4096)
             self.m = self.method_param.get("m", 32)
             nbits = self.method_param.get("nbits", 4)
 
-            self.ivfpq_fs = faiss.IndexIVFPQ(quantizer, self.dim, nlist, self.m, nbits)
+            index_string = f"IVF{nlist},PQ{self.m}x{nbits}fs"
+            self.ivfpq_fs = faiss.index_factory(self.dim, index_string, faiss.METRIC_L2)
             self.ivfpq_fs.train(X)
             self.ivfpq_fs.add(X)
-
-            # index_string = f"IVF{nlist},PQ{self.m}x{nbits}fs,RFlat"
-            # self.ivfpq_fs = faiss.index_factory(self.dim, index_string)
-            # self.ivfpq_fs.train(X)
-            # self.ivfpq_fs.add(X)
 
 
     def set_query_arguments(self, nprobe, gamma=0.8):
         assert self.searcher is not None
         self.searcher.set("nprobe", nprobe)
         self.searcher.set("gamma", gamma)
-        # self.searcher.set("k_factor", k_factor)
-        # self.searcher.set("trim_opened", trim_opened)
         self.searcher.clear_pruning_ratio()
         self.searcher.clear_num_distance_computation()
 
@@ -79,7 +71,7 @@ class Algorithm(BaseANN):
     def load_index(self, index_path: str) -> None:
         if self.searcher is None:
             creator = trimlib.SearcherCreator("ivfpq_fs")
-            creator.set("ivfpq_index_path", index_path)
+            creator.set("ivfpqfs_index_path", index_path)
             self.searcher = creator.create()
 
     def freeIndex(self):

@@ -12,8 +12,7 @@ from scipy.spatial import distance
 from alg import BaseANN
 from utils import Timer
 import numpy as np
-
-
+import faiss
 
 class DataSet:
     def __init__(self, base, query, ranges, groudtruth, groundtruth_001, groundtruth_01):
@@ -77,10 +76,11 @@ def parse_index_config(config_string):
     
 #     return nearest_ids, nearest_dists
 
-
+runtime = 3
 def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args: dict) -> List[dict]:
     line = dict(**search_args)
     alg.set_query_arguments(**search_args)
+    # print(f'max_threads:{faiss.omp_get_max_threads()}')
     if nq < 0 or nq > dataset.query.shape[0]:
         nq = dataset.query.shape[0]
     duration_ms = 0
@@ -95,9 +95,11 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
         gt = dataset.groundtruth[i, :k]
 
         start = time.time()
+        # for t in range(runtime):
         knn = alg.ann_query(q, k)
         end = time.time()
 
+        # duration_ms += ((end-start) / runtime * 1000)
         duration_ms += ((end-start) * 1000)
         gt_set = set(gt)
         # print("My answer:", set(knn))
@@ -173,7 +175,6 @@ def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search
     print(line)
     return line
 
-
 def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: float, nq: int, build_args: dict,
           search_args: dict, save_index_path: str, save_result_path: str) -> None:
     
@@ -199,6 +200,8 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
 
     alg.set_data(dataset.base)
 
+    os.environ['OMP_NUM_THREADS'] = '1'
+
     # Run queries, record time and recall
     search_args_combinations = enumerate_combinations(search_args)
     results = []
@@ -219,6 +222,8 @@ def bench(alg_class, method: str, data_path: str, query_type: str, k: int, se: f
         columns = ["QPS", "pruning_ratio", "recall", "gamma", "nprobe", "k_factor", "total_distance_computation", "actual_distance_computation"]
     elif method == "IVFPQfs":
         columns = ["QPS", "pruning_ratio", "recall", "nprobe", "k_factor", "total_distance_computation", "actual_distance_computation"]
+    elif method == "tIVFPQfs":
+        columns = ["QPS", "pruning_ratio", "recall", "nprobe", "gamma", "total_distance_computation", "actual_distance_computation"]
     else:
         columns = ["QPS", "pruning_ratio", "recall", "gamma", "ef", "total_distance_computation", "actual_distance_computation"]
 
@@ -247,7 +252,7 @@ def main():
     parser.add_argument("-d", "--dataset", required=True,
                         help="Path to the dataset.")
     parser.add_argument("-m", "--method", required=True,
-                        choices=['hnsw', 'tIVFPQ', 'trim', 'IVFPQfs'], help="Method to test")
+                        choices=['hnsw', 'tIVFPQ', 'trim', 'IVFPQfs', 'tIVFPQfs'], help="Method to test")
     parser.add_argument("-b", "--build_args", required=True,
                         help="Build parameters in the format: M:16;efConstruction:500;random_landmark_size:0")
     parser.add_argument("-s", "--search_args", required=True,
