@@ -23,7 +23,6 @@
 
 #include "faiss/utils/AlignedTable.h"
 #include "hnswlib/hnswlib.h"
-#include "trim/detail/index/opq.h"
 #include "trim/detail/index/pq.h"
 
 namespace trim {
@@ -35,7 +34,7 @@ using HnswlibIndex = hnswlib::HierarchicalNSW<float>;
 struct TrimHNSW {
   std::unique_ptr<Space> owned_space{nullptr};
   std::unique_ptr<HnswlibIndex> owned_index_hnsw{nullptr};
-  TrimIndexOPQ trim_index_opq{nullptr,nullptr,nullptr};
+  TrimIndexPQ trim_index_pq{nullptr, nullptr};
   bool reorderd{false};
 
   TrimHNSW() = default;
@@ -43,9 +42,9 @@ struct TrimHNSW {
 
   /// Reorders PQ codes based on HNSW internal data order.
   void reorder_pq_codes() {
-    T_ASSERT(owned_index_hnsw != nullptr && trim_index_opq.pq.index_pq != nullptr);
+    T_ASSERT(owned_index_hnsw != nullptr && trim_index_pq.index_pq != nullptr);
 
-    faiss::IndexPQ* faiss_index_pq = trim_index_opq.pq.index_pq;
+    faiss::IndexPQ* faiss_index_pq = trim_index_pq.index_pq;
     std::vector<uint8_t> reordered_codes(faiss_index_pq->codes.size());
     T_THROW_IF_NOT_MSG(owned_index_hnsw->cur_element_count.load() == (size_t)faiss_index_pq->ntotal,
                        "the HNSW and PQ index must have the same number of data points");

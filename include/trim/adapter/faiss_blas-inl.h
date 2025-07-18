@@ -19,7 +19,8 @@
 
 #pragma once
 
-#include "trim/adapter/eblas-inl.h"
+#include <stdexcept>
+
 #include "trim/adapter/faiss_blas-forwards.h"
 
 #define RUNTIME_ERROR_NOT_IMPLEMENTED throw std::runtime_error("not implemented error")
@@ -31,13 +32,15 @@ extern "C" {
 int sgemv_faiss(const char* trans, FINTEGER* m, FINTEGER* n, float* alpha, const float* a,
                 FINTEGER* lda, const float* x, FINTEGER* incx, float* beta, float* y,
                 FINTEGER* incy) {
-  return sgemv_eigen(trans, m, n, alpha, a, lda, x, incx, beta, y, incy);
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
+  return 0;
 }
 
 int sgemm_faiss(const char* transa, const char* transb, FINTEGER* m, FINTEGER* n, FINTEGER* k,
                 const float* alpha, const float* a, FINTEGER* lda, const float* b, FINTEGER* ldb,
                 float* beta, float* c, FINTEGER* ldc) {
-  return sgemm_eigen(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
+  return 0;
 }
 
 int dgemm_faiss(const char* transa, const char* transb, FINTEGER* m, FINTEGER* n, FINTEGER* k,
@@ -49,7 +52,8 @@ int dgemm_faiss(const char* transa, const char* transb, FINTEGER* m, FINTEGER* n
 
 int ssyrk_faiss(const char* uplo, const char* trans, FINTEGER* n, FINTEGER* k, float* alpha,
                 float* a, FINTEGER* lda, float* beta, float* c, FINTEGER* ldc) {
-  return ssyrk_eigen(uplo, trans, n, k, alpha, a, lda, beta, c, ldc);
+  RUNTIME_ERROR_NOT_IMPLEMENTED;
+  return 0;
 }
 
 int ssyev_faiss(const char* jobz, const char* uplo, FINTEGER* n, float* a, FINTEGER* lda, float* w,

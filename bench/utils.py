@@ -39,7 +39,7 @@ def cos_normalize(x: np.ndarray, min_value: float, max_value: float) -> np.ndarr
     zero_mask = (norm == 0)
     norm[zero_mask] = 1
     normalized_x = x / norm
-    normalized_x[zero_mask.squeeze()] = 100
+    normalized_x[zero_mask.squeeze()] = np.max(normalized_x[~zero_mask.squeeze()])
     
     return normalized_x
 

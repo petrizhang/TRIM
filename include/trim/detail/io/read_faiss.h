@@ -50,8 +50,6 @@ namespace faiss {
 Index* trim_read_index(const char* fname, int io_flags = 0);
 Index* trim_read_index(FILE* f, int io_flags = 0);
 Index* trim_read_index(IOReader* reader, int io_flags = 0);
-VectorTransform* trim_read_VectorTransform(const char* fname);
-VectorTransform* trim_read_VectorTransform(IOReader* f);
 ProductQuantizer* trim_read_ProductQuantizer(const char* fname);
 ProductQuantizer* trim_read_ProductQuantizer(IOReader* reader);
 InvertedLists* trim_read_InvertedLists(IOReader* reader, int io_flags = 0);
@@ -62,7 +60,6 @@ void trim_read_ivf_header(IndexIVF* ivf, IOReader* f,
 void trim_read_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags);
 ArrayInvertedLists* set_array_invlist(IndexIVF* ivf, std::vector<std::vector<idx_t>>& ids);
 void trim_read_ProductQuantizer(ProductQuantizer* pq, IOReader* f);
-void trim_read_ScalarQuantizer(ScalarQuantizer* ivsc, IOReader* f);
 
 /*************************************************************
  * Read
@@ -80,55 +77,6 @@ void trim_read_index_header(Index* idx, IOReader* f) {
     READ1(idx->metric_arg);
   }
   idx->verbose = false;
-}
-
-VectorTransform* trim_read_VectorTransform(IOReader* f) {
-  uint32_t h;
-  READ1(h);
-  VectorTransform* vt = nullptr;
-
-  if (h == fourcc("rrot") || h == fourcc("PCAm") || h == fourcc("LTra") || h == fourcc("PcAm") ||
-      h == fourcc("Viqm") || h == fourcc("Pcam")) {
-    LinearTransform* lt = nullptr;
-    if (h == fourcc("rrot")) {
-      lt = new RandomRotationMatrix();
-    } else if (h == fourcc("PCAm") || h == fourcc("PcAm") || h == fourcc("Pcam")) {
-      PCAMatrix* pca = new PCAMatrix();
-      READ1(pca->eigen_power);
-      if (h == fourcc("Pcam")) {
-        READ1(pca->epsilon);
-      }
-      READ1(pca->random_rotation);
-      if (h != fourcc("PCAm")) {
-        READ1(pca->balanced_bins);
-      }
-      READVECTOR(pca->mean);
-      READVECTOR(pca->eigenvalues);
-      READVECTOR(pca->PCAMat);
-      lt = pca;
-    } else if (h == fourcc("Viqm")) {
-      ITQMatrix* itqm = new ITQMatrix();
-      READ1(itqm->max_iter);
-      READ1(itqm->seed);
-      lt = itqm;
-    } else if (h == fourcc("LTra")) {
-      lt = new LinearTransform();
-    }
-    READ1(lt->have_bias);
-    READVECTOR(lt->A);
-    READVECTOR(lt->b);
-    FAISS_THROW_IF_NOT(lt->A.size() >= lt->d_in * lt->d_out);
-    FAISS_THROW_IF_NOT(!lt->have_bias || lt->b.size() >= lt->d_out);
-    lt->set_is_orthonormal();
-    vt = lt;
-  } else {
-    FAISS_THROW_FMT("fourcc %ud (\"%s\") not recognized in %s", h, fourcc_inv_printable(h).c_str(),
-                    f->name.c_str());
-  }
-  READ1(vt->d_in);
-  READ1(vt->d_out);
-  READ1(vt->is_trained);
-  return vt;
 }
 
 static void trim_read_ArrayInvertedLists_sizes(IOReader* f, std::vector<size_t>& sizes) {
@@ -208,16 +156,6 @@ void trim_read_InvertedLists(IndexIVF* ivf, IOReader* f, int io_flags) {
   ivf->own_invlists = true;
 }
 
-void trim_read_ScalarQuantizer(ScalarQuantizer* ivsc, IOReader* f) {
-  READ1(ivsc->qtype);
-  READ1(ivsc->rangestat);
-  READ1(ivsc->rangestat_arg);
-  READ1(ivsc->d);
-  READ1(ivsc->code_size);
-  READVECTOR(ivsc->trained);
-  ivsc->set_derived_sizes();
-}
-
 void trim_read_ProductQuantizer(ProductQuantizer* pq, IOReader* f) {
   READ1(pq->d);
   READ1(pq->M);
@@ -286,8 +224,7 @@ ArrayInvertedLists* trim_set_array_invlist(IndexIVF* ivf, std::vector<std::vecto
 static IndexIVFPQ* trim_read_ivfpq(IOReader* f, uint32_t h, int io_flags) {
   bool legacy = h == fourcc("IvQR") || h == fourcc("IvPQ");
 
-  IndexIVFPQR* ivfpqr = h == fourcc("IvQR") || h == fourcc("IwQR") ? new IndexIVFPQR() : nullptr;
-  IndexIVFPQ* ivpq = ivfpqr ? ivfpqr : new IndexIVFPQ();
+  IndexIVFPQ* ivpq = new IndexIVFPQ();
 
   std::vector<std::vector<idx_t>> ids;
   trim_read_ivf_header(ivpq, f, legacy ? &ids : nullptr);
@@ -310,11 +247,6 @@ static IndexIVFPQ* trim_read_ivfpq(IOReader* f, uint32_t h, int io_flags) {
       if ((io_flags & IO_FLAG_SKIP_PRECOMPUTE_TABLE) == 0) {
         ivpq->precompute_table();
       }
-    }
-    if (ivfpqr) {
-      trim_read_ProductQuantizer(&ivfpqr->refine_pq, f);
-      READVECTOR(ivfpqr->refine_codes);
-      READ1(ivfpqr->k_factor);
     }
   }
   return ivpq;
@@ -363,66 +295,9 @@ Index* trim_read_index(IOReader* f, int io_flags) {
       idxp->metric_type = METRIC_L2;
     }
     idx = idxp;
-  } else if (h == fourcc("IvFl") || h == fourcc("IvFL")) {  // legacy
-    IndexIVFFlat* ivfl = new IndexIVFFlat();
-    std::vector<std::vector<idx_t>> ids;
-    trim_read_ivf_header(ivfl, f, &ids);
-    ivfl->code_size = ivfl->d * sizeof(float);
-    ArrayInvertedLists* ail = trim_set_array_invlist(ivfl, ids);
-
-    if (h == fourcc("IvFL")) {
-      for (size_t i = 0; i < ivfl->nlist; i++) {
-        READVECTOR(ail->codes[i]);
-      }
-    } else {  // old format
-      for (size_t i = 0; i < ivfl->nlist; i++) {
-        std::vector<float> vec;
-        READVECTOR(vec);
-        ail->codes[i].resize(vec.size() * sizeof(float));
-        memcpy(ail->codes[i].data(), vec.data(), ail->codes[i].size());
-      }
-    }
-    idx = ivfl;
-  } else if (h == fourcc("IwFl")) {
-    IndexIVFFlat* ivfl = new IndexIVFFlat();
-    trim_read_ivf_header(ivfl, f);
-    ivfl->code_size = ivfl->d * sizeof(float);
-    trim_read_InvertedLists(ivfl, f, io_flags);
-    idx = ivfl;
   } else if (h == fourcc("IvPQ") || h == fourcc("IvQR") || h == fourcc("IwPQ") ||
              h == fourcc("IwQR")) {
     idx = trim_read_ivfpq(f, h, io_flags);
-  } else if (h == fourcc("IxPT")) {
-    IndexPreTransform* ixpt = new IndexPreTransform();
-    ixpt->own_fields = true;
-    trim_read_index_header(ixpt, f);
-    int nt;
-    if (trim_read_old_fmt_hack == 2) {
-      nt = 1;
-    } else {
-      READ1(nt);
-    }
-    for (int i = 0; i < nt; i++) {
-      ixpt->chain.push_back(trim_read_VectorTransform(f));
-    }
-    ixpt->index = trim_read_index(f, io_flags);
-    idx = ixpt;
-  } else if (h == fourcc("IxRF")) {
-    IndexRefine* idxrf = new IndexRefine();
-    trim_read_index_header(idxrf, f);
-    idxrf->base_index = trim_read_index(f, io_flags);
-    idxrf->refine_index = trim_read_index(f, io_flags);
-    READ1(idxrf->k_factor);
-    if (dynamic_cast<IndexFlat*>(idxrf->refine_index)) {
-      // then make a RefineFlat with it
-      IndexRefine* idxrf_old = idxrf;
-      idxrf = new IndexRefineFlat();
-      *idxrf = *idxrf_old;
-      delete idxrf_old;
-    }
-    idxrf->own_fields = true;
-    idxrf->own_refine_index = true;
-    idx = idxrf;
   } else if (h == fourcc("IxMp") || h == fourcc("IxM2")) {
     bool is_map2 = h == fourcc("IxM2");
     IndexIDMap* idxmap = is_map2 ? new IndexIDMap2() : new IndexIDMap();
@@ -451,12 +326,6 @@ Index* trim_read_index(const char* fname, int io_flags) {
   FileIOReader reader(fname);
   Index* idx = trim_read_index(&reader, io_flags);
   return idx;
-}
-
-VectorTransform* trim_read_VectorTransform(const char* fname) {
-  FileIOReader reader(fname);
-  VectorTransform* vt = trim_read_VectorTransform(&reader);
-  return vt;
 }
 
 }  // namespace faiss

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "faiss/IndexIVFPQFastScan.h"
 #include "faiss/impl/io.h"
