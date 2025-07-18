@@ -6,6 +6,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <queue>
 #include <string>
 #include <vector>
@@ -132,16 +133,20 @@ struct TrimRefineResultHandler
 
       for (size_t i = 0; i < 8; i++) {
         if (bools.get(i)) {
+          float max_dist = _results_queue.size() < _k ? std::numeric_limits<float>::max()
+                                                      : _results_queue.top().first;
           auto lowerbound = lb_batch[i];
-          if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
+          if (lowerbound < max_dist) {
             auto id = adjust_id(b, i + j * mini_batch_size);
             if (id < 0) {
               continue;
             }
             _actual_distance_computation++;
             float dist = fvec_L2sqr(_query, id);
-            _results_queue.emplace(dist, id);
-            if (_results_queue.size() > _k) _results_queue.pop();
+            if (dist < max_dist) {
+              _results_queue.emplace(dist, id);
+              if (_results_queue.size() > _k) _results_queue.pop();
+            }
           }
         }
       }
