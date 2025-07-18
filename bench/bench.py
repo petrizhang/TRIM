@@ -103,6 +103,10 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
         duration_ms += ((end-start) * 1000)
         gt_set = set(gt)
         # print("My answer:", set(knn))
+        # print("My answer distance:")
+        # for n in knn:
+        #     dist = distance.euclidean(q, dataset.base[n])
+        #     print(f"Distance to index {n}: {dist}")
         # print("Groundthruth:", gt_set)
         # print("GT Distance:")
         # for g in gt:

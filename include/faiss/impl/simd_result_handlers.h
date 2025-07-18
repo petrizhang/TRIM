@@ -54,8 +54,7 @@ struct SIMDResultHandlerToFloat : SIMDResultHandler {
     /// these fields are used mainly for the IVF variants (with_id_map=true)
     const idx_t* id_map = nullptr; // map offset in invlist to vector id
     const int* q_map = nullptr;    // map q to global query
-    const uint16_t* dbias =
-            nullptr; // table of biases to add to each query (for IVF L2 search)
+    const uint16_t* dbias = nullptr; // table of biases to add to each query (for IVF L2 search)
     const float* normalizers = nullptr; // size 2 * nq, to convert
 
     SIMDResultHandlerToFloat(size_t nq, size_t ntotal)

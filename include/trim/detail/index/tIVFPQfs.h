@@ -16,6 +16,8 @@
 #include "faiss/invlists/BlockInvertedLists.h"
 #include "trim/common/dco.h"
 #include "trim/detail/io/read_faiss.h"
+#include <chrono>
+#include <cmath> 
 
 namespace faiss {
 
@@ -59,7 +61,7 @@ struct TrimRefineResultHandler
   mutable float _pruning_ratio{0.0f};
   mutable float _actual_distance_computation{0.0f};
   mutable float _total_distance_computation{0.0f};
-
+  mutable int falsePositive{0};
   //===--------------------------------------------------------------------===//
   // Constructors and methods
   //===--------------------------------------------------------------------===//
@@ -75,11 +77,26 @@ struct TrimRefineResultHandler
 
   void handle(size_t q, size_t b, simd16uint16 d0, simd16uint16 d1) final {
     FAISS_ASSERT(_recons_errors != nullptr);
+    // auto start = std::chrono::high_resolution_clock::now();
     this->adjust_with_origin(q, d0, d1);
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::cout << "adjust_with_origin: " 
+    //           << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() 
+    //           << " ms" << std::endl;
     // load_pq_dist(d0, d1);
     // compute_lowerbounds(b);
+    // start = std::chrono::high_resolution_clock::now();
     compute_lowerbounds_simd(d0, d1, b);
+    // end = std::chrono::high_resolution_clock::now();
+    // std::cout << "compute_lowerbounds_simd: " 
+    //           << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() 
+    //           << " ms" << std::endl;
+    // start = std::chrono::high_resolution_clock::now();
     refine(b);
+    // end = std::chrono::high_resolution_clock::now();
+    // std::cout << "refine: " 
+    //           << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() 
+    //           << " ms" << std::endl;
   }
 
   void end() override {
@@ -107,49 +124,49 @@ struct TrimRefineResultHandler
   void refine(size_t b) {
     _total_distance_computation += bbs;
 
-    // for (size_t i = 0; i < 8; i++) {
-    //   auto lowerbound = _lowerbounds[i];
-    //   if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
-    //     _actual_distance_computation++;
-    //     auto id = adjust_id(b, i);
-    //     if (id < 0) {
-    //       continue;
-    //     }
-    //     float dist = fvec_L2sqr(_query, id);
-    //     _results_queue.emplace(dist, id);
-    //     if (_results_queue.size() > _k) _results_queue.pop();
-    //   }
-    // }
-
-    for (size_t j = 0; j < bbs / 8; j++) {
-      trim::Bool8 bools(true);
-      __m256 lb_batch = _mm256_loadu_ps(_lowerbounds.data() + j);
-      if (!_results_queue.empty()) {
-        __m256 threshold = _mm256_set1_ps(_results_queue.top().first);
-        __m256 cmp_result = _mm256_cmp_ps(lb_batch, threshold, _CMP_LT_OQ);
-        int mask = _mm256_movemask_ps(cmp_result);
-        bools = trim::Bool8(mask);
-        if (!bools.has_true()) {
+    for (size_t i = 0; i < bbs; i++) {
+      auto lowerbound = _lowerbounds[i];
+      if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
+        _actual_distance_computation++;
+        auto id = adjust_id(b, i);
+        if (id < 0) {
           continue;
         }
-      }
-
-      for (size_t i = 0; i < 8; i++) {
-        if (bools.get(i)) {
-          auto lowerbound = lb_batch[i];
-          if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
-            _actual_distance_computation++;
-            auto id = adjust_id(b, i + j * 8);
-            if (id < 0) {
-              continue;
-            }
-            float dist = fvec_L2sqr(_query, id);
-            _results_queue.emplace(dist, id);
-            if (_results_queue.size() > _k) _results_queue.pop();
-          }
-        }
+        float dist = fvec_L2sqr(_query, id);
+        _results_queue.emplace(dist, id);
+        if (_results_queue.size() > _k) _results_queue.pop();
       }
     }
+
+    // for (size_t j = 0; j < bbs / 8; j++) {
+    //   trim::Bool8 bools(true);
+    //   __m256 lb_batch = _mm256_loadu_ps(_lowerbounds.data() + j);
+    //   if (!_results_queue.empty()) {
+    //     __m256 threshold = _mm256_set1_ps(_results_queue.top().first);
+    //     __m256 cmp_result = _mm256_cmp_ps(lb_batch, threshold, _CMP_LT_OQ);
+    //     int mask = _mm256_movemask_ps(cmp_result);
+    //     bools = trim::Bool8(mask);
+    //     if (!bools.has_true()) {
+    //       continue;
+    //     }
+    //   }
+
+    //   for (size_t i = 0; i < 8; i++) {
+    //     if (bools.get(i)) {
+    //       auto lowerbound = lb_batch[i];
+    //       if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
+    //         _actual_distance_computation++;
+    //         auto id = adjust_id(b, i + j * 8);
+    //         if (id < 0) {
+    //           continue;
+    //         }
+    //         float dist = fvec_L2sqr(_query, id);
+    //         _results_queue.emplace(dist, id);
+    //         if (_results_queue.size() > _k) _results_queue.pop();
+    //       }
+    //     }
+    //   }
+    // }
   }
 
   void compute_lowerbounds(size_t b) {
@@ -159,7 +176,7 @@ struct TrimRefineResultHandler
     for (size_t i = 0; i < bbs; i++) {
       float ai = data_a[i];
       float bi = data_b[i];
-      _lowerbounds[i] = (ai - bi) * (ai - bi) + 2 * gamma_value * ai * bi;
+      _lowerbounds[i] = (ai - bi) * (ai - bi) + 2 * gamma_value * ai * bi;        
     }
   }
 
@@ -371,7 +388,9 @@ struct tIVFPQfs : IndexIVFPQFastScan {
   //===--------------------------------------------------------------------===//
   // Search algorithms
   //===--------------------------------------------------------------------===//
-  static size_t roundup(size_t a, size_t b) { return (a + b - 1) / b * b; }
+  static size_t roundup(size_t a, size_t b) { 
+    return (a + b - 1) / b * b; 
+  }
 
   using CoarseQuantized = IndexIVFFastScan::CoarseQuantized;
 

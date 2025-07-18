@@ -214,18 +214,20 @@ void estimators_from_tables_generic(
         int64_t* heap_ids,
         const NormTableScaler* scaler) {
     using accu_t = typename C::T;
-    size_t nscale = scaler ? scaler->nscale : 0;
+    size_t nscale = scaler ? scaler->nscale : 0; // SQ的距离数量？
     for (size_t j = 0; j < ncodes; ++j) {
-        BitstringReader bsr(codes + j * index.code_size, index.code_size);
+        BitstringReader bsr(codes + j * index.code_size, index.code_size); //拿第 i 个codes
         accu_t dis = bias;
         const dis_t* __restrict dt = dis_table;
 
+        // 累加距离表里的原始距离
         for (size_t m = 0; m < index.M - nscale; m++) {
-            uint64_t c = bsr.read(index.nbits);
+            uint64_t c = bsr.read(index.nbits); // 读第 m 个 nbits
             dis += dt[c];
             dt += index.ksub;
         }
 
+         // 累加距离表里的SQ距离
         if (scaler) {
             for (size_t m = 0; m < nscale; m++) {
                 uint64_t c = bsr.read(index.nbits);
@@ -262,8 +264,8 @@ void IndexIVFFastScan::compute_LUT_uint8(
     compute_LUT(n, x, cq, dis_tables_float, biases_float);
     size_t nprobe = cq.nprobe;
     bool lut_is_3d = lookup_table_is_3d();
-    size_t dim123 = ksub * M;
-    size_t dim123_2 = ksub * M2;
+    size_t dim123 = ksub * M; // 原来的 M
+    size_t dim123_2 = ksub * M2; // M 向上取整为 2 的倍数
     if (lut_is_3d) {
         dim123 *= nprobe;
         dim123_2 *= nprobe;
@@ -532,6 +534,7 @@ void IndexIVFFastScan::search_dispatch_implem(
         // we do the coarse quantization here execpt when search is
         // sliced over threads (then it is more efficient to have each thread do
         // its own coarse quantization)
+        // 计算到聚类中心的距离，得到前nprobe个聚类中心和其id
         cq.quantize(quantizer, n, x, quantizer_params);
         invlists->prefetch_lists(cq.ids, n * cq.nprobe);
     }
@@ -768,7 +771,7 @@ void IndexIVFFastScan::search_implem_1(
         const IVFSearchParameters* params) const {
     FAISS_THROW_IF_NOT(orig_invlists);
 
-    size_t dim12 = ksub * M;
+    size_t dim12 = ksub * M; // 一个 distance table 的大小
     AlignedTable<float> dis_tables;
     AlignedTable<float> biases;
 
@@ -780,14 +783,15 @@ void IndexIVFFastScan::search_implem_1(
     size_t nprobe = cq.nprobe;
 #pragma omp parallel for reduction(+ : ndis, nlist_visited)
     for (idx_t i = 0; i < n; i++) {
-        int64_t* heap_ids = labels + i * k;
-        float* heap_dis = distances + i * k;
+        int64_t* heap_ids = labels + i * k; // 拿到第 i 个查询的ID结果堆
+        float* heap_dis = distances + i * k; // 拿到第 i 个查询的距离结果堆
         heap_heapify<C>(k, heap_dis, heap_ids);
         float* LUT = nullptr;
 
         if (single_LUT) {
-            LUT = dis_tables.get() + i * dim12;
+            LUT = dis_tables.get() + i * dim12; // 获得第 i 个查询的距离表
         }
+        // 拿到这nprobe个聚类中心的id，然后拿到PQ codes和数据ID，以及到聚类中心的距离bias
         for (idx_t j = 0; j < nprobe; j++) {
             if (!single_LUT) {
                 LUT = dis_tables.get() + (i * nprobe + j) * dim12;
@@ -803,6 +807,7 @@ void IndexIVFFastScan::search_implem_1(
 
             float bias = biases.get() ? biases[i * nprobe + j] : 0;
 
+            // 用distance table 算估计距离，并加入到heap中
             estimators_from_tables_generic<C>(
                     *this,
                     codes.get(),
