@@ -16,19 +16,12 @@
 #include "faiss/impl/pq4_fast_scan.h"
 #include "faiss/impl/simd_result_handlers.h"
 #include "faiss/invlists/BlockInvertedLists.h"
+#include "hnswlib/hnswlib.h"
 #include "trim/common/common.h"
 #include "trim/common/dco.h"
 #include "trim/detail/io/read_faiss.h"
 
 namespace faiss {
-
-struct floatx32 {
-  std::array<float, 32> values;
-};
-
-struct int64x32 {
-  std::array<int64_t, 32> values;
-};
 
 struct TrimRefineResultHandler
     : simd_result_handlers::ResultHandlerCompare<CMax<float, int64_t>, true> {
@@ -53,8 +46,7 @@ struct TrimRefineResultHandler
   // Intermediate data buffers
   //===--------------------------------------------------------------------===//
   static constexpr size_t bbs = 32;
-  std::array<float, bbs> _pq_dist_sqrt;
-  std::array<float, bbs> _lowerbounds;
+  float PORTABLE_ALIGN32 _lowerbounds[bbs];
 
   //===--------------------------------------------------------------------===//
   // Profile
@@ -124,25 +116,10 @@ struct TrimRefineResultHandler
 
   void refine(size_t b) {
     _total_distance_computation += bbs;
-
-    // for (size_t i = 0; i < bbs; i++) {
-    //   auto lowerbound = _lowerbounds[i];
-    //   if (_results_queue.size() < _k || lowerbound < _results_queue.top().first) {
-    //     _actual_distance_computation++;
-    //     auto id = adjust_id(b, i);
-    //     if (id < 0) {
-    //       continue;
-    //     }
-    //     float dist = fvec_L2sqr(_query, id);
-    //     _results_queue.emplace(dist, id);
-    //     if (_results_queue.size() > _k) _results_queue.pop();
-    //   }
-    // }
-
     constexpr size_t mini_batch_size = 8;
     for (size_t j = 0; j < bbs / mini_batch_size; j++) {
       trim::Bool8 bools(true);
-      __m256 lb_batch = _mm256_loadu_ps(_lowerbounds.data() + j * mini_batch_size);
+      __m256 lb_batch = _mm256_load_ps(_lowerbounds + j * mini_batch_size);
       if (LIKELY(!_results_queue.empty())) {
         __m256 threshold = _mm256_set1_ps(_results_queue.top().first);
         __m256 cmp_result = _mm256_cmp_ps(lb_batch, threshold, _CMP_LT_OQ);
@@ -171,47 +148,12 @@ struct TrimRefineResultHandler
     }
   }
 
-  void compute_lowerbounds(size_t b) {
-    const float* __restrict data_a = _pq_dist_sqrt.data();
-    const float* __restrict data_b = _recons_errors + j0 + 32 * b;
-    const float gamma_value = _gamma;
-    for (size_t i = 0; i < bbs; i++) {
-      float ai = data_a[i];
-      float bi = data_b[i];
-      _lowerbounds[i] = (ai - bi) * (ai - bi) + 2 * gamma_value * ai * bi;
-    }
-  }
-
-  void load_pq_dist(simd16uint16 d0, simd16uint16 d1) {
-    float a = 1.0, b = 0.0;
-    if (normalizers) {
-      a = 1 / normalizers[0];
-      b = normalizers[1];
-    }
-    __m256 vec_a = _mm256_set1_ps(a);
-    __m256 vec_b = _mm256_set1_ps(b);
-
-    auto dequantize = [vec_a, vec_b](__m256 dis) { return dis * vec_a + vec_b; };
-
-    // Process d0
-    __m256 float_vec_lo0, float_vec_hi0;
-    convert_16x_uint16_to_2x8_float32(d0.i, &float_vec_lo0, &float_vec_hi0);
-    float_vec_lo0 = dequantize(float_vec_lo0);
-    __m256 float_vec_lo_sqrt0 = _mm256_sqrt_ps(float_vec_lo0);
-    _mm256_storeu_ps(_pq_dist_sqrt.data(), float_vec_lo_sqrt0);
-    float_vec_hi0 = dequantize(float_vec_hi0);
-    __m256 float_vec_hi_sqrt0 = _mm256_sqrt_ps(float_vec_hi0);
-    _mm256_storeu_ps(_pq_dist_sqrt.data() + 8, float_vec_hi_sqrt0);
-
-    // Process d1
-    __m256 float_vec_lo1, float_vec_hi1;
-    convert_16x_uint16_to_2x8_float32(d1.i, &float_vec_lo1, &float_vec_hi1);
-    float_vec_lo1 = dequantize(float_vec_lo1);
-    __m256 float_vec_lo_sqrt1 = _mm256_sqrt_ps(float_vec_lo1);
-    _mm256_storeu_ps(_pq_dist_sqrt.data() + 16, float_vec_lo_sqrt1);
-    float_vec_hi1 = dequantize(float_vec_hi1);
-    __m256 float_vec_hi_sqrt1 = _mm256_sqrt_ps(float_vec_hi1);
-    _mm256_storeu_ps(_pq_dist_sqrt.data() + 24, float_vec_hi_sqrt1);
+  static __m256 dequantize(__m256 dis, __m256 vec_a, __m256 vec_b) {
+#if defined(__FMA__) || defined(__AVF512F__)
+    return _mm256_fmadd_ps(dis, vec_a, vec_b);
+#else
+    return dis * vec_a + vec_b;
+#endif
   }
 
   void compute_lowerbounds_simd(simd16uint16 d0, simd16uint16 d1, size_t batch_round) {
@@ -224,38 +166,36 @@ struct TrimRefineResultHandler
     const float* __restrict landmark_dists = _recons_errors + j0 + batch_round * bbs;
     __m256 vec_a = _mm256_set1_ps(a);
     __m256 vec_b = _mm256_set1_ps(b);
-
-    auto dequantize = [vec_a, vec_b](__m256 dis) { return dis * vec_a + vec_b; };
     const float gamma = _gamma;
     // Process d0
     __m256 float_vec_lo0, float_vec_hi0;
     convert_16x_uint16_to_2x8_float32(d0.i, &float_vec_lo0, &float_vec_hi0);
-    float_vec_lo0 = dequantize(float_vec_lo0);
+    float_vec_lo0 = dequantize(float_vec_lo0, vec_a, vec_b);
     __m256 float_vec_lo_sqrt0 = _mm256_sqrt_ps(float_vec_lo0);
-    __m256 recons_error_vec_lo0 = _mm256_loadu_ps(landmark_dists);
+    __m256 recons_error_vec_lo0 = _mm256_load_ps(landmark_dists);
     __m256 lb_vec_lo0 = _relaxed_lowerbound8_avx2(gamma, float_vec_lo_sqrt0, recons_error_vec_lo0);
-    _mm256_storeu_ps(_lowerbounds.data(), lb_vec_lo0);
+    _mm256_store_ps(_lowerbounds, lb_vec_lo0);
 
-    float_vec_hi0 = dequantize(float_vec_hi0);
+    float_vec_hi0 = dequantize(float_vec_hi0, vec_a, vec_b);
     __m256 float_vec_hi_sqrt0 = _mm256_sqrt_ps(float_vec_hi0);
-    __m256 recons_error_vec_hi0 = _mm256_loadu_ps(landmark_dists + 8);
+    __m256 recons_error_vec_hi0 = _mm256_load_ps(landmark_dists + 8);
     __m256 lb_vec_hi0 = _relaxed_lowerbound8_avx2(gamma, float_vec_hi_sqrt0, recons_error_vec_hi0);
-    _mm256_storeu_ps(_lowerbounds.data() + 8, lb_vec_hi0);
+    _mm256_store_ps(_lowerbounds + 8, lb_vec_hi0);
 
     // Process d1
     __m256 float_vec_lo1, float_vec_hi1;
     convert_16x_uint16_to_2x8_float32(d1.i, &float_vec_lo1, &float_vec_hi1);
-    float_vec_lo1 = dequantize(float_vec_lo1);
+    float_vec_lo1 = dequantize(float_vec_lo1, vec_a, vec_b);
     __m256 float_vec_lo_sqrt1 = _mm256_sqrt_ps(float_vec_lo1);
-    __m256 recons_error_vec_lo1 = _mm256_loadu_ps(landmark_dists + 16);
+    __m256 recons_error_vec_lo1 = _mm256_load_ps(landmark_dists + 16);
     __m256 lb_vec_lo1 = _relaxed_lowerbound8_avx2(gamma, float_vec_lo_sqrt1, recons_error_vec_lo1);
-    _mm256_storeu_ps(_lowerbounds.data() + 16, lb_vec_lo1);
+    _mm256_store_ps(_lowerbounds + 16, lb_vec_lo1);
 
-    float_vec_hi1 = dequantize(float_vec_hi1);
+    float_vec_hi1 = dequantize(float_vec_hi1, vec_a, vec_b);
     __m256 float_vec_hi_sqrt1 = _mm256_sqrt_ps(float_vec_hi1);
-    __m256 recons_error_vec_hi1 = _mm256_loadu_ps(landmark_dists + 24);
+    __m256 recons_error_vec_hi1 = _mm256_load_ps(landmark_dists + 24);
     __m256 lb_vec_hi1 = _relaxed_lowerbound8_avx2(gamma, float_vec_hi_sqrt1, recons_error_vec_hi1);
-    _mm256_storeu_ps(_lowerbounds.data() + 24, lb_vec_hi1);
+    _mm256_store_ps(_lowerbounds + 24, lb_vec_hi1);
   }
 
   void convert_16x_uint16_to_2x8_float32(__m256i uint16_vec, __m256* float_vec_lo,
@@ -290,8 +230,8 @@ struct TrimRefineResultHandler
       sum = _mm256_add_ps(sum, sq);
     }
 
-    float res[8];
-    _mm256_storeu_ps(res, sum);
+    float PORTABLE_ALIGN32 res[8];
+    _mm256_store_ps(res, sum);
     float result = res[0] + res[1] + res[2] + res[3] + res[4] + res[5] + res[6] + res[7];
 
     for (; i < d; i++) {
@@ -320,7 +260,7 @@ struct TrimRefineResultHandler
 };
 
 struct tIVFPQfs : IndexIVFPQFastScan {
-  std::vector<std::vector<float>> perlist_recons_errors;
+  std::vector<AlignedTable<float, 64>> perlist_recons_errors;
   float* data{nullptr};
   float gamma = 0.8;
   //===--------------------------------------------------------------------===//
@@ -579,7 +519,7 @@ struct tIVFPQfs : IndexIVFPQFastScan {
       size_t target_size = roundup(list_size, bbs);
       auto& invlist_errors = perlist_recons_errors[i];
       invlist_errors.resize(target_size);
-      invlist_errors.assign(target_size, 0.0f);
+      memset(invlist_errors.data(), 0, target_size * sizeof(float));
     }
 
     if (!invlists) {
@@ -621,8 +561,8 @@ struct tIVFPQfs : IndexIVFPQFastScan {
       sum = _mm256_add_ps(sum, sq);
     }
 
-    float res[8];
-    _mm256_storeu_ps(res, sum);
+    float PORTABLE_ALIGN32 res[8];
+    _mm256_store_ps(res, sum);
     float result = res[0] + res[1] + res[2] + res[3] + res[4] + res[5] + res[6] + res[7];
 
     for (; i < d; i++) {
