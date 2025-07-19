@@ -315,6 +315,8 @@ struct tIVFPQfs : IndexIVFPQFastScan {
     }
 
     this->metric_type = METRIC_L2;
+    this->qbs = 1;
+    this->qbs2 = 1;
     // this->parallel_mode = PARALLEL_MODE_NO_HEAP_INIT;
   }
 
@@ -428,9 +430,6 @@ struct tIVFPQfs : IndexIVFPQFastScan {
       return;
     }
 
-    // actual implementation used
-    int impl = 12;
-
     CoarseQuantizedWithBuffer cq(cq_in);
     cq.nprobe = nprobe;
 
@@ -503,8 +502,8 @@ struct tIVFPQfs : IndexIVFPQFastScan {
         handler.id_map = ids.get();
 
         ((TrimRefineResultHandler&)handler)._recons_errors = perlist_recons_errors[list_no].data();
-        pq4_accumulate_loop(1, roundup(ls, bbs), bbs, M2, codes.get(), LUT, handler, scaler);
-
+        // pq4_accumulate_loop(1, roundup(ls, bbs), bbs, M2, codes.get(), LUT, handler, scaler);
+        pq4_accumulate_loop_qbs(1, roundup(ls, bbs), M2, codes.get(), LUT, handler, scaler);
         ndis++;
       }
     }
