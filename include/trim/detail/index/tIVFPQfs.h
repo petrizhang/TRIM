@@ -100,26 +100,9 @@ struct TrimRefineResultHandler
 
   void handle(size_t q, size_t b, simd16uint16 d0, simd16uint16 d1) final {
     FAISS_ASSERT(_recons_errors != nullptr);
-    // auto start = std::chrono::high_resolution_clock::now();
     this->adjust_with_origin(q, d0, d1);
-    // auto end = std::chrono::high_resolution_clock::now();
-    // std::cout << "adjust_with_origin: "
-    //           << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
-    //           << " ms" << std::endl;
-    // load_pq_dist(d0, d1);
-    // compute_lowerbounds(b);
-    // start = std::chrono::high_resolution_clock::now();
-    compute_lowerbounds_simd(d0, d1, b);
-    // end = std::chrono::high_resolution_clock::now();
-    // std::cout << "compute_lowerbounds_simd: "
-    //           << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
-    //           << " ms" << std::endl;
-    // start = std::chrono::high_resolution_clock::now();
+    compute_lowerbounds(d0, d1, b);
     refine(b);
-    // end = std::chrono::high_resolution_clock::now();
-    // std::cout << "refine: "
-    //           << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
-    //           << " ms" << std::endl;
   }
 
   void end() override {
@@ -182,15 +165,51 @@ struct TrimRefineResultHandler
     }
   }
 
-  static __m256 dequantize(__m256 dis, __m256 vec_a, __m256 vec_b) {
-#if defined(__FMA__) || defined(__AVF512F__)
-    return _mm256_fmadd_ps(dis, vec_a, vec_b);
-#else
-    return dis * vec_a + vec_b;
-#endif
+  static __m512 dequantize(__m512 dis, __m512 vec_a, __m512 vec_b) {
+    return _mm512_fmadd_ps(dis, vec_a, vec_b);
   }
 
-  void compute_lowerbounds_simd(simd16uint16 d0, simd16uint16 d1, size_t batch_round) {
+  __mmask16 get_mask_bit(__mmask16 mask, unsigned char i) {
+    switch (i) {
+      case 0:
+        return mask & 0x1;
+      case 1:
+        return (mask >> 1) & 0x1;
+      case 2:
+        return (mask >> 2) & 0x1;
+      case 3:
+        return (mask >> 3) & 0x1;
+      case 4:
+        return (mask >> 4) & 0x1;
+      case 5:
+        return (mask >> 5) & 0x1;
+      case 6:
+        return (mask >> 6) & 0x1;
+      case 7:
+        return (mask >> 7) & 0x1;
+      case 8:
+        return (mask >> 8) & 0x1;
+      case 9:
+        return (mask >> 9) & 0x1;
+      case 10:
+        return (mask >> 10) & 0x1;
+      case 11:
+        return (mask >> 11) & 0x1;
+      case 12:
+        return (mask >> 12) & 0x1;
+      case 13:
+        return (mask >> 13) & 0x1;
+      case 14:
+        return (mask >> 14) & 0x1;
+      case 15:
+        return (mask >> 15) & 0x1;
+      default:
+        FAISS_THROW_MSG("unexpected code path");
+        return 0;
+    }
+  }
+
+  void compute_lowerbounds(simd16uint16 d0, simd16uint16 d1, size_t batch_round) {
     float a = 1.0, b = 0.0;
     if (normalizers) {
       a = 1 / normalizers[0];
@@ -198,53 +217,48 @@ struct TrimRefineResultHandler
     }
 
     const float* __restrict landmark_dists = _recons_errors + j0 + batch_round * bbs;
-    __m256 vec_a = _mm256_set1_ps(a);
-    __m256 vec_b = _mm256_set1_ps(b);
+    __m512 vec_a = _mm512_set1_ps(a);
+    __m512 vec_b = _mm512_set1_ps(b);
     const float gamma = _gamma;
-    // Process d0
-    __m256 float_vec_lo0, float_vec_hi0;
-    convert_16x_uint16_to_2x8_float32(d0.i, &float_vec_lo0, &float_vec_hi0);
-    float_vec_lo0 = dequantize(float_vec_lo0, vec_a, vec_b);
-    __m256 float_vec_lo_sqrt0 = _mm256_sqrt_ps(float_vec_lo0);
-    __m256 recons_error_vec_lo0 = _mm256_load_ps(landmark_dists);
-    __m256 lb_vec_lo0 = _relaxed_lowerbound8_avx2(gamma, float_vec_lo_sqrt0, recons_error_vec_lo0);
-    _mm256_store_ps(_lowerbounds, lb_vec_lo0);
 
-    float_vec_hi0 = dequantize(float_vec_hi0, vec_a, vec_b);
-    __m256 float_vec_hi_sqrt0 = _mm256_sqrt_ps(float_vec_hi0);
-    __m256 recons_error_vec_hi0 = _mm256_load_ps(landmark_dists + 8);
-    __m256 lb_vec_hi0 = _relaxed_lowerbound8_avx2(gamma, float_vec_hi_sqrt0, recons_error_vec_hi0);
-    _mm256_store_ps(_lowerbounds + 8, lb_vec_hi0);
+    // Process d0
+    __m512 float_vec0;
+    convert_uint16x16_to_float32x16(d0.i, &float_vec0);
+    float_vec0 = dequantize(float_vec0, vec_a, vec_b);
+    __m512 float_vec_sqrt0 = _mm512_sqrt_ps(float_vec0);
+    __m512 recons_error_vec0 = _mm512_load_ps(landmark_dists);
+    __m512 lb_vec0 = _relaxed_lowerbound16_avx512(gamma, float_vec_sqrt0, recons_error_vec0);
+    _mm512_store_ps(_lowerbounds, lb_vec0);
 
     // Process d1
-    __m256 float_vec_lo1, float_vec_hi1;
-    convert_16x_uint16_to_2x8_float32(d1.i, &float_vec_lo1, &float_vec_hi1);
-    float_vec_lo1 = dequantize(float_vec_lo1, vec_a, vec_b);
-    __m256 float_vec_lo_sqrt1 = _mm256_sqrt_ps(float_vec_lo1);
-    __m256 recons_error_vec_lo1 = _mm256_load_ps(landmark_dists + 16);
-    __m256 lb_vec_lo1 = _relaxed_lowerbound8_avx2(gamma, float_vec_lo_sqrt1, recons_error_vec_lo1);
-    _mm256_store_ps(_lowerbounds + 16, lb_vec_lo1);
-
-    float_vec_hi1 = dequantize(float_vec_hi1, vec_a, vec_b);
-    __m256 float_vec_hi_sqrt1 = _mm256_sqrt_ps(float_vec_hi1);
-    __m256 recons_error_vec_hi1 = _mm256_load_ps(landmark_dists + 24);
-    __m256 lb_vec_hi1 = _relaxed_lowerbound8_avx2(gamma, float_vec_hi_sqrt1, recons_error_vec_hi1);
-    _mm256_store_ps(_lowerbounds + 24, lb_vec_hi1);
+    __m512 float_vec1;
+    convert_uint16x16_to_float32x16(d1.i, &float_vec1);
+    float_vec1 = dequantize(float_vec1, vec_a, vec_b);
+    __m512 float_vec_sqrt1 = _mm512_sqrt_ps(float_vec1);
+    __m512 recons_error_vec1 = _mm512_load_ps(landmark_dists + 16);
+    __m512 lb_vec1 = _relaxed_lowerbound16_avx512(gamma, float_vec_sqrt1, recons_error_vec1);
+    _mm512_store_ps(_lowerbounds + 16, lb_vec1);
   }
 
-  void convert_16x_uint16_to_2x8_float32(__m256i uint16_vec, __m256* float_vec_lo,
-                                         __m256* float_vec_hi) {
-    // 1. 提取低8个uint16和高8个uint16
-    __m128i uint16_lo = _mm256_extracti128_si256(uint16_vec, 0);  // 低128位
-    __m128i uint16_hi = _mm256_extracti128_si256(uint16_vec, 1);  // 高128位
+  void convert_uint16x16_to_float32x16(__m256i uint16_vec, __m512* float_vec) {
+    // AVX-512 has direct conversion from uint16 to float32
+    __m512i uint32_vec = _mm512_cvtepi16_epi32(uint16_vec);  // 先转换为int32
+    *float_vec = _mm512_cvtepi32_ps(uint32_vec);             // 再转换为float32
+  }
 
-    // 2. 将低8个uint16扩展为8个uint32并转换为float32
-    __m256i uint32_lo = _mm256_cvtepu16_epi32(uint16_lo);
-    *float_vec_lo = _mm256_cvtepi32_ps(uint32_lo);
-
-    // 3. 将高8个uint16扩展为8个uint32并转换为float32
-    __m256i uint32_hi = _mm256_cvtepu16_epi32(uint16_hi);
-    *float_vec_hi = _mm256_cvtepi32_ps(uint32_hi);
+  __always_inline __m512 _relaxed_lowerbound16_avx512(float gamma, __m512 pq_dist_vec,
+                                                      __m512 recons_error_vec) {
+    // Squared root of PQ distances
+    __m512 vec_a = pq_dist_vec;
+    // Reconstruction errors (actully squared roots of reconstruction errors)
+    __m512 vec_b = recons_error_vec;
+    // lowerbounds = (a[i] - b[i])^2 + 2 * gamma * a[i] * b[i]
+    __m512 vec_diff = _mm512_sub_ps(vec_a, vec_b);
+    __m512 vec_2gamma = _mm512_set1_ps(2 * gamma);
+    __m512 vec_ab = _mm512_mul_ps(vec_a, vec_b);
+    __m512 vec_2gamma_ab = _mm512_mul_ps(vec_2gamma, vec_ab);
+    __m512 lowerbounds = _mm512_fmadd_ps(vec_diff, vec_diff, vec_2gamma_ab);
+    return lowerbounds;
   }
 
   const float* get_data(size_t i) const { return _data + i * _d; }
@@ -252,22 +266,6 @@ struct TrimRefineResultHandler
   float fvec_L2sqr(const float* x, idx_t id) const {
     const float* data = get_data(id);
     return _fdist_func(x, data, _fdist_func_param);
-  }
-
-  __always_inline __m256 _relaxed_lowerbound8_avx2(float gamma, __m256 pq_dist_vec,
-                                                   __m256 recons_error_vec) {
-    // Squared root of PQ distances
-    __m256 vec_a = pq_dist_vec;
-    // Reconstruction errors (actully squared roots of reconstruction errors)
-    __m256 vec_b = recons_error_vec;
-    // lowerbounds = (a[i] - b[i])^2 + 2 * gamma * a[i] * b[i]
-    __m256 vec_diff = _mm256_sub_ps(vec_a, vec_b);
-    __m256 vec_diff_squared = _mm256_mul_ps(vec_diff, vec_diff);
-    __m256 vec_2gamma = _mm256_set1_ps(2 * gamma);
-    __m256 vec_ab = _mm256_mul_ps(vec_a, vec_b);
-    __m256 vec_2gamma_ab = _mm256_mul_ps(vec_2gamma, vec_ab);
-    __m256 lowerbounds = _mm256_add_ps(vec_diff_squared, vec_2gamma_ab);
-    return lowerbounds;
   }
 };
 
