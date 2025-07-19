@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <queue>
 #include <string>
 #include <vector>
@@ -23,6 +24,19 @@
 #include "trim/detail/io/read_faiss.h"
 
 namespace faiss {
+
+static float L2SqrSIMD16ExtResiduals(const void* pVect1v, const void* pVect2v,
+                                     const void* qty_ptr) {
+  size_t qty = *((size_t*)qty_ptr);
+  size_t qty16 = qty >> 4 << 4;
+  float res = hnswlib::L2SqrSIMD16ExtAVX512(pVect1v, pVect2v, &qty16);
+  float* pVect1 = (float*)pVect1v + qty16;
+  float* pVect2 = (float*)pVect2v + qty16;
+
+  size_t qty_left = qty - qty16;
+  float res_tail = hnswlib::L2Sqr(pVect1, pVect2, &qty_left);
+  return (res + res_tail);
+}
 
 struct TrimRefineResultHandler
     : simd_result_handlers::ResultHandlerCompare<CMax<float, int64_t>, true> {
@@ -47,7 +61,14 @@ struct TrimRefineResultHandler
   // Intermediate data buffers
   //===--------------------------------------------------------------------===//
   static constexpr size_t bbs = 32;
-  float PORTABLE_ALIGN32 _lowerbounds[bbs];
+  float PORTABLE_ALIGN64 _lowerbounds[bbs];
+
+  //===--------------------------------------------------------------------===//
+  // Distance function
+  //===--------------------------------------------------------------------===//
+  hnswlib::DISTFUNC<float> _fdist_func;
+  void* _fdist_func_param;
+  std::unique_ptr<hnswlib::L2Space> _space;
 
   //===--------------------------------------------------------------------===//
   // Profile
@@ -67,7 +88,15 @@ struct TrimRefineResultHandler
         _result_ids(ids),
         _d(d),
         _data(data),
-        _query(query) {}
+        _query(query) {
+    _space = std::make_unique<hnswlib::L2Space>(d);
+    if (d % 16 == 0) {
+      _fdist_func = hnswlib::L2SqrSIMD16ExtAVX512;
+    } else {
+      _fdist_func = L2SqrSIMD16ExtResiduals;
+    }
+    _fdist_func_param = _space->get_dist_func_param();
+  }
 
   void handle(size_t q, size_t b, simd16uint16 d0, simd16uint16 d1) final {
     FAISS_ASSERT(_recons_errors != nullptr);
@@ -221,30 +250,8 @@ struct TrimRefineResultHandler
   const float* get_data(size_t i) const { return _data + i * _d; }
 
   float fvec_L2sqr(const float* x, idx_t id) const {
-    size_t d = this->_d;
-    const float* y = get_data(id);
-
-    __m256 sum = _mm256_setzero_ps();
-    size_t i;
-
-    for (i = 0; i < d - 7; i += 8) {
-      __m256 x_vec = _mm256_loadu_ps(x + i);
-      __m256 y_vec = _mm256_loadu_ps(y + i);
-      __m256 diff = _mm256_sub_ps(x_vec, y_vec);
-      __m256 sq = _mm256_mul_ps(diff, diff);
-      sum = _mm256_add_ps(sum, sq);
-    }
-
-    float PORTABLE_ALIGN32 res[8];
-    _mm256_store_ps(res, sum);
-    float result = res[0] + res[1] + res[2] + res[3] + res[4] + res[5] + res[6] + res[7];
-
-    for (; i < d; i++) {
-      const float tmp = x[i] - y[i];
-      result += tmp * tmp;
-    }
-
-    return result;
+    const float* data = get_data(id);
+    return _fdist_func(x, data, _fdist_func_param);
   }
 
   __always_inline __m256 _relaxed_lowerbound8_avx2(float gamma, __m256 pq_dist_vec,
