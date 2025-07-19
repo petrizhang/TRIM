@@ -75,7 +75,11 @@
 #include "faiss/utils/Heap.cpp"
 #include "faiss/utils/distances.cpp"
 #include "faiss/utils/distances_fused/distances_fused.cpp"
+#ifdef __AVX512F__
+#include "faiss/utils/distances_fused/avx512.cpp"
+#else 
 #include "faiss/utils/distances_fused/simdlib_based.cpp"
+#endif
 #include "faiss/utils/distances_simd.cpp"
 #include "faiss/utils/hamming.cpp"
 #include "faiss/utils/partitioning.cpp"

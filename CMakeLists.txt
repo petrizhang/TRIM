@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # set(CMAKE_CXX_FLAGS  "-Wall -Wextra -O3 -lrt -std=c++17 -march=native -fpic -fopenmp -ftree-vectorize -fno-rtti" )
-set(CMAKE_CXX_FLAGS "-march=native")
+set(CMAKE_CXX_FLAGS "-mavx2 -mfma -mf16c -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw -mpopcnt")
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 include_directories("/usr/include/hdf5/serial")

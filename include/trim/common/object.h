@@ -21,6 +21,7 @@
 
 #include <any>
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 
 #include "trim/common/t_assert.h"
