@@ -43,15 +43,21 @@
 #include "faiss/Clustering.cpp"
 #include "faiss/Index.cpp"
 #include "faiss/IndexBinary.cpp"
+#include "faiss/IndexFastScan.cpp"
 #include "faiss/IndexFlat.cpp"
 #include "faiss/IndexFlatCodes.cpp"
 #include "faiss/IndexIDMap.cpp"
 #include "faiss/IndexIVF.cpp"
+#define roundup roundup_ivffs
 #include "faiss/IndexIVFFastScan.cpp"
+#undef roundup
 #include "faiss/IndexIVFFlat.cpp"
 #include "faiss/IndexIVFPQ.cpp"
 #include "faiss/IndexIVFPQR.cpp"
 #include "faiss/IndexPQ.cpp"
+#define roundup roundup_pqfs
+#include "faiss/IndexPQFastScan.cpp"
+#undef roundup
 #include "faiss/IndexPreTransform.cpp"
 #include "faiss/IndexRefine.cpp"
 #include "faiss/IndexScalarQuantizer.cpp"
@@ -77,7 +83,7 @@
 #include "faiss/utils/distances_fused/distances_fused.cpp"
 #ifdef __AVX512F__
 #include "faiss/utils/distances_fused/avx512.cpp"
-#else 
+#else
 #include "faiss/utils/distances_fused/simdlib_based.cpp"
 #endif
 #include "faiss/utils/distances_simd.cpp"
@@ -93,7 +99,7 @@
 #include "faiss/utils/extra_distances.cpp"
 #undef Run_get_distance_computer
 
-#define roundup roundup_fs
+#define roundup roundup_ivfpqfs
 #include "faiss/IndexIVFPQFastScan.cpp"
 #undef roundup
 

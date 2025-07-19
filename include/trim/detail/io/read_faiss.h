@@ -33,6 +33,7 @@
 #include "faiss/IndexIVFPQ.h"
 #include "faiss/IndexIVFPQR.h"
 #include "faiss/IndexPQ.h"
+#include "faiss/IndexPQFastScan.h"
 #include "faiss/IndexPreTransform.h"
 #include "faiss/IndexRefine.h"
 #include "faiss/IndexScalarQuantizer.h"
@@ -309,6 +310,25 @@ Index* trim_read_index(IOReader* f, int io_flags) {
       static_cast<IndexIDMap2*>(idxmap)->construct_rev_map();
     }
     idx = idxmap;
+  } else if (h == fourcc("IPfs")) {
+    IndexPQFastScan* idxpqfs = new IndexPQFastScan();
+    trim_read_index_header(idxpqfs, f);
+    trim_read_ProductQuantizer(&idxpqfs->pq, f);
+    READ1(idxpqfs->implem);
+    READ1(idxpqfs->bbs);
+    READ1(idxpqfs->qbs);
+    READ1(idxpqfs->ntotal2);
+    READ1(idxpqfs->M2);
+    READVECTOR(idxpqfs->codes);
+
+    const auto& pq = idxpqfs->pq;
+    idxpqfs->M = pq.M;
+    idxpqfs->nbits = pq.nbits;
+    idxpqfs->ksub = (1 << pq.nbits);
+    idxpqfs->code_size = pq.code_size;
+
+    idx = idxpqfs;
+
   } else {
     FAISS_THROW_FMT("Index type 0x%08x (\"%s\") not recognized", h,
                     fourcc_inv_printable(h).c_str());
