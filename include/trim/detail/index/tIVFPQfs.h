@@ -21,15 +21,41 @@
 #include "hnswlib/hnswlib.h"
 #include "trim/common/common.h"
 #include "trim/common/dco.h"
+#include "trim/common/prefetch.h"
 #include "trim/detail/io/read_faiss.h"
 
 namespace faiss {
+
+static float L2SqrSIMD16ExtAVX512(const void* pVect1v, const void* pVect2v, const void* qty_ptr) {
+  float* pVect1 = (float*)pVect1v;
+  float* pVect2 = (float*)pVect2v;
+  size_t qty = *((size_t*)qty_ptr);
+  size_t qty16 = qty >> 4;
+
+  const float* pEnd1 = pVect1 + (qty16 << 4);
+
+  __m512 diff, v1, v2;
+  __m512 sum = _mm512_set1_ps(0);
+
+  while (pVect1 < pEnd1) {
+    v1 = _mm512_loadu_ps(pVect1);
+    pVect1 += 16;
+    v2 = _mm512_loadu_ps(pVect2);
+    pVect2 += 16;
+    diff = _mm512_sub_ps(v1, v2);
+    // sum = _mm512_fmadd_ps(diff, diff, sum);
+    sum = _mm512_add_ps(sum, _mm512_mul_ps(diff, diff));
+  }
+
+  float res = _mm512_reduce_add_ps(sum);
+  return (res);
+}
 
 static float L2SqrSIMD16ExtResiduals(const void* pVect1v, const void* pVect2v,
                                      const void* qty_ptr) {
   size_t qty = *((size_t*)qty_ptr);
   size_t qty16 = qty >> 4 << 4;
-  float res = hnswlib::L2SqrSIMD16ExtAVX512(pVect1v, pVect2v, &qty16);
+  float res = L2SqrSIMD16ExtAVX512(pVect1v, pVect2v, &qty16);
   float* pVect1 = (float*)pVect1v + qty16;
   float* pVect2 = (float*)pVect2v + qty16;
 
@@ -50,7 +76,7 @@ struct TrimRefineResultHandler
   int64_t* _result_ids;
   const float* _recons_errors;  // reconstruction errors for this list
   float _gamma = 0.8;
-  std::priority_queue<std::pair<float, faiss::idx_t>, std::vector<std::pair<float, faiss::idx_t>>>
+  std::priority_queue<std::pair<float, int32_t>, std::vector<std::pair<float, int32_t>>>
       _results_queue;
 
   size_t _d;
@@ -100,6 +126,8 @@ struct TrimRefineResultHandler
 
   void handle(size_t q, size_t b, simd16uint16 d0, simd16uint16 d1) final {
     FAISS_ASSERT(_recons_errors != nullptr);
+    _total_distance_computation += bbs;
+
     this->adjust_with_origin(q, d0, d1);
     float max_dist = std::numeric_limits<float>::max();
     if (LIKELY(_results_queue.size() >= _k)) {
@@ -135,7 +163,6 @@ struct TrimRefineResultHandler
   }
 
   void refine(size_t b, __mmask32 lt_mask, float max_dist) {
-    _total_distance_computation += bbs;
     while (lt_mask) {
       // find first non-zero
       int j = __builtin_ctz(lt_mask);
@@ -148,6 +175,11 @@ struct TrimRefineResultHandler
           continue;
         }
         _actual_distance_computation++;
+        
+        if (auto id = adjust_id(b, __builtin_ctz(lt_mask)); id > 0) {
+          trim::prefetch_l1(get_data(id));
+        }
+
         float dist = fvec_L2sqr(_query, id);
         if (dist < max_dist) {
           _results_queue.emplace(dist, id);
