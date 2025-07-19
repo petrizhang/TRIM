@@ -42,10 +42,42 @@ std::vector<float> load_matrix(const std::string& dataPath, size_t rows, size_t 
   return flatData;
 }
 
+uint32_t get_lt_mask(float* a, float* b) {
+  __m512 va = _mm512_loadu_ps(a);
+  __m512 vb = _mm512_loadu_ps(b);
+  auto mask = _mm512_cmp_ps_mask(va, vb, _CMP_LT_OQ);
+  return mask;
+}
+
+void print_mask(uint32_t mask, const char* name) {
+  std::cout << name << ": ";
+  while (mask) {
+    // find first non-zero
+    int j = __builtin_ctz(mask);
+    mask -= 1 << j;
+    std::cout << j << ",";
+  }
+  std::cout << "\n";
+}
+
 int main() {
+  std::vector<float> a0 = {1, 0, 3, 4, 5, 6, 7, 8, 0, 10, 11, 12, 13, 14, 15, 16};
+  std::vector<float> b0 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+  std::vector<float> a1 = {1, 2, 3, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
+  std::vector<float> b1 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+  auto mask0 = get_lt_mask(a0.data(), b0.data());
+  auto mask1 = get_lt_mask(a1.data(), b1.data());
+  print_mask(mask0, "mask0");
+  print_mask(mask1, "mask1");
+
+  __mmask32 lt_mask = _kor_mask32(_kshiftli_mask32(mask1, 16), mask0);
+  print_mask(lt_mask, "lt_mask");
+
   using namespace faiss;
-  const char* index_path = "/data/home/petrizhang/develop/TOP/test/index_ivfpqfs.bin";
-  const char* data_path = "/data/home/petrizhang/develop/TOP/test/data.bin";
+  const char* index_path = "/home/yitong/petrizhang/TOP/index_ivfpqfs.bin";
+  const char* data_path = "/home/yitong/petrizhang/TOP/data.bin";
   auto vector_data = load_matrix(data_path, 1000, 256);
 
   tIVFPQfs index(index_path);
@@ -54,7 +86,7 @@ int main() {
 
   int k = 10;
   std::vector<int64_t> ids(k);
-  
+
   std::vector<float> distances(k);
   index.search(1, vector_data.data(), k, distances.data(), ids.data());
   for (auto f : distances) {

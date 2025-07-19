@@ -101,8 +101,15 @@ struct TrimRefineResultHandler
   void handle(size_t q, size_t b, simd16uint16 d0, simd16uint16 d1) final {
     FAISS_ASSERT(_recons_errors != nullptr);
     this->adjust_with_origin(q, d0, d1);
-    compute_lowerbounds(d0, d1, b);
-    refine(b);
+    float max_dist = std::numeric_limits<float>::max();
+    if (LIKELY(_results_queue.size() >= _k)) {
+      max_dist = _results_queue.top().first;
+    }
+    __mmask32 lt_mask = test_lowerbounds(d0, d1, b, max_dist);
+    if (LIKELY(lt_mask == 0)) {
+      return;
+    }
+    refine(b, lt_mask, max_dist);
   }
 
   void end() override {
@@ -127,38 +134,28 @@ struct TrimRefineResultHandler
     return idx;
   }
 
-  void refine(size_t b) {
+  void refine(size_t b, __mmask32 lt_mask, float max_dist) {
     _total_distance_computation += bbs;
-    constexpr size_t mini_batch_size = 8;
-    for (size_t j = 0; j < bbs / mini_batch_size; j++) {
-      trim::Bool8 bools(true);
-      __m256 lb_batch = _mm256_load_ps(_lowerbounds + j * mini_batch_size);
-      if (LIKELY(!_results_queue.empty())) {
-        __m256 threshold = _mm256_set1_ps(_results_queue.top().first);
-        __m256 cmp_result = _mm256_cmp_ps(lb_batch, threshold, _CMP_LT_OQ);
-        int mask = _mm256_movemask_ps(cmp_result);
-        bools = trim::Bool8(mask);
-        if (LIKELY(!bools.has_true())) {
+    while (lt_mask) {
+      // find first non-zero
+      int j = __builtin_ctz(lt_mask);
+      lt_mask -= 1 << j;
+
+      auto lowerbound = _lowerbounds[j];
+      if (lowerbound < max_dist) {
+        auto id = adjust_id(b, j);
+        if (id < 0) {
           continue;
         }
-      }
-
-      for (size_t i = 0; i < 8; i++) {
-        if (bools.get(i)) {
-          float max_dist = _results_queue.size() < _k ? std::numeric_limits<float>::max()
-                                                      : _results_queue.top().first;
-          auto lowerbound = lb_batch[i];
-          if (lowerbound < max_dist) {
-            auto id = adjust_id(b, i + j * mini_batch_size);
-            if (id < 0) {
-              continue;
-            }
-            _actual_distance_computation++;
-            float dist = fvec_L2sqr(_query, id);
-            if (dist < max_dist) {
-              _results_queue.emplace(dist, id);
-              if (_results_queue.size() > _k) _results_queue.pop();
-            }
+        _actual_distance_computation++;
+        float dist = fvec_L2sqr(_query, id);
+        if (dist < max_dist) {
+          _results_queue.emplace(dist, id);
+          if (_results_queue.size() > _k) {
+            _results_queue.pop();
+          }
+          if (_results_queue.size() == _k) {
+            max_dist = _results_queue.top().first;
           }
         }
       }
@@ -169,53 +166,14 @@ struct TrimRefineResultHandler
     return _mm512_fmadd_ps(dis, vec_a, vec_b);
   }
 
-  __mmask16 get_mask_bit(__mmask16 mask, unsigned char i) {
-    switch (i) {
-      case 0:
-        return mask & 0x1;
-      case 1:
-        return (mask >> 1) & 0x1;
-      case 2:
-        return (mask >> 2) & 0x1;
-      case 3:
-        return (mask >> 3) & 0x1;
-      case 4:
-        return (mask >> 4) & 0x1;
-      case 5:
-        return (mask >> 5) & 0x1;
-      case 6:
-        return (mask >> 6) & 0x1;
-      case 7:
-        return (mask >> 7) & 0x1;
-      case 8:
-        return (mask >> 8) & 0x1;
-      case 9:
-        return (mask >> 9) & 0x1;
-      case 10:
-        return (mask >> 10) & 0x1;
-      case 11:
-        return (mask >> 11) & 0x1;
-      case 12:
-        return (mask >> 12) & 0x1;
-      case 13:
-        return (mask >> 13) & 0x1;
-      case 14:
-        return (mask >> 14) & 0x1;
-      case 15:
-        return (mask >> 15) & 0x1;
-      default:
-        FAISS_THROW_MSG("unexpected code path");
-        return 0;
-    }
-  }
-
-  void compute_lowerbounds(simd16uint16 d0, simd16uint16 d1, size_t batch_round) {
+  __mmask32 test_lowerbounds(simd16uint16 d0, simd16uint16 d1, size_t batch_round, float max_dist) {
     float a = 1.0, b = 0.0;
     if (normalizers) {
       a = 1 / normalizers[0];
       b = normalizers[1];
     }
 
+    __m512 max_dist_vec = _mm512_set1_ps(max_dist);
     const float* __restrict landmark_dists = _recons_errors + j0 + batch_round * bbs;
     __m512 vec_a = _mm512_set1_ps(a);
     __m512 vec_b = _mm512_set1_ps(b);
@@ -228,7 +186,10 @@ struct TrimRefineResultHandler
     __m512 float_vec_sqrt0 = _mm512_sqrt_ps(float_vec0);
     __m512 recons_error_vec0 = _mm512_load_ps(landmark_dists);
     __m512 lb_vec0 = _relaxed_lowerbound16_avx512(gamma, float_vec_sqrt0, recons_error_vec0);
-    _mm512_store_ps(_lowerbounds, lb_vec0);
+    __mmask16 mask0 = _mm512_cmp_ps_mask(lb_vec0, max_dist_vec, _CMP_LT_OQ);
+    if (mask0 != 0) {
+      _mm512_store_ps(_lowerbounds, lb_vec0);
+    }
 
     // Process d1
     __m512 float_vec1;
@@ -237,7 +198,12 @@ struct TrimRefineResultHandler
     __m512 float_vec_sqrt1 = _mm512_sqrt_ps(float_vec1);
     __m512 recons_error_vec1 = _mm512_load_ps(landmark_dists + 16);
     __m512 lb_vec1 = _relaxed_lowerbound16_avx512(gamma, float_vec_sqrt1, recons_error_vec1);
-    _mm512_store_ps(_lowerbounds + 16, lb_vec1);
+    __mmask16 mask1 = _mm512_cmp_ps_mask(lb_vec1, max_dist_vec, _CMP_LT_OQ);
+    if (mask1 != 0) {
+      _mm512_store_ps(_lowerbounds + 16, lb_vec1);
+    }
+    __mmask32 lt_mask = _kor_mask32(_kshiftli_mask32(mask1, 16), mask0);
+    return lt_mask;
   }
 
   void convert_uint16x16_to_float32x16(__m256i uint16_vec, __m512* float_vec) {
