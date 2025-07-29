@@ -29,7 +29,7 @@ class Algorithm(BaseANN):
 
             # index_string = f"IVF{nlist},PQ{self.m}x{nbits}fs"
             # self.ivfpq_fs = faiss.index_factory(self.dim, index_string, faiss.METRIC_L2)
-            quantizer = faiss.IndexPQFastScan(self.dim, self.dim, nbits, faiss.METRIC_L2)
+            quantizer = faiss.IndexPQFastScan(self.dim, self.m, nbits, faiss.METRIC_L2)
             self.ivfpq_fs = faiss.IndexIVFPQFastScan(quantizer, self.dim, nlist, self.m, nbits)
             self.ivfpq_fs.train(X)
             self.ivfpq_fs.add(X)
