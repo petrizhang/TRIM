@@ -20,8 +20,9 @@ class Algorithm(BaseANN):
         self.hnswlib_index_path = method_param["hnswlib_index_path"]
         self.dco = "exact"
         self.use_opq = method_param.get("use_opq", False)
-
+        self.random_landmark_size = method_param.get("random_landmark_size", 0) # 0 - using PQ as landmarks; otherwise-using random landmark
         self.use_pq = False
+
         if "dco" in method_param and method_param["dco"] != "exact":
             self.dco = method_param["dco"]
             self.use_pq = True
@@ -36,6 +37,7 @@ class Algorithm(BaseANN):
                 m, nbits = self.pq_m, self.pq_nbits
                 self.index_pq = faiss.index_factory(
                     dim, f"OPQ{m},PQ{m}x{nbits}")
+                
         self.searcher: trimlib.Searcher = None
 
     def fit(self, X):
@@ -71,6 +73,7 @@ class Algorithm(BaseANN):
         self.searcher.set("gamma", gamma)
         self.searcher.set("ef", ef)
         self.searcher.clear_pruning_ratio()
+        self.searcher.clear_num_distance_computation()
 
     def ann_query(self, v, n):
         # print(np.expand_dims(v,axis=0).shape)
@@ -79,11 +82,19 @@ class Algorithm(BaseANN):
     
     def range_query(self, v, r):
         return self.searcher.range_search(np.expand_dims(v, axis=0), radius=r)
-    
+
+    def get_M(self):
+        return self.pq_m
+
     def get_pruning_ratio(self):
         return self.searcher.get_pruning_ratio()
     
-
+    def get_actual_distance_computation(self):
+        return self.searcher.get_actual_distance_computation()
+    
+    def get_total_distance_computation(self):
+        return self.searcher.get_total_distance_computation()
+    
     def set_data(self, base_data):
         assert self.searcher is not None
         self.searcher.set_data(base_data)
@@ -105,6 +116,7 @@ class Algorithm(BaseANN):
             creator.set("dco", self.dco)
             creator.set("use_opq", self.use_opq)
             creator.set("num_threads", os.cpu_count()-2)
+            creator.set("random_landmark_size", self.random_landmark_size)
             if self.use_pq:
                 creator.set("pq_index_path", self.pq_index_path)
             self.searcher = creator.create()

@@ -43,14 +43,21 @@
 #include "faiss/Clustering.cpp"
 #include "faiss/Index.cpp"
 #include "faiss/IndexBinary.cpp"
+#include "faiss/IndexFastScan.cpp"
 #include "faiss/IndexFlat.cpp"
 #include "faiss/IndexFlatCodes.cpp"
 #include "faiss/IndexIDMap.cpp"
 #include "faiss/IndexIVF.cpp"
+#define roundup roundup_ivffs
+#include "faiss/IndexIVFFastScan.cpp"
+#undef roundup
 #include "faiss/IndexIVFFlat.cpp"
 #include "faiss/IndexIVFPQ.cpp"
 #include "faiss/IndexIVFPQR.cpp"
 #include "faiss/IndexPQ.cpp"
+#define roundup roundup_pqfs
+#include "faiss/IndexPQFastScan.cpp"
+#undef roundup
 #include "faiss/IndexPreTransform.cpp"
 #include "faiss/IndexRefine.cpp"
 #include "faiss/IndexScalarQuantizer.cpp"
@@ -63,6 +70,9 @@
 #include "faiss/impl/ProductQuantizer.cpp"
 #include "faiss/impl/ScalarQuantizer.cpp"
 #include "faiss/impl/io.cpp"
+#include "faiss/impl/pq4_fast_scan.cpp"
+#include "faiss/impl/pq4_fast_scan_search_1.cpp"
+#include "faiss/impl/pq4_fast_scan_search_qbs.cpp"
 #include "faiss/invlists/BlockInvertedLists.cpp"
 #include "faiss/invlists/DirectMap.cpp"
 #include "faiss/invlists/InvertedLists.cpp"
@@ -71,10 +81,15 @@
 #include "faiss/utils/Heap.cpp"
 #include "faiss/utils/distances.cpp"
 #include "faiss/utils/distances_fused/distances_fused.cpp"
+#ifdef __AVX512F__
+#include "faiss/utils/distances_fused/avx512.cpp"
+#else
 #include "faiss/utils/distances_fused/simdlib_based.cpp"
+#endif
 #include "faiss/utils/distances_simd.cpp"
 #include "faiss/utils/hamming.cpp"
 #include "faiss/utils/partitioning.cpp"
+#include "faiss/utils/quantize_lut.cpp"
 #include "faiss/utils/random.cpp"
 #include "faiss/utils/sorting.cpp"
 #include "faiss/utils/utils.cpp"
@@ -83,6 +98,10 @@
 #define Run_get_distance_computer Run_get_distance_computer_extra
 #include "faiss/utils/extra_distances.cpp"
 #undef Run_get_distance_computer
+
+#define roundup roundup_ivfpqfs
+#include "faiss/IndexIVFPQFastScan.cpp"
+#undef roundup
 
 // The name Matrix conflicts with eigen
 #define Matrix FaissMatrix

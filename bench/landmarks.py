@@ -1,8 +1,7 @@
 import os
-
-import faiss
 import numpy as np
 import utils
+import faiss
 from scipy.spatial.distance import cdist
 
 
@@ -89,9 +88,9 @@ def generate_trim_landmarks(indexPath, sampled_data_idx):
 
 
 # Load dataset
-# dataPath = "../../tmp/Datasets/nytimes-256.hdf5"
+# dataPath = "../../yitong/Datasets/nytimes-256.hdf5"
 # indexPath = "./tmp/index/nytimes_pq8x32.bin"
-dataPath = "../../tmp/Datasets/glove-100.hdf5"
+dataPath = "../../yitong/Datasets/glove-100.hdf5"
 indexPath = "./tmp/index/glove_pq8x25.bin"
 data, query = utils.read_hdf5_dataset(dataPath, ["train", "test"])
 n, d = data.shape

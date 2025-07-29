@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -8,9 +8,7 @@
 #include <faiss/IndexHNSW.h>
 
 #include <omp.h>
-#include <cassert>
 #include <cinttypes>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -19,10 +17,7 @@
 #include <memory>
 #include <queue>
 #include <random>
-#include <unordered_set>
 
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <cstdint>
 
 #include <faiss/Index2Layer.h>
@@ -31,7 +26,6 @@
 #include <faiss/impl/AuxIndexStructures.h>
 #include <faiss/impl/FaissAssert.h>
 #include <faiss/impl/ResultHandler.h>
-#include <faiss/utils/distances.h>
 #include <faiss/utils/random.h>
 #include <faiss/utils/sorting.h>
 
@@ -128,7 +122,7 @@ void hnsw_add_vertices(
         int i1 = n;
 
         for (int pt_level = hist.size() - 1;
-             pt_level >= !index_hnsw.init_level0;
+             pt_level >= int(!index_hnsw.init_level0);
              pt_level--) {
             int i0 = i1 - hist[pt_level];
 
@@ -216,7 +210,9 @@ IndexHNSW::IndexHNSW(int d, int M, MetricType metric)
         : Index(d, metric), hnsw(M) {}
 
 IndexHNSW::IndexHNSW(Index* storage, int M)
-        : Index(storage->d, storage->metric_type), hnsw(M), storage(storage) {}
+        : Index(storage->d, storage->metric_type), hnsw(M), storage(storage) {
+    metric_arg = storage->metric_arg;
+}
 
 IndexHNSW::~IndexHNSW() {
     if (own_fields) {
@@ -241,19 +237,19 @@ void hnsw_search(
         idx_t n,
         const float* x,
         BlockResultHandler& bres,
-        const SearchParameters* params_in) {
+        const SearchParameters* params) {
     FAISS_THROW_IF_NOT_MSG(
             index->storage,
             "No storage index, please use IndexHNSWFlat (or variants) "
             "instead of IndexHNSW directly");
-    const SearchParametersHNSW* params = nullptr;
     const HNSW& hnsw = index->hnsw;
 
     int efSearch = hnsw.efSearch;
-    if (params_in) {
-        params = dynamic_cast<const SearchParametersHNSW*>(params_in);
-        FAISS_THROW_IF_NOT_MSG(params, "params type invalid");
-        efSearch = params->efSearch;
+    if (params) {
+        if (const SearchParametersHNSW* hnsw_params =
+                    dynamic_cast<const SearchParametersHNSW*>(params)) {
+            efSearch = hnsw_params->efSearch;
+        }
     }
     size_t n1 = 0, n2 = 0, ndis = 0, nhops = 0;
 
@@ -298,13 +294,13 @@ void IndexHNSW::search(
         idx_t k,
         float* distances,
         idx_t* labels,
-        const SearchParameters* params_in) const {
+        const SearchParameters* params) const {
     FAISS_THROW_IF_NOT(k > 0);
 
     using RH = HeapBlockResultHandler<HNSW::C>;
     RH bres(n, distances, labels, k);
 
-    hnsw_search(this, n, x, bres, params_in);
+    hnsw_search(this, n, x, bres, params);
 
     if (is_similarity_metric(this->metric_type)) {
         // we need to revert the negated distances
@@ -355,6 +351,17 @@ void IndexHNSW::reconstruct(idx_t key, float* recons) const {
     storage->reconstruct(key, recons);
 }
 
+/**************************************************************
+ * This section of functions were used during the development of HNSW support.
+ * They may be useful in the future but are dormant for now, and thus are not
+ * unit tested at the moment.
+ * shrink_level_0_neighbors
+ * search_level_0
+ * init_level_0_from_knngraph
+ * init_level_0_from_entry_points
+ * reorder_links
+ * link_singletons
+ **************************************************************/
 void IndexHNSW::shrink_level_0_neighbors(int new_size) {
 #pragma omp parallel
     {
@@ -401,16 +408,9 @@ void IndexHNSW::search_level_0(
         idx_t* labels,
         int nprobe,
         int search_type,
-        const SearchParameters* params_in) const {
+        const SearchParameters* params) const {
     FAISS_THROW_IF_NOT(k > 0);
     FAISS_THROW_IF_NOT(nprobe > 0);
-
-    const SearchParametersHNSW* params = nullptr;
-
-    if (params_in) {
-        params = dynamic_cast<const SearchParametersHNSW*>(params_in);
-        FAISS_THROW_IF_NOT_MSG(params, "params type invalid");
-    }
 
     storage_idx_t ntotal = hnsw.levels.size();
 

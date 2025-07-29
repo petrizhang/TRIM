@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -223,7 +223,8 @@ InvertedListScanner* get_InvertedListScanner1(
 
 InvertedListScanner* IndexIVFFlat::get_InvertedListScanner(
         bool store_pairs,
-        const IDSelector* sel) const {
+        const IDSelector* sel,
+        const IVFSearchParameters*) const {
     if (sel) {
         return get_InvertedListScanner1<true>(this, store_pairs, sel);
     } else {

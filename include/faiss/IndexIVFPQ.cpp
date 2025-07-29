@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -22,7 +22,6 @@
 #include <faiss/utils/utils.h>
 
 #include <faiss/Clustering.h>
-#include <faiss/IndexFlat.h>
 
 #include <faiss/utils/hamming.h>
 
@@ -1322,7 +1321,8 @@ InvertedListScanner* get_InvertedListScanner2(
 
 InvertedListScanner* IndexIVFPQ::get_InvertedListScanner(
         bool store_pairs,
-        const IDSelector* sel) const {
+        const IDSelector* sel,
+        const IVFSearchParameters*) const {
     if (sel) {
         return get_InvertedListScanner2<true>(*this, store_pairs, sel);
     } else {

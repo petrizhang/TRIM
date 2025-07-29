@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -23,7 +23,6 @@
 #include <faiss/impl/pq4_fast_scan.h>
 #include <faiss/impl/simd_result_handlers.h>
 #include <faiss/invlists/BlockInvertedLists.h>
-#include <faiss/utils/distances.h>
 #include <faiss/utils/hamming.h>
 #include <faiss/utils/quantize_lut.h>
 #include <faiss/utils/utils.h>
@@ -56,20 +55,24 @@ IndexIVFFastScan::IndexIVFFastScan() {
 }
 
 void IndexIVFFastScan::init_fastscan(
+        Quantizer* fine_quantizer,
         size_t M,
-        size_t nbits,
+        size_t nbits_init,
         size_t nlist,
         MetricType /* metric */,
-        int bbs) {
-    FAISS_THROW_IF_NOT(bbs % 32 == 0);
-    FAISS_THROW_IF_NOT(nbits == 4);
+        int bbs_2) {
+    FAISS_THROW_IF_NOT(bbs_2 % 32 == 0);
+    FAISS_THROW_IF_NOT(nbits_init == 4);
+    FAISS_THROW_IF_NOT(fine_quantizer->d == d);
 
+    this->fine_quantizer = fine_quantizer;
     this->M = M;
-    this->nbits = nbits;
-    this->bbs = bbs;
-    ksub = (1 << nbits);
+    this->nbits = nbits_init;
+    this->bbs = bbs_2;
+    ksub = (1 << nbits_init);
     M2 = roundup(M, 2);
     code_size = M2 / 2;
+    FAISS_THROW_IF_NOT(code_size == fine_quantizer->code_size);
 
     is_trained = false;
     replace_invlists(new BlockInvertedLists(nlist, get_CodePacker()), true);
@@ -211,18 +214,20 @@ void estimators_from_tables_generic(
         int64_t* heap_ids,
         const NormTableScaler* scaler) {
     using accu_t = typename C::T;
-    size_t nscale = scaler ? scaler->nscale : 0;
+    size_t nscale = scaler ? scaler->nscale : 0; // SQ的距离数量？
     for (size_t j = 0; j < ncodes; ++j) {
-        BitstringReader bsr(codes + j * index.code_size, index.code_size);
+        BitstringReader bsr(codes + j * index.code_size, index.code_size); //拿第 i 个codes
         accu_t dis = bias;
         const dis_t* __restrict dt = dis_table;
 
+        // 累加距离表里的原始距离
         for (size_t m = 0; m < index.M - nscale; m++) {
-            uint64_t c = bsr.read(index.nbits);
+            uint64_t c = bsr.read(index.nbits); // 读第 m 个 nbits
             dis += dt[c];
             dt += index.ksub;
         }
 
+         // 累加距离表里的SQ距离
         if (scaler) {
             for (size_t m = 0; m < nscale; m++) {
                 uint64_t c = bsr.read(index.nbits);
@@ -259,8 +264,8 @@ void IndexIVFFastScan::compute_LUT_uint8(
     compute_LUT(n, x, cq, dis_tables_float, biases_float);
     size_t nprobe = cq.nprobe;
     bool lut_is_3d = lookup_table_is_3d();
-    size_t dim123 = ksub * M;
-    size_t dim123_2 = ksub * M2;
+    size_t dim123 = ksub * M; // 原来的 M
+    size_t dim123_2 = ksub * M2; // M 向上取整为 2 的倍数
     if (lut_is_3d) {
         dim123 *= nprobe;
         dim123_2 *= nprobe;
@@ -529,6 +534,7 @@ void IndexIVFFastScan::search_dispatch_implem(
         // we do the coarse quantization here execpt when search is
         // sliced over threads (then it is more efficient to have each thread do
         // its own coarse quantization)
+        // 计算到聚类中心的距离，得到前nprobe个聚类中心和其id
         cq.quantize(quantizer, n, x, quantizer_params);
         invlists->prefetch_lists(cq.ids, n * cq.nprobe);
     }
@@ -765,7 +771,7 @@ void IndexIVFFastScan::search_implem_1(
         const IVFSearchParameters* params) const {
     FAISS_THROW_IF_NOT(orig_invlists);
 
-    size_t dim12 = ksub * M;
+    size_t dim12 = ksub * M; // 一个 distance table 的大小
     AlignedTable<float> dis_tables;
     AlignedTable<float> biases;
 
@@ -777,14 +783,15 @@ void IndexIVFFastScan::search_implem_1(
     size_t nprobe = cq.nprobe;
 #pragma omp parallel for reduction(+ : ndis, nlist_visited)
     for (idx_t i = 0; i < n; i++) {
-        int64_t* heap_ids = labels + i * k;
-        float* heap_dis = distances + i * k;
+        int64_t* heap_ids = labels + i * k; // 拿到第 i 个查询的ID结果堆
+        float* heap_dis = distances + i * k; // 拿到第 i 个查询的距离结果堆
         heap_heapify<C>(k, heap_dis, heap_ids);
         float* LUT = nullptr;
 
         if (single_LUT) {
-            LUT = dis_tables.get() + i * dim12;
+            LUT = dis_tables.get() + i * dim12; // 获得第 i 个查询的距离表
         }
+        // 拿到这nprobe个聚类中心的id，然后拿到PQ codes和数据ID，以及到聚类中心的距离bias
         for (idx_t j = 0; j < nprobe; j++) {
             if (!single_LUT) {
                 LUT = dis_tables.get() + (i * nprobe + j) * dim12;
@@ -800,6 +807,7 @@ void IndexIVFFastScan::search_implem_1(
 
             float bias = biases.get() ? biases[i * nprobe + j] : 0;
 
+            // 用distance table 算估计距离，并加入到heap中
             estimators_from_tables_generic<C>(
                     *this,
                     codes.get(),
@@ -1029,11 +1037,11 @@ void IndexIVFFastScan::search_implem_12(
 
     // prepare the result handlers
 
-    int qbs2 = this->qbs2 ? this->qbs2 : 11;
+    int actual_qbs2 = this->qbs2 ? this->qbs2 : 11;
 
     std::vector<uint16_t> tmp_bias;
     if (biases.get()) {
-        tmp_bias.resize(qbs2);
+        tmp_bias.resize(actual_qbs2);
         handler.dbias = tmp_bias.data();
     }
 
@@ -1046,7 +1054,7 @@ void IndexIVFFastScan::search_implem_12(
         int list_no = qcs[i0].list_no;
         size_t i1 = i0 + 1;
 
-        while (i1 < qcs.size() && i1 < i0 + qbs2) {
+        while (i1 < qcs.size() && i1 < i0 + actual_qbs2) {
             if (qcs[i1].list_no != list_no) {
                 break;
             }
@@ -1066,7 +1074,7 @@ void IndexIVFFastScan::search_implem_12(
         std::vector<int> q_map(nc), lut_entries(nc);
         AlignedTable<uint8_t> LUT(nc * dim12);
         memset(LUT.get(), -1, nc * dim12);
-        int qbs = pq4_preferred_qbs(nc);
+        int qbs_for_list = pq4_preferred_qbs(nc);
 
         for (size_t i = i0; i < i1; i++) {
             const QC& qc = qcs[i];
@@ -1078,7 +1086,11 @@ void IndexIVFFastScan::search_implem_12(
             }
         }
         pq4_pack_LUT_qbs_q_map(
-                qbs, M2, dis_tables.get(), lut_entries.data(), LUT.get());
+                qbs_for_list,
+                M2,
+                dis_tables.get(),
+                lut_entries.data(),
+                LUT.get());
 
         // access the inverted list
 
@@ -1094,7 +1106,13 @@ void IndexIVFFastScan::search_implem_12(
         handler.id_map = ids.get();
 
         pq4_accumulate_loop_qbs(
-                qbs, list_size, M2, codes.get(), LUT.get(), handler, scaler);
+                qbs_for_list,
+                list_size,
+                M2,
+                codes.get(),
+                LUT.get(),
+                handler,
+                scaler);
         // prepare for next loop
         i0 = i1;
     }
@@ -1232,11 +1250,11 @@ void IndexIVFFastScan::search_implem_14(
                 is_max, impl, n, k, local_dis.data(), local_idx.data(), sel));
         handler->begin(normalizers.get());
 
-        int qbs2 = this->qbs2 ? this->qbs2 : 11;
+        int actual_qbs2 = this->qbs2 ? this->qbs2 : 11;
 
         std::vector<uint16_t> tmp_bias;
         if (biases.get()) {
-            tmp_bias.resize(qbs2);
+            tmp_bias.resize(actual_qbs2);
             handler->dbias = tmp_bias.data();
         }
 
@@ -1256,7 +1274,7 @@ void IndexIVFFastScan::search_implem_14(
             std::vector<int> q_map(nc), lut_entries(nc);
             AlignedTable<uint8_t> LUT(nc * dim12);
             memset(LUT.get(), -1, nc * dim12);
-            int qbs = pq4_preferred_qbs(nc);
+            int qbs_for_list = pq4_preferred_qbs(nc);
 
             for (size_t i = i0; i < i1; i++) {
                 const QC& qc = qcs[i];
@@ -1269,7 +1287,11 @@ void IndexIVFFastScan::search_implem_14(
                 }
             }
             pq4_pack_LUT_qbs_q_map(
-                    qbs, M2, dis_tables.get(), lut_entries.data(), LUT.get());
+                    qbs_for_list,
+                    M2,
+                    dis_tables.get(),
+                    lut_entries.data(),
+                    LUT.get());
 
             // access the inverted list
 
@@ -1285,7 +1307,7 @@ void IndexIVFFastScan::search_implem_14(
             handler->id_map = ids.get();
 
             pq4_accumulate_loop_qbs(
-                    qbs,
+                    qbs_for_list,
                     list_size,
                     M2,
                     codes.get(),
@@ -1340,34 +1362,30 @@ void IndexIVFFastScan::reconstruct_from_offset(
         int64_t offset,
         float* recons) const {
     // unpack codes
+    size_t coarse_size = coarse_code_size();
+    std::vector<uint8_t> code(coarse_size + code_size, 0);
+    encode_listno(list_no, code.data());
     InvertedLists::ScopedCodes list_codes(invlists, list_no);
-    std::vector<uint8_t> code(code_size, 0);
-    BitstringWriter bsw(code.data(), code_size);
+    BitstringWriter bsw(code.data() + coarse_size, code_size);
+
     for (size_t m = 0; m < M; m++) {
         uint8_t c =
                 pq4_get_packed_element(list_codes.get(), bbs, M2, offset, m);
         bsw.write(c, nbits);
     }
-    sa_decode(1, code.data(), recons);
 
-    // add centroid to it
-    if (by_residual) {
-        std::vector<float> centroid(d);
-        quantizer->reconstruct(list_no, centroid.data());
-        for (int i = 0; i < d; ++i) {
-            recons[i] += centroid[i];
-        }
-    }
+    sa_decode(1, code.data(), recons);
 }
 
 void IndexIVFFastScan::reconstruct_orig_invlists() {
     FAISS_THROW_IF_NOT(orig_invlists != nullptr);
     FAISS_THROW_IF_NOT(orig_invlists->list_size(0) == 0);
 
-    for (size_t list_no = 0; list_no < nlist; list_no++) {
+#pragma omp parallel for if (nlist > 100)
+    for (idx_t list_no = 0; list_no < nlist; list_no++) {
         InvertedLists::ScopedCodes codes(invlists, list_no);
         InvertedLists::ScopedIds ids(invlists, list_no);
-        size_t list_size = orig_invlists->list_size(list_no);
+        size_t list_size = invlists->list_size(list_no);
         std::vector<uint8_t> code(code_size, 0);
 
         for (size_t offset = 0; offset < list_size; offset++) {
@@ -1383,6 +1401,30 @@ void IndexIVFFastScan::reconstruct_orig_invlists() {
             idx_t id = ids.get()[offset];
 
             orig_invlists->add_entry(list_no, id, code.data());
+        }
+    }
+}
+
+void IndexIVFFastScan::sa_decode(idx_t n, const uint8_t* codes, float* x)
+        const {
+    size_t coarse_size = coarse_code_size();
+
+#pragma omp parallel if (n > 1)
+    {
+        std::vector<float> residual(d);
+
+#pragma omp for
+        for (idx_t i = 0; i < n; i++) {
+            const uint8_t* code = codes + i * (code_size + coarse_size);
+            int64_t list_no = decode_listno(code);
+            float* xi = x + i * d;
+            fine_quantizer->decode(code + coarse_size, xi, 1);
+            if (by_residual) {
+                quantizer->reconstruct(list_no, residual.data());
+                for (size_t j = 0; j < d; j++) {
+                    xi[j] += residual[j];
+                }
+            }
         }
     }
 }

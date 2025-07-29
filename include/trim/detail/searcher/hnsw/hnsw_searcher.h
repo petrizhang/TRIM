@@ -72,6 +72,8 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
   bool _enable_profile{false};
   bool _enable_batch_dco{true};
   mutable float _pruning_ratio{0.0f};
+  mutable float _actual_distance_computation{0.0f};
+  mutable float _total_distance_computation{0.0f};
 
   U_FORBID_COPY_AND_ASSIGN(HNSWSearcher);
 
@@ -91,11 +93,14 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
     _offset_data = _hnsw->offsetData_;
     _offset_level0 = _hnsw->offsetLevel0_;
     _pruning_ratio = 0.0f;
+    _actual_distance_computation = 0.0f;
+    _total_distance_computation = 0.0f;
 
     Proxy::template bind<INTEGER_TYPE>("ef", &This::set_ef);
     Proxy::template bind<BOOL_TYPE>("enable_profile", &This::set_enable_profile);
     Proxy::template bind<BOOL_TYPE>("enable_batch_dco", &This::set_enable_batch_dco);
     Proxy::template bind<DOUBLE_TYPE>("gamma", &This::set_gamma);
+
   }
 
   ~HNSWSearcher() override = default;
@@ -138,7 +143,13 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
   
   float get_pruning_ratio() const override { return _pruning_ratio; }
   
+  float get_actual_distance_computation() const override { return _actual_distance_computation; }
+
+  float get_total_distance_computation() const override { return _total_distance_computation; }
+  
   void clear_pruning_ratio() const override { _pruning_ratio = 0.0; }
+
+  void clear_num_distance_computation() const override { _actual_distance_computation = 0.0; _total_distance_computation = 0.0; }
 
   void set_ef(size_t ef) { _ef = ef; }
 
@@ -189,6 +200,7 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
     if (index.cur_element_count.load() == 0) return;
 
     _dco.set_query((dist_t*)query_data);
+
     dist_t seed_dist = std::numeric_limits<dist_t>::max();
     tableint seed = _init_search_seed(query_data, &seed_dist);
 
@@ -196,8 +208,14 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
                         HnswlibIndex::CompareByFirst>
         top_candidates;
 
-    if (_enable_batch_dco)
-      top_candidates = _ann_search_level0_batch8(seed, seed_dist, k, std::max(_ef, k));
+    if (_enable_batch_dco){
+      // the query algorithm for tHNSW without pRLB or random landmarks
+      if(_dco.get_gamma() == 0.0 || _dco.get_random_landmark_size() > 0)
+        top_candidates = _ann_search_level0_batch8_Gamma0(seed, seed_dist, k, std::max(_ef, k));
+      else{
+        top_candidates = _ann_search_level0_batch8(seed, seed_dist, k, std::max(_ef, k));
+      }
+    }
     else 
       top_candidates = _ann_search_level0(seed, seed_dist, k, std::max(_ef, k));
 
@@ -336,6 +354,9 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
       }
     }
 
+
+    _actual_distance_computation += actual_data_access_count;
+    _total_distance_computation += total_data_access_count;
     _pruning_ratio += (1 - actual_data_access_count/total_data_access_count);
     _visited_list_pool->releaseVisitedList(vl);
 
@@ -473,7 +494,6 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
           // if (UNLIKELY(result_queue.size() < result_set_size)) {
 
             actual_data_access_count++;
-
             dist_t dist = _dco.compute(neighbor_id);
             dist_t lowerbound = _dco.relaxed_lowerbound(neighbor_id);
 
@@ -510,9 +530,237 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
       }
     }
 
+    _actual_distance_computation += actual_data_access_count;
+    _total_distance_computation += total_data_access_count;
     _pruning_ratio += (1 - actual_data_access_count/total_data_access_count);
     _visited_list_pool->releaseVisitedList(vl);
     return result_queue;
+  }
+
+  // Peform ANN search over the bottom layer with gamma = 0 or radom landmarks (using the original hnsw search algorithm)
+  ResultQueue _ann_search_level0_batch8_Gamma0(tableint seed, dist_t seed_dist,
+                                                          size_t result_set_size,
+                                                          size_t ef) const {
+    VisitedList* vl = _visited_list_pool->getFreeVisitedList();
+    vl_type* visited = vl->mass;
+    vl_type visited_array_tag = vl->curV;
+
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidateSet;
+
+    // Init search
+    dist_t max_dist = seed_dist;
+    top_candidates.emplace(max_dist, seed);
+    candidateSet.emplace(-max_dist, seed);
+    visited[seed] = visited_array_tag;
+
+    int n_batched = 0;
+    float total_data_access_count = 1.0;
+    float actual_data_access_count = 1.0;
+
+    while (!candidateSet.empty()) {
+        std::pair<dist_t, tableint> curr_el_pair = candidateSet.top();
+        if ((-curr_el_pair.first) > max_dist && top_candidates.size() == ef) {
+            break;
+        }
+        candidateSet.pop();
+
+        tableint curNodeNum = curr_el_pair.second;
+
+        int *data = (int*)get_linklist0(curNodeNum);
+        size_t size = get_list_count((linklistsizeint*)data);
+        tableint *datal = (tableint *) (data + 1);
+
+#ifdef USE_SSE
+        _mm_prefetch((char *) (visited + *(data + 1)), _MM_HINT_T0);
+        _mm_prefetch((char *) (visited + *(data + 1) + 64), _MM_HINT_T0);
+        // _mm_prefetch(getDataByInternalId(*datal), _MM_HINT_T0);
+        // _mm_prefetch(getDataByInternalId(*(datal + 1)), _MM_HINT_T0);
+#endif
+
+        for (size_t j = 0; j < size; j++) {
+            tableint candidate_id = *(datal + j);
+#ifdef USE_SSE
+            _mm_prefetch((char *) (visited + *(datal + j + 1)), _MM_HINT_T0);
+            // _mm_prefetch(getDataByInternalId(*(datal + j + 1)), _MM_HINT_T0);
+#endif
+            if (visited[candidate_id] == visited_array_tag) continue;
+
+            total_data_access_count++;
+            visited[candidate_id] = visited_array_tag;
+
+            dist_t lowerbound = _dco.relaxed_lowerbound(candidate_id);
+            if (lowerbound < max_dist || UNLIKELY(top_candidates.size() < ef)) {
+              
+              actual_data_access_count++;
+              
+              dist_t dist1 = _dco.compute(candidate_id);
+              candidateSet.emplace(-dist1, candidate_id);
+              top_candidates.emplace(dist1, candidate_id);
+#ifdef USE_SSE
+              prefetch_l1(_data_level0_memory + candidateSet.top().second * _size_data_per_element + _offset_level0);   
+#endif
+              if (top_candidates.size() > ef)
+                  top_candidates.pop();
+
+              if (!top_candidates.empty())
+                  max_dist = top_candidates.top().first;   
+            }
+          }
+        }
+        
+       
+    _actual_distance_computation += actual_data_access_count;
+    _total_distance_computation += total_data_access_count;
+    _pruning_ratio += (1 - actual_data_access_count/total_data_access_count);        
+    _visited_list_pool->releaseVisitedList(vl);
+
+    return top_candidates;
+
+
+    // VisitedList* vl = _visited_list_pool->getFreeVisitedList();
+    // vl_type* visited = vl->mass;
+    // vl_type visited_array_tag = vl->curV;
+
+    // std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> cand_queue;
+    // std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> search_queue;
+
+    // // Init search
+    // dist_t max_cand_dist = seed_dist;
+    // cand_queue.emplace(max_cand_dist, seed);
+    // search_queue.emplace(-max_cand_dist, seed);
+    // visited[seed] = visited_array_tag;
+
+    // Id8 batched_nodes;
+    // Dist8 lowerbounds;
+    // int n_batched = 0;
+    // float total_data_access_count = 1.0;
+    // float actual_data_access_count = 1.0;
+
+    // auto push_cand_queue = [&](dist_t lowerbound, idx_t node_id) {
+
+    //   actual_data_access_count++;
+      
+    //   dist_t dist = _dco.compute(node_id);
+    //   cand_queue.emplace(dist, node_id);
+    //   search_queue.emplace(-dist, node_id);
+
+    //   prefetch_l1(_data_level0_memory + cand_queue.top().second * _size_data_per_element + _offset_level0); 
+
+    //   while (cand_queue.size() > ef) cand_queue.pop();
+    //   if (!cand_queue.empty()) max_cand_dist = cand_queue.top().first;
+
+    // };
+
+    // auto process_remaining_batched_nodes = [&]() {
+    //   for (int i = 0; i < n_batched; i++) {
+    //     dist_t lowerbound = _dco.relaxed_lowerbound(batched_nodes[i]);
+    //     if (lowerbound < max_cand_dist || UNLIKELY(cand_queue.size() < ef)) {
+    //       push_cand_queue(lowerbound, batched_nodes[i]);
+    //     }
+    //   }
+    // };
+
+    // // Unbounded beam search
+    // while (true) {
+      
+    //   if (UNLIKELY(search_queue.empty())) {
+    //     // No more nodes to visit.
+    //     if (n_batched == 0) {
+    //       // No batched nodes left; exit the loop.
+    //       break;
+    //     }
+
+    //     // Process remaining batched nodes.
+    //     process_remaining_batched_nodes();
+    //     n_batched = 0;
+    //     continue;
+    //   }
+
+    //   std::pair<dist_t, tableint> current_node_pair = search_queue.top();
+    //   dist_t current_dist = -current_node_pair.first;
+    //   search_queue.pop();
+
+    //   if (UNLIKELY(current_dist > max_cand_dist) && cand_queue.size() == ef) {
+    //     // No more nodes to visit.
+    //     if (n_batched == 0) {
+    //       // No batched nodes left; exit the loop.
+    //       break;
+    //     }
+
+    //     // Process remaining batched nodes.
+    //     process_remaining_batched_nodes();
+    //     n_batched = 0;
+    //     continue;
+    //   }
+
+    //   tableint current_node_id = current_node_pair.second;
+    //   int* neighbors = (int*) get_linklist0(current_node_id);
+    //   size_t size = get_list_count((linklistsizeint*)neighbors);
+
+    //   // Prefetch visited array
+    //   prefetch_l1((char*)(visited + *(neighbors + 1)));
+    //   prefetch_l1((char*)(visited + *(neighbors + 1) + 64));
+    //   // Prefetch the second neighbor
+    //   prefetch_l1((char*)(neighbors + 2));
+
+    //   for (size_t j = 1; j <= size; j++) {
+    //     // Prefetch visited array of the next neighbor
+    //     prefetch_l1((char*)(visited + *(neighbors + j + 1)));
+
+    //     tableint neighbor_id = *(neighbors + j);
+
+    //     if (!(visited[neighbor_id] == visited_array_tag)) {
+
+    //       total_data_access_count++;
+
+    //       // Prefetch data for the first four batched neighbors
+    //       if (n_batched > 0 && n_batched <= 5) {
+    //         _dco.prefetch(batched_nodes[n_batched - 1]);
+    //       }
+
+    //       visited[neighbor_id] = visited_array_tag;
+
+    //       if (UNLIKELY(cand_queue.size() < ef)) {
+
+    //         actual_data_access_count++;
+
+    //         dist_t dist = _dco.compute(neighbor_id);
+
+    //         cand_queue.emplace(dist, neighbor_id);
+    //         search_queue.emplace(-dist, neighbor_id);
+
+    //         // Prefetch neighbor list of the top object in candidate queue
+    //         prefetch_l1(_data_level0_memory + cand_queue.top().second * _size_data_per_element + _offset_level0);
+            
+    //         if (!cand_queue.empty()) max_cand_dist = cand_queue.top().first;
+
+    //       } else {
+    //         if (n_batched == 8) {
+              
+    //           _dco.relaxed_lowerbound8(batched_nodes, lowerbounds);
+
+    //           for (int i = 0; i < 8; i++) {
+    //             if (lowerbounds[i] < max_cand_dist || UNLIKELY(cand_queue.size() < ef)) {
+    //               push_cand_queue(lowerbounds[i], batched_nodes[i]);
+    //             }
+    //           }
+
+    //           n_batched = 0;
+    //         }
+
+    //         batched_nodes[n_batched] = neighbor_id;
+    //         n_batched += 1;
+    //       }
+    //     }
+    //   }
+    // }
+
+    // _actual_distance_computation += actual_data_access_count;
+    // _total_distance_computation += total_data_access_count;
+    // _pruning_ratio += (1 - actual_data_access_count/total_data_access_count);
+    // _visited_list_pool->releaseVisitedList(vl);
+    // return cand_queue;
   }
 
   /// Range search implementation
@@ -529,8 +777,12 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
                         HnswlibIndex::CompareByFirst>
         top_candidates;
 
-    if (_enable_batch_dco)
-      top_candidates = _range_search_level0_batch8(seed, seed_dist, dist, _ef);
+    if (_enable_batch_dco){
+      if(_dco.get_gamma() == 0.0)
+        top_candidates = _range_search_level0_batch8_Gamma0(seed, seed_dist, dist, _ef);
+      else
+        top_candidates = _range_search_level0_batch8(seed, seed_dist, dist, _ef);
+    }
     else 
       top_candidates = _range_search_level0(seed, seed_dist, dist, _ef);
 
@@ -659,6 +911,8 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
       }
     }
 
+    _actual_distance_computation += actual_data_access_count;
+    _total_distance_computation += total_data_access_count;
     _pruning_ratio += (1 - actual_data_access_count/total_data_access_count);
     _visited_list_pool->releaseVisitedList(vl);
 
@@ -826,11 +1080,104 @@ struct HNSWSearcher : SetterProxy<HNSWSearcher<TDco>>, ISearcher {
       }
     }
 
+    _actual_distance_computation += actual_data_access_count;
+    _total_distance_computation += total_data_access_count;
     _pruning_ratio += (1 - actual_data_access_count/total_data_access_count);
     _visited_list_pool->releaseVisitedList(vl);
     return result_queue;
   }
   
+  // Peform Rang search over the bottom layer with amma = 0 (using the original hnsw search algorithm)
+  ResultQueue _range_search_level0_batch8_Gamma0(tableint seed, dist_t seed_dist, dist_t dist, size_t ef) const {
+    
+    dist_t dist2 = dist * dist;
+
+    VisitedList* vl = _visited_list_pool->getFreeVisitedList();
+    vl_type* visited = vl->mass;
+    vl_type visited_array_tag = vl->curV;
+
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> result_queue;
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
+    std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidateSet;
+
+    // Init search
+    dist_t max_dist = seed_dist;
+    if(seed_dist <= dist2) result_queue.emplace(max_dist, seed);
+    top_candidates.emplace(max_dist, seed);
+    candidateSet.emplace(-max_dist, seed);
+    visited[seed] = visited_array_tag;
+
+    int n_batched = 0;
+    float total_data_access_count = 1.0;
+    float actual_data_access_count = 1.0;
+
+    while (!candidateSet.empty()) {
+    std::pair<dist_t, tableint> curr_el_pair = candidateSet.top();
+    if ((-curr_el_pair.first) > max_dist && top_candidates.size() == ef) {
+    break;
+    }
+    candidateSet.pop();
+
+    tableint curNodeNum = curr_el_pair.second;
+
+    int *data = (int*)get_linklist0(curNodeNum);
+    size_t size = get_list_count((linklistsizeint*)data);
+    tableint *datal = (tableint *) (data + 1);
+
+    #ifdef USE_SSE
+    _mm_prefetch((char *) (visited + *(data + 1)), _MM_HINT_T0);
+    _mm_prefetch((char *) (visited + *(data + 1) + 64), _MM_HINT_T0);
+    // _mm_prefetch(getDataByInternalId(*datal), _MM_HINT_T0);
+    // _mm_prefetch(getDataByInternalId(*(datal + 1)), _MM_HINT_T0);
+    #endif
+
+    for (size_t j = 0; j < size; j++) {
+      
+        tableint candidate_id = *(datal + j);
+
+        #ifdef USE_SSE
+       _mm_prefetch((char *) (visited + *(datal + j + 1)), _MM_HINT_T0);
+        // _mm_prefetch(getDataByInternalId(*(datal + j + 1)), _MM_HINT_T0);
+        #endif
+
+        if (visited[candidate_id] == visited_array_tag) continue;
+
+        total_data_access_count++;
+        visited[candidate_id] = visited_array_tag;
+
+        dist_t lowerbound = _dco.relaxed_lowerbound(candidate_id);
+
+        if (lowerbound <= dist2 || lowerbound < max_dist || UNLIKELY(top_candidates.size() < ef)) {
+
+          actual_data_access_count++;
+
+          dist_t dist1 = _dco.compute(candidate_id);
+          if(lowerbound <= dist2) 
+            result_queue.emplace(dist1, candidate_id);     
+          candidateSet.emplace(-dist1, candidate_id);
+          top_candidates.emplace(dist1, candidate_id);
+          
+          #ifdef USE_SSE
+          prefetch_l1(_data_level0_memory + candidateSet.top().second * _size_data_per_element + _offset_level0);   
+          #endif
+
+          if (top_candidates.size() > ef)
+            top_candidates.pop();
+
+          if (!top_candidates.empty())
+            max_dist = top_candidates.top().first;   
+        }
+      }
+    }
+
+    _actual_distance_computation += actual_data_access_count;
+    _total_distance_computation += total_data_access_count;
+    _pruning_ratio += (1 - actual_data_access_count/total_data_access_count);        
+    _visited_list_pool->releaseVisitedList(vl);
+
+    return result_queue;
+  }
+
   linklistsizeint* get_linklist0(tableint internal_id) const {
     return (linklistsizeint*)(_data_level0_memory + internal_id * _size_data_per_element +
                               _offset_level0);

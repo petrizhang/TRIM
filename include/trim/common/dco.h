@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 
@@ -29,9 +30,13 @@ namespace trim {
 struct Bool8 {
   int32_t mask{0};
 
+  explicit Bool8(bool value) : mask(value ? 0xFF : 0) {}
+
   explicit Bool8(int32_t value) : mask(value) {}
 
-  void reset() { mask = 0; }
+  void reset_true() { mask = 0; }
+
+  void reset_false() { mask = 0xFF; }
 
   bool get0() const { return (mask & (1 << 0)) != 0; }
   bool get1() const { return (mask & (1 << 1)) != 0; }
@@ -189,6 +194,10 @@ struct IDistanceComparisonOperator {
    * @return A dictionary containing profile information.
    */
   virtual Dict get_profile() const { return {}; }
+
+  virtual float get_gamma() const { return 0.0; }
+
+  virtual size_t get_random_landmark_size() const { return 0; }
 };
 
 using IDCO = IDistanceComparisonOperator<unsigned, float>;

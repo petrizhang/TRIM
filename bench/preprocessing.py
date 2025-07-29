@@ -14,7 +14,7 @@ def transform(source_path: str, target_path: str):
 
         print(f"Writing dataset to {target_path}")
         utils.write_hdf5_dataset(target_path,
-                                 {"train": train, "test": test, "neighbors": neighbors})
+                                 {"train": train, "test": test, "neighbors": neighbors, "ranges": [], "neighbors_001": [], "neighbors_01": []})
 
 
 def generate(target_path: str):

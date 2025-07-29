@@ -40,6 +40,43 @@ struct TrimIndexPQ {
   explicit TrimIndexPQ(std::unique_ptr<faiss::Index> owned_index, faiss::IndexPQ* index_pq)
       : owned_index(std::move(owned_index)), index_pq(index_pq) {}
 
+  /// Compute distances between data points and their PQ centroids.
+  void compute_pq_reconstruction_errors(IDCO* dco, ctpl::thread_pool& pool) {
+    T_THROW_IF_NOT(this->owned_index != nullptr && this->index_pq != nullptr);
+
+    size_t ntotal = this->index_pq->ntotal;
+    int batch_size = this->index_pq->ntotal / pool.size();
+    std::vector<std::future<void>> futures;
+    faiss::IndexPQ* faiss_index_pq = this->index_pq;
+
+    int end = this->index_pq->ntotal;
+    this->recons_errors.resize(ntotal);
+
+    float* out = this->recons_errors.data();
+    for (int task_start = 0, task_end = 0; task_end < end; task_start += batch_size) {
+      task_end = task_start + batch_size;
+      if (task_end > end) {
+        task_end = end;
+      }
+      auto future = pool.push([faiss_index_pq, dco, task_start, task_end, out](int task_id) {
+        auto dco_copy = dco->clone();
+        std::vector<float> recons(faiss_index_pq->d);
+        for (int j = task_start; j < task_end; j++) {
+          faiss_index_pq->reconstruct(j, recons.data());
+          dco_copy->set_query(recons.data());
+          float dist = dco_copy->compute(j);
+          out[j] = std::sqrt(dist);
+        }
+      });
+      futures.push_back(std::move(future));
+    }
+
+    for (auto& f : futures) {
+      f.get();
+    }
+
+    this->has_recons_errors = true;
+  }
 };
 
 }  // namespace detail

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -143,15 +143,16 @@ void quantize_LUT_and_bias(
         b = 0;
         for (int i = 0; i < M; i++) {
             mins[i] = tab_min(LUT + i * ksub, ksub);
-            float span = tab_max(LUT + i * ksub, ksub) - mins[i];
+            float span = tab_max(LUT + i * ksub, ksub) - mins[i]; // 子空间的最大范围
             max_span_LUT = std::max(max_span_LUT, span);
             max_span_dis += span;
             b += mins[i];
         }
+        // 全局的最大范围 255-uint8 65535-uint16
         a = std::min(255 / max_span_LUT, 65535 / max_span_dis);
 
         for (int i = 0; i < M; i++) {
-            round_tab(LUT + i * ksub, ksub, a, mins[i], LUTq + i * ksub);
+            round_tab(LUT + i * ksub, ksub, a, mins[i], LUTq + i * ksub); // (x - mins[i]) * a + 0.5
         }
         memset(LUTq + M * ksub, 0, ksub * (M2 - M));
     } else if (!lut_is_3d) {

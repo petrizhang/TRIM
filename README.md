@@ -1,31 +1,31 @@
-<h1 align="center">TRIM</h1>
+<h1 align="center">UNITY</h1>
 <h3 align="center">
 Header-Only Library for Faster Top-K and Range Similarity Search</br>
-  over <a href="https://github.com/nmslib/hnswlib">Hnswlib</a>
-and <a href="https://github.com/facebookresearch/faiss">Faiss</a> Indexes
+  over <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Hnswlib</a>
+and <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Faiss</a> Indexes
 </h3>
 <br/>
 
 ---
 
-- ✅ 2x faster similarity search than HNSWLIB and FAISS
+- ✅ Up to 10x faster similarity search than HNSWLIB and FAISS
 - ✅ Full-featured top-k and range search support for HNSW and IVFPQ
 - ✅ Transparent speedup without changing your existing index files
 - ✅ Header-only library with easy-to-use python bindings
 
 ## Try It Now
 
-### Build
-1. Ensure that there is a cxx17 compatible compiler (tested on gcc-10 and gcc-11) installed in your system.
-2. Install requied Python dependencies:
-  - python >= 3.8
-  - faiss = 1.9.0
-  - hnswlib = 0.8.0
-  - pybind11 >= 2.11.1
-3.  Build and install TRIM into your python environment:
+### Install
+Ensure that there is a cxx17 compatible compiler installed in your system, and execute:
 ```bash
-cd python
-python3 setup.py install
+pip install unitylib
+```
+
+### 10x Search Performance with 3 Lines of Code
+```python
+python -c """import unitylib
+searcher = unitylib.create_fast_searcher("hnswlib", unitylib.sample_hnsw_path, unitylib.sample_pq_path)
+print(searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10))"""
 ```
 
 ## Acknowledgements

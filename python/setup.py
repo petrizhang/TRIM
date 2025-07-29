@@ -25,6 +25,8 @@ else:
     source_files = ['./python/bindings.cc']
     include_dirs.extend(['./include'])
 
+# libraries = ['hdf5_cpp', 'hdf5']
+# library_dirs = ['/home/yitong/miniconda3/envs/yitong/lib']
 libraries = []
 extra_objects = []
 
@@ -69,7 +71,7 @@ class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
         # 'unix': "-O3 -march=native -Wno-sign-compare -Wno-unknown-pragmas".split()
-        'unix': "-O3 -march=native -mno-avx512f -Wno-sign-compare -Wno-unknown-pragmas".split()
+        'unix': "-O3 -march=native -Wno-sign-compare -Wno-unknown-pragmas".split()
     }
 
     link_opts = {

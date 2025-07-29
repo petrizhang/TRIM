@@ -1,7 +1,6 @@
-import faiss
 import numpy as np
 import utils
-
+import faiss
 
 def cos_similarity2(X, L, Q):
     X = np.array(X)
@@ -39,7 +38,7 @@ def cos_similarity(X, L, Q):
 
 
 # Load dataset
-dataPath = "../../tmp/Datasets/nytimes-256.hdf5"
+dataPath = "../../yitong/Datasets/nytimes-256.hdf5"
 indexPath = "./tmp/index/nytimes_pq8x32.bin"
 sample_size = 1000  # Number of samples to take
 
