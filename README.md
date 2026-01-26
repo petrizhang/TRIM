@@ -1,36 +1,67 @@
-<h1 align="center">UNITY</h1>
+<h1 align="center">TRIM</h1>
 <h3 align="center">
 Header-Only Library for Faster Top-K and Range Similarity Search</br>
-  over <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Hnswlib</a>
-and <a href="https://github.com/petrizhang/UNITY/edit/main/README.md">Faiss</a> Indexes
+  over <b>Hnswlib</b>
+and <b>Faiss</b> Indexes
 </h3>
 <br/>
 
 ---
 
-- ✅ Up to 10x faster similarity search than HNSWLIB and FAISS
+- ✅ Up to 3x faster similarity search than HNSWLIB and FAISS
 - ✅ Full-featured top-k and range search support for HNSW and IVFPQ
-- ✅ Transparent speedup without changing your existing index files
 - ✅ Header-only library with easy-to-use python bindings
 
 ## Try It Now
 
-### Install
-Ensure that there is a cxx17 compatible compiler installed in your system, and execute:
+### 1. Environment Requirements 
 ```bash
-pip install unitylib
+sudo apt install build-essential cmake libopenblas-dev liblapack-dev libhdf5-dev
+pip install numpy pandas scipy h5py faiss-cpu hnswlib pybind11
 ```
+---
 
-### 10x Search Performance with 3 Lines of Code
-```python
-python -c """import unitylib
-searcher = unitylib.create_fast_searcher("hnswlib", unitylib.sample_hnsw_path, unitylib.sample_pq_path)
-print(searcher.ann_search([0.1, 0.2, 0.3, ... ], k=10))"""
+## 2. Build & Install
+### build
+```bash
+git clone https://github.com/petrizhang/TRIM.git
+cd TRIM
+mkdir build
+cd build
+cmake ..
+make -j
 ```
+---
+### install
+```bash
+cd python
+python setup.py build_ext --inplace
+python setup.py install
+```
+---
 
-## Acknowledgements
+### 3. Running Experiments
 
-We learned a lot from the following projects when building UNITY.
+```bash
+cd bench
+mkdir -p ./tmp/index
+mkdir -p ./results
+```
+#### tHNSW
+```bash
+# eg. GIST
+python3 bench.py -qt ann -k 10 -nq 1000 -d "/storage/vector_data/gist-960.hdf5" -m trim -b "hnswlib_index_path:\"./tmp/index/gist_hnswlib16x500.bin\";M:16;efConstruction:500;pq_index_path:\"./tmp/index/gist_pq8x120.bin\";pq_m:120;pq_nbits:8;dco:\"trim\"" -s "enable_batch_dco:[true];gamma:[0.67];ef:[10,30,50,70,90,150,300,400,600,800,1000]" -si "./tmp/index/gist_thnsw16x500_pq8x120.empty" -sr "./results/QPSDCRecall_GIST_tHNSW_KNN_k10.csv"
+```
+#### tIVFPQ
+```bash
+# eg.GIST
+python3 bench.py -qt ann -k 10 -nq 1000 -d "/storage/vector_data/gist-960.hdf5" -m tIVFPQ -b 'ivfpq_index_path:"./tmp/index/gist_ivfpq4096x30.bin";C:4096;m:30;nbits:8' -s 'trim_opened:[true];gamma:[0.62];k_factor:[0.0];nprobe:[40,60,80,100,150,200,250,300,400,500,600]' -si "./tmp/index/gist_ivfpq4096x30.bin" -sr "./results/QPSDCRecall_GIST_tIVFPQ_KNN_k10.csv"
+```
+---
+
+### Acknowledgements
+
+We learned a lot from the following projects when building TRIM.
 - [faiss](https://github.com/facebookresearch/faiss)
 - [hnswlib](https://github.com/nmslib/hnswlib)
 - [glass](https://github.com/zilliztech/pyglass)
