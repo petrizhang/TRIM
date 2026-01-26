@@ -21,8 +21,8 @@ pip install numpy pandas scipy h5py faiss-cpu hnswlib pybind11
 ```
 ---
 
-## 2. Build & Install
-### build
+### 2. Build & Install
+#### build
 ```bash
 git clone https://github.com/petrizhang/TRIM.git
 cd TRIM
@@ -32,7 +32,7 @@ cmake ..
 make -j
 ```
 ---
-### install
+#### install
 ```bash
 cd python
 python setup.py build_ext --inplace
