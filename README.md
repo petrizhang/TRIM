@@ -27,6 +27,9 @@ for fast Top-K and Range Search on <b>HNSW</b> and <b>IVF/PQ</b> indexes
   year={2025},
   publisher={ACM New York, NY, USA}
 }
+```
+
+---
 
 ## Overview
 
