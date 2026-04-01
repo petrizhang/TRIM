@@ -1,4 +1,4 @@
-<h1 align="center">TRIM: Accelerating High-Dimensional Vector Similarity Search<br/>
+<h1 align="center">TRIM: Accelerating High-Dimensional Vector Search<br/>
 via Enhanced Triangle-Inequality-Based Pruning</h1>
 
 <p align="center">
