@@ -81,10 +81,13 @@ python setup.py install
 
 ### 3. Running Experiments
 ```bash
-# 3.1 Prepare directories
+# Prepare directories
 cd bench
 mkdir -p ./tmp/index
 mkdir -p ./results
+
+# Download dataset from Hugging Face:
+https://huggingface.co/datasets/songyitong/TRIM_Datasets
 
 # Running (e.g., tHNSW and tIVFPQ)
 # tHNSW
