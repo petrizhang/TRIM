@@ -56,7 +56,6 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
   faiss::AlignedTable<dist_t> dist_table;
 
   /* Indexes */
-  /// OPQ transformation matrix
   const faiss::IndexPQ* faiss_index_pq{nullptr};
   const hnswlib::HierarchicalNSW<float>* hnsw{nullptr};
 
@@ -117,10 +116,8 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
       for (int i = 0; i < total_data_size; i++) {
         for (int l = 0; l < _random_landmark_size; l++) {
           if (i == _random_landmarks[l]) {
-            // std::cout << "reapted:"<< i << std::endl;
             xl_distances[i * _random_landmark_size + l] = 0;
           } else {
-            // std::cout << "processing: ("<< i << ", " << _random_landmarks[l] << ")" << std::endl;
             xl_distances[i * _random_landmark_size + l] =
                 sqrt(dist_func(hnsw->getDataByInternalId(i),
                                hnsw->getDataByInternalId(_random_landmarks[l]), dist_func_param));
@@ -185,13 +182,9 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
       dist_t max_lowerbound = -1.0f;
       for (int l = 0; l < _random_landmark_size; l++) {
         dist_t a = sqrt(dist_table_data[l]);
-        // std::cout << "a:" << a << std::endl;
         dist_t b = recons_errors[i * _random_landmark_size + l];
-        // std::cout << "b:" << b << std::endl;
         dist_t vec_lowerbound = (a - b) * (a - b) + 2 * gamma * a * b;
-        // std::cout << "vec_lowerbound:" << vec_lowerbound << std::endl;
         max_lowerbound = std::max(max_lowerbound, vec_lowerbound);
-        // std::cout << "max_lowerbound:" << max_lowerbound << std::endl;
       }
       return max_lowerbound;
     } else {
@@ -398,34 +391,6 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
     __m256 lowerbounds = _mm256_add_ps(vec_diff_squared, vec_2gamma_ab);
     return lowerbounds;
 
-    // float fvec_L2sqr(const float* x, idx_t id) const {
-
-    //   size_t d = this->d;
-    //   const float* y = hnsw->getDataByInternalId(id);
-
-    //   __m256 sum = _mm256_setzero_ps();
-    //   size_t i;
-
-    //   for (i = 0; i < d - 7; i += 8) {
-    //       __m256 x_vec = _mm256_loadu_ps(x + i);
-    //       __m256 y_vec = _mm256_loadu_ps(y + i);
-    //       __m256 diff = _mm256_sub_ps(x_vec, y_vec);
-    //       __m256 sq = _mm256_mul_ps(diff, diff);
-    //       sum = _mm256_add_ps(sum, sq);
-    //   }
-
-    //   float res[8];
-    //   _mm256_storeu_ps(res, sum);
-    //   float result = res[0] + res[1] + res[2] + res[3] + res[4] + res[5] + res[6] + res[7];
-
-    //   for (; i < d; i++) {
-    //       const float tmp = x[i] - y[i];
-    //       result += tmp * tmp;
-    //   }
-
-    //   return result;
-
-    // }
   }
 #else
   void _relaxed_lowerbound8(const Id8& ids, Dist8& dists) const {
@@ -459,19 +424,6 @@ struct TrimDCO final : SetterProxy<TrimDCO<PQDecoderType, enable_profile>>, IDCO
   void _dist_comp8(dist_t max_dist, const Id8& ids, Dist8& dists) const {
     Parent::dist_comp8(max_dist, ids, dists);
   }
-
-  // float fvec_L2sqr(const float* x, idx_t id) const {
-  //   const float* y = hnsw->getDataByInternalId(id);
-
-  //   size_t i;
-  //   float res = 0;
-  //   for (i = 0; i < this->d; i++) {
-  //       const float tmp = x[i] - y[i];
-  //       res += tmp * tmp;
-  //   }
-
-  //   return res;
-  // }
 
 #endif
 };

@@ -48,39 +48,10 @@ def parse_index_config(config_string):
         config_dict[name] = parse_json_value(value_str)
     return config_dict
 
-# def find_nearest_neighbors(q, dataset, k):
-#     """
-#     找到与查询向量 q 距离最近的 k 个数据的 ID 和其距离。
-    
-#     参数:
-#     - q: 查询向量，形状为 (d,) 的一维数组。
-#     - dataset: 包含数据集的对象，dataset.base 是形状为 (n, d) 的二维数组。
-#     - k: 返回最近的 k 个数据。
-    
-#     返回:
-#     - nearest_ids: 最近的 k 个数据的 ID，形状为 (k,) 的一维数组。
-#     - nearest_dists: 最近的 k 个数据的距离，形状为 (k,) 的一维数组。
-#     """
-#     # 计算查询向量与数据集中每个向量的距离
-#     dists = np.array([distance.euclidean(q, d) for d in dataset.base])
-    
-#     # 获取距离最小的 k 个索引
-#     nearest_ids = np.argsort(dists)[:k]
-    
-#     # 获取对应的 k 个距离
-#     nearest_dists = dists[nearest_ids]
-
-#     # print("find_nearest_neighbors:")
-#     # print(f"nearest_ids:{nearest_ids}")
-#     # print(f"nearest_dists:{nearest_dists}")
-    
-#     return nearest_ids, nearest_dists
-
 runtime = 3
 def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args: dict) -> List[dict]:
     line = dict(**search_args)
     alg.set_query_arguments(**search_args)
-    # print(f'max_threads:{faiss.omp_get_max_threads()}')
     if nq < 0 or nq > dataset.query.shape[0]:
         nq = dataset.query.shape[0]
     duration_ms = 0
@@ -95,24 +66,11 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
         gt = dataset.groundtruth[i, :k]
 
         start = time.time()
-        # for t in range(runtime):
         knn = alg.ann_query(q, k)
         end = time.time()
 
-        # duration_ms += ((end-start) / runtime * 1000)
         duration_ms += ((end-start) * 1000)
         gt_set = set(gt)
-        # print("My answer:", set(knn))
-        # print("My answer distance:")
-        # for n in knn:
-        #     dist = distance.euclidean(q, dataset.base[n])
-        #     print(f"Distance to index {n}: {dist}")
-        # print("Groundthruth:", gt_set)
-        # print("GT Distance:")
-        # for g in gt:
-        #     dist = distance.euclidean(q, dataset.base[g])
-        #     print(f"Distance to index {g}: {dist}")
-
         total += len(gt_set)
         hit += len(gt_set & set(knn))
     recall = hit / total
@@ -123,8 +81,6 @@ def bench_epoch_ann(alg: BaseANN, dataset: DataSet, k: int, nq: int, search_args
     line["pruning_ratio"] = alg.get_pruning_ratio() / nq
     line["actual_distance_computation"] = alg.get_actual_distance_computation() / nq
     line["total_distance_computation"] = alg.get_total_distance_computation() / nq
-    # print(f"nprobe:{alg.ivfpq_fs.nprobe}")
-    # print(f"k_factor:{alg.ivfpq_fs.k_factor}")
     print(line)
     return line
 
@@ -143,7 +99,6 @@ def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search
         if i % 100 == 0:
             print(f"Running query {i}...")
         
-        # i=8
         q = dataset.query[i]
         if se == 0.01:
             gt = dataset.groundtruth_001[i]
@@ -154,18 +109,12 @@ def bench_epoch_range(alg: BaseANN, dataset: DataSet, se: float, nq: int, search
         else :
             raise ValueError("Invalid value for 'se'. It must be either 0.001 or 0.01.")
 
-        # if i==730:
-        #     print(f"radius: {radius}")
-        #     print(f"gt: {gt}")
-        #     print(f"43482 distance: {distance.euclidean(q, dataset.base[43482])}")
-
         start = time.time()
         result = alg.range_query(q, radius)
         end = time.time()
 
         duration_ms += ((end-start) * 1000)
         gt_set = set(gt)
-        # print("Groundthruth:", gt_set)
         total += len(gt_set)
         hit += len(gt_set & set(result))
     recall = hit / total
@@ -268,22 +217,6 @@ def main():
     parser.add_argument("-sr", "--save_result_path",
                         required=True, help="Path to save the results")
     args = parser.parse_args()
-
-    # Only for debug
-    # args = Args(dataset="./tmp/data/sift-128-euclidean.hdf5", method="top_hnsw",
-    #             k=10,
-    #             num_query=1000,
-    #             build_args="M:16;efConstruction:500",
-    #             search_args="use_bounded_queue:[false];ef:[10,20,30,40,50,60,70,80,90,100,200,400,800]",
-    #             save_index_path="./tmp/index/sift_hnswlib16x500.bin",
-    #             save_result_path="./tmp/results/sift_tophnsw16x500.csv")
-    # args = Args(dataset="./tmp/data/sift-128-euclidean.hdf5", method="hnsw",
-    #             k=10,
-    #             num_query=1000,
-    #             build_args="M:16;efConstruction:500",
-    #             search_args="ef:[10,20,30,40,50,60,70,80,90,100,200,400,800]",
-    #             save_index_path="./tmp/index/sift_hnswlib16x500.bin",
-    #             save_result_path="./tmp/results/sift_hnsw16x500.csv")
 
     # Parse build and search arguments
     build_args = parse_index_config(args.build_args)

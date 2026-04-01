@@ -42,7 +42,6 @@ struct IVFPQFastScanSearcher : SetterProxy<IVFPQFastScanSearcher>, ISearcher {
 
   // Index
   std::unique_ptr<faiss::tIVFPQfs> _ivfpqfs{nullptr};
-  // faiss::tIVFPQfs* _ivfpqfs{nullptr};
 
   // data
   const float* _data{nullptr};
@@ -55,7 +54,6 @@ struct IVFPQFastScanSearcher : SetterProxy<IVFPQFastScanSearcher>, ISearcher {
 
   explicit IVFPQFastScanSearcher(const char* index_path) : Proxy("IVFPQFastScanSearcher") {
     _ivfpqfs = std::make_unique<faiss::tIVFPQfs>(index_path);
-    // _ivfpqfs = new faiss::tIVFPQfs(index_path);
     _pruning_ratio = 0.0f;
     _actual_distance_computation = 0.0f;
     _total_distance_computation = 0.0f;
@@ -111,15 +109,10 @@ struct IVFPQFastScanSearcher : SetterProxy<IVFPQFastScanSearcher>, ISearcher {
   }
 
   void ann_search(const float* q, int k, int* dst) const override {
-    // omp_set_num_threads(1);
-    // std::cout << "gamma:" << _ivfpqfs->gamma << std::endl;
-    // std::cout << "nprobe:" << _ivfpqfs->nprobe << std::endl;
     
     std::vector<int64_t> ids(k);
     std::vector<float> distances(k);
-    // std::cout << "start query" << std::endl;
     _ivfpqfs->search(1, q, k, distances.data(), ids.data());
-    // std::cout << "end query" << std::endl;
 
     for (int i = 0; i < k; ++i) {
       dst[i] = static_cast<int>(ids[i]);

@@ -29,9 +29,6 @@ struct tIVFPQ: IndexIVFPQ{
         if (h == fourcc("IvPQ") || h == fourcc("IvQR") || h == fourcc("IwPQ") || h == fourcc("IwQR")) {
             bool legacy = h == fourcc("IvQR") || h == fourcc("IvPQ");
 
-            // IndexIVFPQR* ivfpqr = h == fourcc("IvQR") || h == fourcc("IwQR") ? new IndexIVFPQR() : nullptr;
-            // IndexIVFPQ* ivpq = ivfpqr ? ivfpqr : new IndexIVFPQ();
-            
             std::vector<std::vector<idx_t>> ids;
             trim_read_ivf_header(this, f, legacy ? &ids : nullptr);
             READ1(by_residual);
@@ -63,7 +60,6 @@ struct tIVFPQ: IndexIVFPQ{
         }else throw std::invalid_argument("Wrong index type");
         
         this->metric_type = METRIC_L2;
-        // this->parallel_mode = PARALLEL_MODE_NO_HEAP_INIT;
         recons_errors.resize(ntotal, 0.0);
     }
  
@@ -78,8 +74,6 @@ struct tIVFPQ: IndexIVFPQ{
         if (i < 0 || i >= ntotal) {
             throw std::out_of_range("Vector index out of range: " + std::to_string(i));
         }
-        // float* vec = new float[ivfpq->d];
-        // std::memcpy(vec, data + i * ivfpq->d, ivfpq->d * sizeof(float));
 
         return data + i * d;
     }

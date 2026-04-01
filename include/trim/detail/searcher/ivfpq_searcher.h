@@ -114,7 +114,6 @@ namespace detail {
         
             FAISS_THROW_IF_NOT(k > 0);
     
-            // const int D = _ivfpq->d;
             faiss::SearchParametersIVF params;
             params.nprobe = _nprobe;
             int can_size = std::max(k, (int)(k *_k_factor));
@@ -141,11 +140,9 @@ namespace detail {
                 
             }
     
-            // std::cout<< "My answer:" << std::endl;
             int i = results_queue.size();
             while(!results_queue.empty()){
                 idx_t id = results_queue.top().second;
-                // std::cout<< "id:" << id << ", dist: " << results_queue.top().first << std::endl;
                 dst[i - 1] = id;
                 results_queue.pop();
                 i--;
@@ -165,7 +162,6 @@ namespace detail {
         
             FAISS_THROW_IF_NOT(k > 0);
 
-            // const int D = _ivfpq->d;
             const int code_size = _ivfpq->code_size;
             size_t M = _ivfpq->pq.M;
             size_t ksub = _ivfpq->pq.ksub;
@@ -179,11 +175,6 @@ namespace detail {
             // Use the quantizer to find the nprobe nearest centroids to the query
             _ivfpq->quantizer->search(1, q, _nprobe, coarse_dists.get(), coarse_ids.get());
             _ivfpq->invlists->prefetch_lists(coarse_ids.get(), _nprobe);
-
-            // // Iterate over each selected list (centroid)
-            // std::unique_ptr<faiss::InvertedListScanner> scanner(_ivfpq->get_InvertedListScanner(false, nullptr));
-            // // Compute the distance table
-            // scanner->set_query(q);
 
             // Compute inner_prod_table
             float* sim_table = new float[M * ksub];
@@ -307,12 +298,10 @@ namespace detail {
         
             FAISS_THROW_IF_NOT(k > 0);
 
-            // const int D = _ivfpq->d;
             const int code_size = _ivfpq->code_size;
             size_t M = _ivfpq->pq.M;
             size_t ksub = _ivfpq->pq.ksub;
             size_t nbits = _ivfpq->pq.nbits;
-            // int ef = (int) k * _k_factor;
 
             // Allocate temporary memory for distances and indices
             std::unique_ptr<idx_t[]> coarse_ids(new idx_t[_nprobe]);
@@ -414,8 +403,6 @@ namespace detail {
 
         void range_search(const float* q, float radius, std::vector<int> &result) const override {
             
-            // omp_set_num_threads(1);
-            
             if(_trim_opened)
                 _range_search_with_trim8_2(q, radius, result);
             else
@@ -426,7 +413,6 @@ namespace detail {
         
             FAISS_THROW_IF_NOT(radius >= 0);
     
-            // const int D = _ivfpq->d;
             faiss::SearchParametersIVF params;
             params.nprobe = _nprobe;
 
@@ -449,78 +435,10 @@ namespace detail {
             _pruning_ratio += 0.0;
         }
 
-        // void _range_search_with_trim(const float* q, float radius, std::vector<int> &result) const{
-        
-        //     FAISS_THROW_IF_NOT(radius >= 0);
-
-        //     // const int D = _ivfpq->d;
-        //     const int code_size = _ivfpq->code_size;
-
-        //     // Allocate temporary memory for distances and indices
-        //     std::unique_ptr<idx_t[]> coarse_ids(new idx_t[_nprobe]);
-        //     std::unique_ptr<float[]> coarse_dists(new float[_nprobe]);
-
-        //     // Use the quantizer to find the nprobe nearest centroids to the query
-        //     _ivfpq->quantizer->search(1, q, _nprobe, coarse_dists.get(), coarse_ids.get());
-        //     _ivfpq->invlists->prefetch_lists(coarse_ids.get(), _nprobe);
-
-        //     // Iterate over each selected list (centroid)
-        //     std::unique_ptr<faiss::InvertedListScanner> scanner(_ivfpq->get_InvertedListScanner(false, nullptr));
-        //     // Compute the distance table
-        //     scanner->set_query(q);
-            
-        //     int total_access_count = 0;
-        //     std::vector<int> top_candidates;
-        //     float radius2 = radius * radius;
-        //     for (idx_t list_no = 0; list_no < _nprobe; list_no++) {
-                
-        //         size_t list_size = _ivfpq->invlists->list_size(coarse_ids[list_no]);
-                
-        //         if (list_size == 0) {
-        //             continue;
-        //         }
-
-        //         total_access_count += list_size;
-        //         scanner->set_list(coarse_ids[list_no], coarse_dists[list_no]);
-
-        //         const uint8_t* codes = dynamic_cast<faiss::ArrayInvertedLists*>(_ivfpq->invlists)->get_codes(coarse_ids[list_no]);
-        //         const idx_t* ids = dynamic_cast<faiss::ArrayInvertedLists*>(_ivfpq->invlists)->get_ids(coarse_ids[list_no]);
-
-        //         for (size_t i = 0; i < list_size; i++) {
-        //             idx_t id = ids[i];
-        //             const uint8_t* code = codes + i * code_size;
-
-        //             float dist_lq = std::sqrt(scanner->distance_to_code(code));
-        //             float dist_lx = _ivfpq->recons_errors[id];
-        //             float lowerbound = relaxed_lowerbound(dist_lq, dist_lx);
-
-        //             if(lowerbound <= radius2){
-        //                top_candidates.push_back(id);
-        //             }
-        //         }
-        //     }  
-            
-        //     int actual_access_count = top_candidates.size();
-        //     for(size_t i=0; i<top_candidates.size(); i++){
-        //         faiss::idx_t id = top_candidates[i];
-        //         float dist = _ivfpq->fvec_L2sqr(q, id);
-
-        //         if(dist <= radius2){
-        //             result.push_back(id);
-        //         }  
-        //     }
-            
-        //     _actual_distance_computation += actual_access_count;
-        //     _total_distance_computation += total_access_count;
-        //     _pruning_ratio += (1- 1.0*actual_access_count/total_access_count);
-             
-        // }
-
         void _range_search_with_trim8(const float* q, float radius, std::vector<int> &result) const{
         
             FAISS_THROW_IF_NOT(radius >= 0);
 
-            // const int D = _ivfpq->d;
             const int code_size = _ivfpq->code_size;
             size_t M = _ivfpq->pq.M;
             size_t ksub = _ivfpq->pq.ksub;
@@ -632,9 +550,6 @@ namespace detail {
             float* sim_table = new float[M * ksub];
             float* sim_table_2 = new float[M * ksub];
             _ivfpq->pq.compute_inner_prod_table(q, sim_table_2);
-
-            // std::unique_ptr<faiss::InvertedListScanner> scanner(_ivfpq->get_InvertedListScanner(false, nullptr));
-            // scanner->set_query(q);
             
             int total_access_count = 0;
             std::vector<int> top_candidates;
@@ -649,8 +564,6 @@ namespace detail {
                 }
 
                 total_access_count += list_size;
-
-                // scanner->set_list(coarse_ids[list_no], coarse_dists[list_no]);
 
                 // Calculate the distance table
                 float dis0 = coarse_dists[list_no];
@@ -681,13 +594,6 @@ namespace detail {
                             if (dists[j] <= radius2) {
                                 top_candidates.push_back(batch_ids[j]);
                             }
-                            // if(batch_ids[j] == 907264){
-                            //     float dist_lq = std::sqrt(scanner->distance_to_code(batch_codes + j * code_size));
-                            //     float dist_lx = _ivfpq->recons_errors[batch_ids[j]];
-                            //     float lowerbound = relaxed_lowerbound(dist_lq, dist_lx);
-                            //     std::cout << "Real Dist:" << _ivfpq->fvec_L2sqr(q, batch_ids[j]) << ", radius2:" << radius2 << std::endl;
-                            //     std::cout << "My LB:" << dists[j] << ", Real LB:" << lowerbound << std::endl;
-                            // }
                         }
                     } else {
                         for (size_t j = 0; j < batch_size; ++j) {

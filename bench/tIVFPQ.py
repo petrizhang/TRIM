@@ -42,15 +42,12 @@ class Algorithm(BaseANN):
         assert self.searcher is not None
         self.searcher.set("nprobe", nprobe)
         self.searcher.set("gamma", gamma)
-        # self.searcher.set("ef", ef)
         self.searcher.set("k_factor", k_factor)
         self.searcher.set("trim_opened", trim_opened)
         self.searcher.clear_pruning_ratio()
         self.searcher.clear_num_distance_computation()
 
     def ann_query(self, v, n):
-        # print(np.expand_dims(v,axis=0).shape)
-        # print(self.p.knn_query(np.expand_dims(v,axis=0), k = n)[0])
         return self.searcher.ann_search(np.expand_dims(v, axis=0), k=n)
     
     def range_query(self, v, r):

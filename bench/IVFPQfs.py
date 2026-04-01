@@ -28,15 +28,9 @@ class Algorithm(BaseANN):
             nbits = self.method_param.get("nbits", 4)
             
             index_string = f"IVF{nlist},PQ{self.m}x{nbits}fs,RFlat"
-            # index_string = f"IVF{nlist},PQ{self.m}x{nbits}fs,Refine(PQ{self.dim}x8)"
             self.ivfpq_fs = faiss.index_factory(self.dim, index_string, faiss.METRIC_L2)
             self.ivfpq_fs.train(X)
             self.ivfpq_fs.add(X)
-
-            # quantizer = faiss.IndexFlatL2(self.dim)
-            # self.ivfpq_fs = faiss.IndexIVFPQFastScan(quantizer, self.dim, nlist, self.m, nbits)
-            # self.ivfpq_fs.train(X)
-            # self.ivfpq_fs.add(X)
                 
 
     def set_query_arguments(self, nprobe, k_factor):
@@ -46,9 +40,6 @@ class Algorithm(BaseANN):
         self.ivfpq_fs.k_factor = k_factor
         self.k_factor = k_factor
 
-        # self.ivfpq_fs.nprobe = nprobe
-        # self.k_factor = k_factor
-
 
 
     def ann_query(self, v, n):
@@ -56,38 +47,9 @@ class Algorithm(BaseANN):
         self.k = n
 
         D, I = self.ivfpq_fs.search(np.expand_dims(v,axis=0), n)
-        # print("My Answer Distance: ")
-        # D_sqrt = np.sqrt(D[0])
-        # print(D_sqrt)
         return I[0]
 
-        # # 1. 搜索近似结果（得到候选）
-        # q = np.expand_dims(v,axis=0)
-        # D, I = self.ivfpq_fs.search(q, self.k * self.k_factor)
-        # # print("My Answer Candidate Distances: ")
-        # # D_sqrt = np.sqrt(D[0][:10])
-        # # print(D_sqrt)
-        # # 2. 提取候选向量
-        # candidate_ids = I[0]
-        # candidate_vecs = self.X[candidate_ids]  # shape: (nq, k*k_factor, d)
-        # # 3. 精排（用 IndexFlat）
-        # index_refine = faiss.IndexFlatL2(self.dim)
-        # index_refine.add(candidate_vecs)
-        # D_refine, I_refine = index_refine.search(q, self.k)
-        # refined_ids = candidate_ids[I_refine[0]]
-        # # print("My Answer Distance: ")
-        # # D_sqrt = np.sqrt(D_refine[0][:10])
-        # # print(D_sqrt)
-        # return refined_ids
-
-
-    
-    # def range_query(self, v, r):
-    #     return self.searcher.range_search(np.expand_dims(v, axis=0), radius=r)
-    
-    # def get_M(self):
-    #     return self.m
-
+       
     def get_pruning_ratio(self):
         return 0
     

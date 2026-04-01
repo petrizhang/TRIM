@@ -203,33 +203,19 @@ landmarks = index_pq.pq.decode(sampled_codes)
 sampled_data = data[sample_indices]
 query = query[:1000]
 
-# if len(query) < sample_size:
-#     num_to_fill = sample_size - len(query)
-#     fill_indices = np.random.choice(len(query), size=num_to_fill, replace=True)
-#     fill_data = query[fill_indices]
-#     sampled_query = np.concatenate((query, fill_data))
-# else:
-#     sampled_query = query[:sample_size]
 
 print(f"Sampled_data shape: {sampled_data.shape}")
 print(f"Landmarks shape: {landmarks.shape}")
 print(f"Query shape: {query.shape}")
 
 # Prepare p values
-# p_values = [0.5,0.6,0.7,0.8,0.9,0.9999]
 p_values = [0.91,0.93,0.95,0.97,0.999]
-# p_values = [0.8,0.85,0.9,0.92,0.94,0.96,0.98,0.9999]
-# p_values = [0.99]
         
-# if "nytimes" in dataPath:
-#     gammas = compute_gamma_for_Gauss(p_values, sampled_data, landmarks)
-# else:
-#     gammas = compute_gamma_for_others(p_values, sampled_data, landmarks, query)
-
-# gammas = compute_gamma_for_Gauss(p_values, sampled_data, landmarks)
-gammas = compute_gamma_for_others(p_values, sampled_data, landmarks, query)
+if "nytimes" in dataPath:
+    gammas = compute_gamma_for_Gauss(p_values, sampled_data, landmarks)
+else:
+    gammas = compute_gamma_for_others(p_values, sampled_data, landmarks, query)
 
 for i in range(len(p_values)):
     print(f"gamma for p={p_values[i]}: {gammas[i]}")
 
-# validate(0.8, sampled_data, landmarks, query)
