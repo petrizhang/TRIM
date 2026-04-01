@@ -31,6 +31,7 @@ Unlike prior distance estimation or dimension-reduction approaches, TRIM:
 - **Python bindings for rapid experimentation**
 - **SIMD-friendly pruning**
 - **Easy integration into existing ANN pipelines**
+- **Provides datasets for both top-k and range search evaluation**
 
 
 ---
